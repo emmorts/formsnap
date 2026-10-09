@@ -46,7 +46,6 @@ export default tseslint.config(
 			".svelte-kit/",
 			"dist/",
 			".svelte-kit/**/*",
-			"docs/.svelte-kit/**/*",
 			".svelte-kit",
 			"packages/formsnap/dist/**/*",
 			"packages/formsnap/.svelte-kit/**/*",

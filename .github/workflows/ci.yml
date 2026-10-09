@@ -4,53 +4,38 @@ on:
     push:
         branches:
             - main
-            - next
-        paths-ignore:
-            - ".changeset/**"
-            - README.md
-            - ".vscode/**"
-            - CHANGELOG.md
     pull_request:
-        paths-ignore:
-            - ".changeset/**"
-            - README.md
-            - ".vscode/**"
-            - CHANGELOG.md
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+    group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
+permissions:
+    contents: read
+
 jobs:
-    Check:
-        name: Run svelte-check
-        runs-on: macos-latest
+    verify:
+        name: Verify
+        runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v4
-            - uses: actions/setup-node@v4
+            - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
               with:
-                  node-version: 20
+                  node-version: 24
                   cache: pnpm
 
             - name: Install dependencies
-              run: pnpm install
+              run: pnpm install --frozen-lockfile
 
-            - name: Run svelte-check
-              run: pnpm check
+            - name: Lint
+              run: pnpm lint
 
-    Lint:
-        runs-on: macos-latest
-        name: Lint
-        steps:
-            - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: 20
-                  cache: pnpm
+            - name: Type-check
+              run: pnpm --filter @emmorts/formsnap run check
 
-            - name: Install dependencies
-              run: pnpm install
+            - name: Test
+              run: pnpm test:package
 
-            - run: pnpm lint
+            - name: Build the package
+              run: pnpm --filter @emmorts/formsnap run package
