@@ -2,8 +2,8 @@
 
 <!-- automd:badges license name="formsnap" color="blue" github="svecosystem/formsnap" -->
 
-[![npm version](https://flat.badgen.net/npm/v/formsnap?color=blue)](https://npmjs.com/package/formsnap)
-[![npm downloads](https://flat.badgen.net/npm/dm/formsnap?color=blue)](https://npmjs.com/package/formsnap)
+[![npm version](https://flat.badgen.net/npm/v/@emmorts%2Fformsnap?color=blue)](https://npmjs.com/package/@emmorts/formsnap)
+[![npm downloads](https://flat.badgen.net/npm/dm/@emmorts%2Fformsnap?color=blue)](https://npmjs.com/package/@emmorts/formsnap)
 [![license](https://flat.badgen.net/github/license/svecosystem/formsnap?color=blue)](https://github.com/svecosystem/formsnap/blob/main/LICENSE)
 
 <!-- /automd -->
@@ -15,7 +15,7 @@ The goal of this library is to make working with the already incredible [sveltek
 ## Installation
 
 ```bash
-npm i formsnap sveltekit-superforms <your-schema-library>
+npm i @emmorts/formsnap sveltekit-superforms <your-schema-library>
 ```
 
 ## Usage
@@ -56,7 +56,15 @@ export const load: PageServerLoad = async () => {
 
 ```svelte
 <script lang="ts">
-	import { Field, Label, FieldErrors, Control, Description, Fieldset, Legend } from "formsnap";
+	import {
+		Field,
+		Label,
+		FieldErrors,
+		Control,
+		Description,
+		Fieldset,
+		Legend,
+	} from "@emmorts/formsnap";
 	import { settingsFormSchema } from "./schemas";
 	import { superForm } from "sveltekit-superforms";
 	import { zodClient } from "sveltekit-superforms/adapters";
