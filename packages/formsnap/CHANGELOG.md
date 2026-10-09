@@ -1,5 +1,11 @@
 # formsnap
 
+## 2.1.1 (2026-10-09)
+
+No functional change. This release exists to exercise the release pipeline end to end: the tag
+`v2.1.1` is picked up by GitHub Actions, which type-checks, tests, builds and publishes the package
+over npm trusted publishing, then opens this GitHub release from this changelog section.
+
 ## 2.1.0
 
 Forked as `@emmorts/formsnap` from `svecosystem/formsnap` 2.0.1, which has been
