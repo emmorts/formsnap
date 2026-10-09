@@ -176,3 +176,15 @@ Join the Discord server to ask questions, find collaborators, or just say hi!
   <img alt="Svecosystem Discord community" src="https://invidget.switchblade.xyz/fdXy3Sk8Gq?theme=light">
 </picture>
 </a>
+
+## Releasing
+
+This repository publishes [`@emmorts/formsnap`](https://www.npmjs.com/package/@emmorts/formsnap) from
+GitHub Actions.
+
+1. Add a `## <version>` section to
+   [`packages/formsnap/CHANGELOG.md`](./packages/formsnap/CHANGELOG.md) describing the change.
+2. Run `npm run release -- <version>`. It checks the tree, the changelog and the tag, then bumps
+   `packages/formsnap/package.json`, commits, tags `v<version>` and pushes.
+3. CI type-checks, tests, builds and publishes the package, then opens a GitHub release whose notes
+   are that changelog section.

@@ -16,7 +16,8 @@
 		"lint:fix": "prettier --write . && eslint . --fix",
 		"format": "prettier --write .",
 		"check": "pnpm build:packages && pnpm -r check",
-		"sync": "pnpm -r sync"
+		"sync": "pnpm -r sync",
+		"release": "node scripts/release.mjs"
 	},
 	"license": "MIT",
 	"devDependencies": {
