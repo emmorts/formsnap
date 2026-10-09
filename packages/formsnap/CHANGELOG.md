@@ -1,5 +1,17 @@
 # formsnap
 
+## 2.1.0
+
+Forked as `@emmorts/formsnap` from `svecosystem/formsnap` 2.0.1, which has been
+unmaintained since 2025-04. Published from https://github.com/emmorts/formsnap.
+
+### Minor Changes
+
+- Support `sveltekit-superforms` 3, whose `FormPathLeaves<T>` is no longer
+  assignable to `FormPath<T>`. The internal generics are now constrained on the
+  union of the two; the public component props keep their narrower types.
+- Widened the `sveltekit-superforms` peer range to `^2.19.0 || ^3.0.0`.
+
 ## 2.0.1
 
 ### Patch Changes

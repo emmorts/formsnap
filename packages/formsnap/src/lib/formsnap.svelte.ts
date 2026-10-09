@@ -7,7 +7,12 @@ import {
 	useRefById,
 } from "svelte-toolbelt";
 import { fromStore } from "svelte/store";
-import type { FormPath, InputConstraint, InputConstraints } from "sveltekit-superforms";
+import type {
+	FormPath,
+	FormPathLeaves,
+	InputConstraint,
+	InputConstraints,
+} from "sveltekit-superforms";
 import type { FormPathArrays, TaintedFields, ValidationErrors } from "sveltekit-superforms/client";
 import { getContext, setContext } from "svelte";
 import { extractErrorArray } from "./internal/utils/errors.js";
@@ -29,17 +34,25 @@ import type {
 import type { FsSuperForm } from "./components/types.js";
 import { useId } from "./internal/utils/id.js";
 
+/**
+ * superforms 3 declares `FormPath<T>` and `FormPathLeaves<T>` as separate conditional string
+ * types, so a leaf path is no longer assignable to the wider `FormPath<T>` even though both
+ * describe the same runtime strings. The internal generics are constrained on the union of the
+ * two; the public component props keep using the narrower types they always had.
+ */
+type AnyFormPath<T extends Record<string, unknown>> = FormPath<T> | FormPathLeaves<T>;
+
 type SvelteBox<T> = {
 	current: T;
 };
 
-type FieldState<T extends Record<string, unknown>, U extends FormPath<T>> =
+type FieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> =
 	| FormFieldState<T, U>
 	| ElementFieldState<T, U>;
 
 type FormFieldStateProps<
 	T extends Record<string, unknown>,
-	U extends FormPath<T>,
+	U extends AnyFormPath<T>,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	M = any,
 > = ReadableBoxedValues<{
@@ -47,7 +60,7 @@ type FormFieldStateProps<
 	name: U;
 }>;
 
-class FormFieldState<T extends Record<string, unknown>, U extends FormPath<T>> {
+class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#name: FormFieldStateProps<T, U>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
 	#formConstraints: SvelteBox<InputConstraints<T>>;
@@ -110,7 +123,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends FormPath<T>> {
 
 type ElementFieldStateProps<
 	T extends Record<string, unknown>,
-	U extends FormPath<T>,
+	U extends AnyFormPath<T>,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	M = any,
 > = ReadableBoxedValues<{
@@ -118,7 +131,7 @@ type ElementFieldStateProps<
 	name: U;
 }>;
 
-class ElementFieldState<T extends Record<string, unknown>, U extends FormPath<T>> {
+class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#name: ElementFieldStateProps<T, U>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
 	#formConstraints: SvelteBox<InputConstraints<T>>;
@@ -202,7 +215,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends FormPath<T>
 
 type FieldErrorsStateProps = WithRefProps;
 
-class FieldErrorsState<T extends Record<string, unknown>, U extends FormPath<T>> {
+class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#ref: FieldErrorsStateProps["ref"];
 	#id: FieldErrorsStateProps["id"];
 	field: FieldState<T, U>;
@@ -382,13 +395,13 @@ class LegendState {
 const FORM_FIELD_CTX = Symbol.for("formsnap.form-field");
 const FORM_CONTROL_CTX = Symbol.for("formsnap.form-control");
 
-export function useField<T extends Record<string, unknown>, U extends FormPath<T>>(
+export function useField<T extends Record<string, unknown>, U extends AnyFormPath<T>>(
 	props: FormFieldStateProps<T, U>
 ) {
 	return setContext(FORM_FIELD_CTX, new FormFieldState(props));
 }
 
-export function useElementField<T extends Record<string, unknown>, U extends FormPath<T>>(
+export function useElementField<T extends Record<string, unknown>, U extends AnyFormPath<T>>(
 	props: ElementFieldStateProps<T, U>
 ) {
 	const formField = getField<T, U>();
@@ -397,14 +410,14 @@ export function useElementField<T extends Record<string, unknown>, U extends For
 
 export function getField<
 	T extends Record<string, unknown> = Record<string, unknown>,
-	U extends FormPath<T> = FormPath<T>,
+	U extends AnyFormPath<T> = FormPath<T>,
 >() {
 	return getContext<FieldState<T, U>>(FORM_FIELD_CTX);
 }
 
 export function useFieldErrors<
 	T extends Record<string, unknown> = Record<string, unknown>,
-	U extends FormPath<T> = FormPath<T>,
+	U extends AnyFormPath<T> = FormPath<T>,
 >(props: FieldErrorsStateProps) {
 	return new FieldErrorsState(props, getField<T, U>());
 }
@@ -447,7 +460,7 @@ export type UseFormFieldProps = {
 
 export function useFormField<
 	T extends Record<string, unknown> = Record<string, unknown>,
-	U extends FormPath<T> = FormPath<T>,
+	U extends AnyFormPath<T> = FormPath<T>,
 >(props: UseFormFieldProps) {
 	const fieldState = getContext<FieldState<T, U>>(FORM_FIELD_CTX);
 	const form = fieldState.form;
