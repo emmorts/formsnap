@@ -42,6 +42,15 @@ function fail(message) {
 	process.exit(1);
 }
 
+/** Flags map to option names, so `--repo-url` sets `repoUrl`. */
+const FLAGS = {
+	"--out": "out",
+	"--base": "base",
+	"--repo-url": "repoUrl",
+	"--ref": "ref",
+	"--renderer": "renderer",
+};
+
 function parseArguments(argv) {
 	const options = {
 		out: "_site",
@@ -50,14 +59,13 @@ function parseArguments(argv) {
 		ref: "main",
 		renderer: process.env.DOCS_RENDERER_DIR ?? path.join(ROOT, ".docs-tools"),
 	};
-	for (let index = 0; index < argv.length; index += 1) {
+	for (let index = 0; index < argv.length; index += 2) {
 		const flag = argv[index];
+		const key = FLAGS[flag];
+		if (!key) fail(`unknown option ${flag}`);
 		const value = argv[index + 1];
-		const key = flag.startsWith("--") ? flag.slice(2) : "";
-		if (!(key in options)) fail(`unknown option ${flag}`);
 		if (value === undefined) fail(`${flag} needs a value`);
 		options[key] = value;
-		index += 1;
 	}
 	options.out = path.resolve(ROOT, options.out);
 	if (!options.base.endsWith("/")) options.base += "/";
