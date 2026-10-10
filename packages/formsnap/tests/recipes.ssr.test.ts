@@ -547,19 +547,40 @@ describe("documented integration recipes", () => {
 		const document = parseDocument(await page.content());
 		expect(duplicateIds(document)).toEqual([]);
 		expect(danglingReferences(document)).toEqual([]);
-		for (const { name, live, message } of [
-			{ name: "username", live: "assertive", message: "Use at least three characters." },
-			{ name: "nickname", live: "polite", message: "Use at least two characters." },
-			{ name: "note", live: "off", message: "Enter a note." },
+		// An owned region is declared by its scope, so the server-rendered page already points at it.
+		// A standalone region registers when it mounts, which cannot happen without JavaScript: it
+		// renders its policy and its error while the control keeps its invalid state unassociated.
+		for (const { name, live, message, associated } of [
+			{
+				name: "username",
+				live: "assertive",
+				message: "Use at least three characters.",
+				associated: true,
+			},
+			{
+				name: "nickname",
+				live: "polite",
+				message: "Use at least two characters.",
+				associated: true,
+			},
+			{ name: "note", live: "off", message: "Enter a note.", associated: false },
 		] as const) {
 			const control = document.querySelector(`input[name="${name}"]`);
-			expect(control?.getAttribute("aria-invalid")).toBe("true");
-			// Which region reports which control is the rendering's answer, not the test's.
-			const container = (control?.getAttribute("aria-describedby") ?? "")
+			expect(control?.getAttribute("aria-invalid"), `${name} is invalid`).toBe("true");
+			const referenced = (control?.getAttribute("aria-describedby") ?? "")
 				.split(/\s+/)
 				.filter(Boolean)
 				.map((id) => document.getElementById(id))
-				.find((element) => element?.hasAttribute("data-fs-field-errors"));
+				.filter((element) => element?.hasAttribute("data-fs-field-errors"));
+			expect(referenced, `${name} references its error region`).toHaveLength(
+				associated ? 1 : 0
+			);
+			// The messages are distinct, so a region that carries one belongs to that field.
+			const container = associated
+				? referenced[0]
+				: [...document.querySelectorAll("[data-fs-field-errors]")].find((element) =>
+						element.textContent?.includes(message)
+					);
 			expect(container, `error container of ${name}`).toBeTruthy();
 			expect(container?.getAttribute("aria-live")).toBe(live);
 			expect(container?.textContent).toContain(message);
