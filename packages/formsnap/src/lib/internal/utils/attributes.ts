@@ -2,11 +2,11 @@
  * Parameters for the `getAriaDescribedBy` function.
  */
 type AriaDescribedByParams = {
-	/** The ID of the validation element for the field. */
-	fieldErrorsId: string | undefined;
+	/** The IDs of the error containers rendered inside the field, in document order. */
+	errorIds?: string[];
 
-	/** The ID of the description element for the field. */
-	descriptionId: string | undefined;
+	/** The IDs of the description elements rendered inside the field, in document order. */
+	descriptionIds?: string[];
 
 	/** The current validation errors for the field. */
 	errors: string[];
@@ -14,22 +14,18 @@ type AriaDescribedByParams = {
 
 /**
  * Retrieves the appropriate `aria-describedby` value for a form control
- * given the existence of a description and/or validation message.
+ * given the descriptions and error containers that are currently rendered.
+ *
+ * Error containers are only referenced while there are errors to announce, so a container that
+ * unmounts, or one that is never rendered, is never pointed at.
  */
 export function getAriaDescribedBy({
-	fieldErrorsId = undefined,
-	descriptionId = undefined,
+	errorIds = [],
+	descriptionIds = [],
 	errors,
 }: AriaDescribedByParams) {
-	let describedBy = "";
-
-	if (descriptionId) {
-		describedBy += `${descriptionId} `;
-	}
-	if (errors.length && fieldErrorsId) {
-		describedBy += fieldErrorsId;
-	}
-	return describedBy ? describedBy.trim() : undefined;
+	const describedBy = errors.length ? [...descriptionIds, ...errorIds] : descriptionIds;
+	return describedBy.length ? describedBy.join(" ") : undefined;
 }
 
 /**

@@ -58,6 +58,46 @@ type FormFieldStateProps<
 	name: U;
 }>;
 
+/**
+ * The description elements and error containers that are currently rendered inside one field.
+ *
+ * Every contributor registers the id it actually rendered and withdraws it when that element goes
+ * away, so one description unmounting cannot remove another's association, and a reference is never
+ * left pointing at an element that is no longer there.
+ */
+class AssociationIds {
+	#descriptionIds = $state<string[]>([]);
+	#errorIds = $state<string[]>([]);
+
+	/** Description elements, in document order. */
+	get descriptionIds() {
+		return this.#descriptionIds;
+	}
+
+	/** Error containers, in document order. */
+	get errorIds() {
+		return this.#errorIds;
+	}
+
+	addDescription(id: string) {
+		if (this.#descriptionIds.includes(id)) return;
+		this.#descriptionIds = [...this.#descriptionIds, id];
+	}
+
+	removeDescription(id: string) {
+		this.#descriptionIds = this.#descriptionIds.filter((existing) => existing !== id);
+	}
+
+	addErrors(id: string) {
+		if (this.#errorIds.includes(id)) return;
+		this.#errorIds = [...this.#errorIds, id];
+	}
+
+	removeErrors(id: string) {
+		this.#errorIds = this.#errorIds.filter((existing) => existing !== id);
+	}
+}
+
 class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#name: FormFieldStateProps<T, U>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
@@ -82,10 +122,27 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 				true
 			: false
 	);
-	errorNode = $state<HTMLElement | null>(null);
-	descriptionNode = $state<HTMLElement | null>(null);
-	errorId = $state<string>();
-	descriptionId = $state<string>();
+	/** Description elements and error containers currently rendered inside this field. */
+	associations = new AssociationIds();
+
+	/** The ids the control has to describe itself with, in document order. */
+	get descriptionIds() {
+		return this.associations.descriptionIds;
+	}
+
+	get errorIds() {
+		return this.associations.errorIds;
+	}
+
+	/** The first description, which is what a headless consumer points at. */
+	get descriptionId() {
+		return this.descriptionIds[0];
+	}
+
+	/** The first error container, which is what a headless consumer points at. */
+	get errorId() {
+		return this.errorIds[0];
+	}
 
 	constructor(props: FormFieldStateProps<T, U>) {
 		this.#name = props.name;
@@ -94,18 +151,6 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 		this.#formConstraints = fromStore(props.form.current.constraints);
 		this.#formTainted = fromStore(props.form.current.tainted);
 		this.#formData = fromStore(props.form.current.form);
-
-		$effect(() => {
-			if (this.errorNode && this.errorNode.id) {
-				this.errorId = this.errorNode.id;
-			}
-		});
-
-		$effect(() => {
-			if (this.descriptionNode && this.descriptionNode.id) {
-				this.descriptionId = this.descriptionNode.id;
-			}
-		});
 	}
 
 	snippetProps = $derived.by(
@@ -152,23 +197,38 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 			? getValueAtPath(this.#name.current, this.#formTainted.current) === true
 			: false
 	);
-	errorNode = $state<HTMLElement | null>(null);
-	descriptionNode = $state<HTMLElement | null>(null);
-	// fall back to the parent field's description node if one for
-	// this specific element doesn't exist.
-	derivedDescriptionNode = $derived.by(() => {
-		if (this.descriptionNode) return this.descriptionNode;
-		if (this.#field.descriptionNode) return this.#field.descriptionNode;
-		return null;
-	}) as HTMLElement | null;
+	/** Description elements and error containers rendered inside this element. */
+	associations = new AssociationIds();
 	value = $derived.by(() => {
 		return getValueAtPath(this.#name.current, this.#formData.current) as PrimitiveFromIndex<
 			T,
 			U
 		>;
 	});
-	errorId = $state<string>();
-	descriptionId = $state<string>();
+
+	/**
+	 * An element that renders a description of its own uses that one; otherwise it inherits the
+	 * descriptions of the field it belongs to.
+	 */
+	get descriptionIds(): string[] {
+		return this.associations.descriptionIds.length
+			? this.associations.descriptionIds
+			: this.#field.descriptionIds;
+	}
+
+	get errorIds(): string[] {
+		return this.associations.errorIds;
+	}
+
+	/** The first description, which is what a headless consumer points at. */
+	get descriptionId() {
+		return this.descriptionIds[0];
+	}
+
+	/** The first error container, which is what a headless consumer points at. */
+	get errorId() {
+		return this.errorIds[0];
+	}
 
 	constructor(props: ElementFieldStateProps<T, U>, field: FieldState<T, U>) {
 		this.#name = props.name;
@@ -178,24 +238,6 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 		this.#formTainted = fromStore(props.form.current.tainted);
 		this.#formData = fromStore(props.form.current.form);
 		this.#field = field;
-
-		useOnChange(
-			() => this.errorNode,
-			(v) => {
-				if (v && v.id) {
-					this.errorId = v.id;
-				}
-			}
-		);
-
-		useOnChange(
-			() => this.descriptionNode,
-			(v) => {
-				if (v && v.id) {
-					this.descriptionId = v.id;
-				}
-			}
-		);
 	}
 
 	snippetProps = $derived.by(
@@ -224,11 +266,16 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 		this.#id = props.id;
 		this.field = field;
 
+		/** The id this container contributed, so unmounting withdraws only its own registration. */
+		let registeredId: string | undefined;
+
 		useRefById({
 			id: this.#id,
 			ref: this.#ref,
 			onRefChange: (node) => {
-				this.field.errorNode = node;
+				if (registeredId) this.field.associations.removeErrors(registeredId);
+				registeredId = node?.id || undefined;
+				if (registeredId) this.field.associations.addErrors(registeredId);
 			},
 		});
 	}
@@ -269,11 +316,16 @@ class DescriptionState {
 		this.#id = props.id;
 		this.field = field;
 
+		/** The id this description contributed, so unmounting withdraws only its own registration. */
+		let registeredId: string | undefined;
+
 		useRefById({
 			id: this.#id,
 			ref: this.#ref,
 			onRefChange: (node) => {
-				this.field.descriptionNode = node;
+				if (registeredId) this.field.associations.removeDescription(registeredId);
+				registeredId = node?.id || undefined;
+				if (registeredId) this.field.associations.addDescription(registeredId);
 			},
 		});
 	}
@@ -295,28 +347,30 @@ type ControlStateProps = ReadableBoxedValues<{
 
 class ControlState {
 	#id: ControlStateProps["id"];
+	/** An id a headless consumer asked for; it wins until the consumer clears it. */
+	#override = $state<string | null>(null);
 	field: FieldState<Record<string, unknown>, string>;
 	/** Id used when the consumer spreads `labelProps` without rendering a `Label` to override it. */
 	labelId: ControlStateProps["id"];
-	id = $state("");
+
+	/**
+	 * The control's id. It is the id the component resolved, which a consumer-supplied id replaces
+	 * synchronously and which is therefore part of the first server-rendered markup, unless
+	 * `useFormControl` overrides it.
+	 */
+	get id(): string {
+		return this.#override ?? this.#id.current;
+	}
 
 	constructor(props: ControlStateProps, field: FieldState<Record<string, unknown>, string>) {
 		this.#id = props.id;
 		this.labelId = props.labelId;
 		this.field = field;
+	}
 
-		// A supplied id has to be part of the first server-rendered markup, and `useOnChange` only
-		// runs in an effect, which never runs on the server.
-		this.id = props.id.current;
-
-		useOnChange(
-			() => this.#id.current,
-			(v) => {
-				if (v) {
-					this.id = v;
-				}
-			}
-		);
+	/** Sets the id a headless consumer wants the control to use, or clears it to use the prop id. */
+	setId(id: string | null | undefined) {
+		this.#override = id ?? null;
 	}
 
 	props = $derived.by(
@@ -326,8 +380,8 @@ class ControlState {
 				name: this.field.name,
 				"data-fs-error": getDataFsError(this.field.errors),
 				"aria-describedby": getAriaDescribedBy({
-					fieldErrorsId: this.field.errorId,
-					descriptionId: this.field.descriptionId,
+					errorIds: this.field.errorIds,
+					descriptionIds: this.field.descriptionIds,
 					errors: this.field.errors,
 				}),
 				"aria-invalid": getAriaInvalid(this.field.errors),
@@ -474,21 +528,28 @@ export function useFormField<
 	const errorsId = $derived(props.errorsId ? props.errorsId() : undefined);
 	const descriptionId = $derived(props.descriptionId ? props.descriptionId() : undefined);
 
+	/** What this hook contributed, so a change withdraws the previous id and a null releases it. */
+	let contributedErrors: string | undefined;
+	let contributedDescription: string | undefined;
+
 	useOnChange(
 		() => errorsId,
 		(v) => {
-			if (v) {
-				fieldState.errorId = v;
-			}
+			if (contributedErrors) fieldState.associations.removeErrors(contributedErrors);
+			contributedErrors = v ?? undefined;
+			if (contributedErrors) fieldState.associations.addErrors(contributedErrors);
 		}
 	);
 
 	useOnChange(
 		() => descriptionId,
 		(v) => {
-			if (v) {
-				fieldState.descriptionId = v;
+			if (contributedDescription) {
+				fieldState.associations.removeDescription(contributedDescription);
 			}
+			contributedDescription = v ?? undefined;
+			if (contributedDescription)
+				fieldState.associations.addDescription(contributedDescription);
 		}
 	);
 
@@ -527,9 +588,7 @@ export function useFormControl(props: UseFormControlProps) {
 	useOnChange(
 		() => id,
 		(v) => {
-			if (v) {
-				controlState.id = v;
-			}
+			controlState.setId(v);
 		}
 	);
 
