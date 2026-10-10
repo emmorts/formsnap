@@ -2,6 +2,7 @@
 
 [![npm version](https://flat.badgen.net/npm/v/@emmorts%2Fformsnap?color=blue)](https://npmjs.com/package/@emmorts/formsnap)
 [![license](https://flat.badgen.net/github/license/emmorts/formsnap?color=blue)](./LICENSE)
+[![CI](https://github.com/emmorts/formsnap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/emmorts/formsnap/actions/workflows/ci.yml)
 
 Accessible, unstyled form components for SvelteKit and
 [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
@@ -11,6 +12,37 @@ validation, submission and form state.
 `@emmorts/formsnap` is a fork of [svecosystem/formsnap](https://github.com/svecosystem/formsnap),
 created because the original repository has not been maintained since April 2025.
 This fork continues maintenance and adds Superforms 3 support.
+
+## Installation
+
+```bash
+npm install @emmorts/formsnap sveltekit-superforms zod
+```
+
+For the current source:
+
+| Dependency | Supported versions    |
+| ---------- | --------------------- |
+| Svelte     | `^5.30.2`             |
+| Superforms | `^2.19.0 \|\| ^3.0.0` |
+
+Superforms 3.0.0 requires Svelte `^5.56.4`. Other schema libraries work through Superforms adapters.
+Check the selected package release's peer dependencies when upgrading.
+
+## Usage
+
+Import components from the scoped package:
+
+```ts
+import { Control, Field, Label } from "@emmorts/formsnap";
+```
+
+Follow the [SvelteKit quickstart](./packages/formsnap/README.md#usage) for the schema, server
+load/action and form component. If migrating from upstream, replace `formsnap` in imports with
+`@emmorts/formsnap`.
+
+Components: `Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset`
+and `Legend`. Headless hooks support custom controls. Style components with `data-fs-*` attributes.
 
 ## Changes in this fork
 
@@ -29,38 +61,39 @@ On `main`, not yet released:
 
 See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 
-## Installation
-
-```bash
-npm i @emmorts/formsnap sveltekit-superforms zod
-```
-
-Requires Svelte `^5.30.2` and Superforms `^2.19.0 || ^3.0.0`.
-Superforms 3.0.0 requires Svelte `^5.56.4`. Other schema libraries work through Superforms adapters.
-
-## Usage and docs
-
-Start with the [quickstart](./packages/formsnap/README.md). Use `@emmorts/formsnap` in imports
-instead of `formsnap`.
+## Documentation
 
 - [Fork documentation](https://emmorts.github.io/formsnap/): setup, APIs added by this fork and recipes.
 - [Upstream API reference](https://formsnap.dev): the original component API.
 - [Recipe source](./packages/formsnap/src/routes): complete SvelteKit examples exercised by browser tests.
 
-Components: `Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset`
-and `Legend`. Headless hooks support custom controls. Style components with `data-fs-*` attributes.
+## Support
 
 Report fork bugs on [emmorts/formsnap](https://github.com/emmorts/formsnap/issues).
 Report Superforms bugs on [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms/issues).
+
+## Contributing
+
+Open an issue with reproduction steps or submit a pull request with a regression test for a bug fix.
+CI uses Node.js 24 and pnpm 9.14.4. From the repository root:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
+pnpm lint
+pnpm --filter @emmorts/formsnap run check
+pnpm test:package
+pnpm --filter @emmorts/formsnap run package
+```
+
+### Releases (maintainers)
+
+1. Add a version section to [the changelog](./packages/formsnap/CHANGELOG.md).
+2. Run `npm run release -- <version>` to check, bump, commit, tag and push.
+3. GitHub Actions verifies and publishes `@emmorts/formsnap`, then creates release notes from that section.
 
 ## License and credits
 
 [MIT](./LICENSE). Original library by [@huntabyte](https://github.com/huntabyte) and
 [contributors](https://github.com/svecosystem/formsnap/graphs/contributors).
 [Support the original author](https://github.com/sponsors/huntabyte).
-
-## Releasing
-
-1. Add a version section to [the changelog](./packages/formsnap/CHANGELOG.md).
-2. Run `npm run release -- <version>` to check, bump, commit, tag and push.
-3. GitHub Actions verifies and publishes `@emmorts/formsnap`, then creates release notes from that section.
