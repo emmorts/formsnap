@@ -151,11 +151,14 @@ identical. The fixture's
 confirmation from Superforms' stores:
 
 ```svelte
-const form = superForm(untrack(() => data.form), { resetForm: false });
-const { form: formData, enhance, message, submitting } = form;
-```
+<script lang="ts">
+	const form = superForm(
+		untrack(() => data.form),
+		{ resetForm: false }
+	);
+	const { form: formData, enhance, message, submitting } = form;
+</script>
 
-```svelte
 <form method="POST" use:enhance>
 	<!-- The Field/Control markup is the same as the JavaScript-disabled example -->
 	<button type="submit" disabled={$submitting}>
@@ -253,22 +256,34 @@ is the code that runs. The sources live under [`src/routes`](./src/routes), and 
 to `$formData` so that store stays the source of truth:
 
 ```svelte
-const form = superForm(untrack(() => data.form), { dataType: "json", resetForm: false });
+<script lang="ts">
+	const form = superForm(
+		untrack(() => data.form),
+		{ dataType: "json", resetForm: false }
+	);
+</script>
 
 <Field {form} name="profile.name">
-	{#snippet children({ props })}
-		<input {...props} bind:value={$formData.profile.name} />
-	{/snippet}
+	<Control>
+		{#snippet children({ props })}
+			<Label>Profile name</Label>
+			<input {...props} bind:value={$formData.profile.name} />
+		{/snippet}
+	</Control>
 </Field>
-```
 
-```svelte
 <ElementField {form} name={`contacts[${index}].email` as `contacts[${number}].email`}>
-	{#snippet children({ props })}
-		<input {...props} bind:value={$formData.contacts[index].email} />
-	{/snippet}
+	<Control>
+		{#snippet children({ props })}
+			<Label>Contact {index + 1}</Label>
+			<input {...props} bind:value={$formData.contacts[index].email} />
+		{/snippet}
+	</Control>
 </ElementField>
 ```
+
+`Field` and `ElementField` provide the field context and the snippet values; the control attributes
+come from the `Control` inside them, exactly as in the quickstart.
 
 Nesting needs the enhanced submission above. A native POST without JavaScript sends the repeated HTML
 names, which cannot express a nested path, so use [`/arrays`](#primitive-arrays-with-stable-row-identity)
@@ -286,9 +301,12 @@ when taint changes, so object identity is not a stable key:
 	<Legend>Website URLs</Legend>
 	{#each $formData.urls as _, index (ids[index])}
 		<ElementField {form} name={`urls[${index}]` as `urls[${number}]`}>
-			{#snippet children({ props })}
-				<input {...props} bind:value={$formData.urls[index]} />
-			{/snippet}
+			<Control>
+				{#snippet children({ props })}
+					<Label>URL {index + 1}</Label>
+					<input {...props} bind:value={$formData.urls[index]} />
+				{/snippet}
+			</Control>
 		</ElementField>
 	{/each}
 </Fieldset>
@@ -374,7 +392,7 @@ wants the node does not need to query the document for the ID.
 
 The same page builds its range control with the headless hooks instead of the `Control` snippet props:
 
-```svelte
+```ts
 // rating-control.svelte
 const control = useFormControl({});
 ```

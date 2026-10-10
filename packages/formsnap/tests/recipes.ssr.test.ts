@@ -173,11 +173,11 @@ describe("documented integration recipes", () => {
 			page.getByRole("button", { name: "Save handle" }).click(),
 		]);
 		expect(response.status()).toBe(200);
-		await page.waitForFunction(
-			() =>
-				document.querySelector<HTMLInputElement>('input[name="handle"]')
-					?.validationMessage === "This handle is reserved."
-		);
+		await expect
+			.poll(() => handle.evaluate((element: HTMLInputElement) => element.validationMessage), {
+				timeout: 10000,
+			})
+			.toBe("This handle is reserved.");
 		expect(
 			await invite.evaluate((element: HTMLInputElement) => element.validationMessage)
 		).toBe("");
@@ -216,9 +216,8 @@ describe("documented integration recipes", () => {
 		]);
 		expect(accepted?.status()).toBe(200);
 		expect(accepted?.request().headers()["content-type"]).toContain("multipart/form-data");
-		const body = accepted?.request().postData() ?? "";
-		expect(body).toContain('name="attachment"');
-		expect(body).toContain('filename="notes.txt"');
+		// The action can only report the name and the byte count if it parsed a real File, and the
+		// browser never buffers a document POST body for the test to read back.
 		await page.locator('[data-testid="upload-message"]').waitFor();
 		expect(await page.getByTestId("upload-message").innerText()).toBe(
 			"Received notes.txt (5 bytes)."
@@ -242,9 +241,12 @@ describe("documented integration recipes", () => {
 			page.getByRole("button", { name: "Upload" }).click(),
 		]);
 		expect(response.status()).toBe(200);
-		expect(await response.json()).toMatchObject({ type: "success" });
+		const result = await response.json();
+		expect(result).toMatchObject({ type: "success", status: 200 });
+		// The action can only name the file and its size if Superforms parsed a real File out of the
+		// enhanced submission.
+		expect(result.data.form.message).toBe("Received notes.txt (5 bytes).");
 		expect(response.request().headers()["x-sveltekit-action"]).toBe("true");
-		expect(response.request().postData() ?? "").toContain('filename="notes.txt"');
 		await page.locator('[data-testid="upload-message"]').waitFor();
 		expect(await page.getByTestId("upload-message").innerText()).toBe(
 			"Received notes.txt (5 bytes)."
@@ -271,13 +273,10 @@ describe("documented integration recipes", () => {
 
 		const page = await openPage();
 		await hydrated(page, "composition");
-		await page.waitForFunction(
-			() =>
-				document
-					.querySelector('[data-testid="composition-refs"]')
-					?.getAttribute("data-description") === "SMALL"
-		);
 		const refs = page.getByTestId("composition-refs");
+		await expect
+			.poll(() => refs.getAttribute("data-description"), { timeout: 10000 })
+			.toBe("SMALL");
 		// `bind:ref` hands the consumer the element the component would otherwise have rendered.
 		expect(await refs.getAttribute("data-label")).toBe("LABEL");
 		expect(await refs.getAttribute("data-description")).toBe("SMALL");
@@ -288,13 +287,11 @@ describe("documented integration recipes", () => {
 			await page.locator('input[name="nickname"]').getAttribute("id")
 		);
 		const descriptionId = await page.locator('[data-custom="description"]').getAttribute("id");
-		await page.waitForFunction(
-			(expected) =>
-				document
-					.querySelector('input[name="nickname"]')
-					?.getAttribute("aria-describedby") === expected,
-			descriptionId
-		);
+		await expect
+			.poll(() => page.locator('input[name="nickname"]').getAttribute("aria-describedby"), {
+				timeout: 10000,
+			})
+			.toBe(descriptionId);
 
 		// The widget built on the hooks applies the control props and keeps the range value.
 		const headless = page.locator('input[name="rating"]');
