@@ -72,8 +72,9 @@ describe("documented integration recipes", () => {
 		}
 	});
 
-	it("keeps ids, ARIA attributes and DOM nodes across hydration where associations are declared", async () => {
-		for (const path of ["upload", "constraints", "feedback"] as const) {
+	it.each(["upload", "constraints", "feedback"] as const)(
+		"keeps ids, ARIA attributes and DOM nodes across hydration at /recipes/%s",
+		async (path) => {
 			const page = await openPage();
 			let releaseScripts!: () => void;
 			const scriptsReady = new Promise<void>((resolve) => {
@@ -121,11 +122,9 @@ describe("documented integration recipes", () => {
 				).toBe(true);
 			} finally {
 				releaseScripts();
-				await context?.close();
-				context = undefined;
 			}
 		}
-	});
+	);
 
 	it("renders the native constraints and the schema-derived required state", async () => {
 		const page = await openPage(false);
