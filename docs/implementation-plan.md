@@ -659,6 +659,15 @@ second copy of the prose.
 - Both triggers build the same artifact; only a push to the default branch deploys, so a pull request
   or a manual run on another branch can never overwrite the live site. GitHub Pages was already
   configured for workflow builds, so no repository setting changes.
+- Verification (2026-10-10): the `Documentation` workflow passed on every commit of the branch, and its
+  published artifact was inspected rather than assumed. It contains `/`, `/readme/`, `/changelog/` and
+  `404.html`; the pages carry navigation with `aria-current`, generated heading anchors, three rendered
+  tables and 17 code blocks; repository links resolve to `blob`/`tree` URLs under
+  `github.com/emmorts/formsnap`, links between pages resolve to `/formsnap/…` routes, in-page anchors
+  resolve to headings the renderer produced, and the raw HTML in the README is preserved. The deploy
+  job itself runs only on the default branch, so the artifact was verified before publication but the
+  first publish cannot be observed until this branch is merged. No local runtime workloads were used:
+  the renderer was installed by the workflow into `$RUNNER_TEMP`.
 
 ## Phase 4: Complete announcement and custom-control composition
 
@@ -725,6 +734,20 @@ Outcome (2026-10-10):
 - Manual screen-reader verification (NVDA/Firefox, VoiceOver/Safari) remains unperformed, so the
   announcement behaviour itself is argued from the rendered live-region attributes only. That is the
   same gap recorded for the other recipes, and it is why changing the default was not proposed.
+
+Verification (2026-10-10): [run 38057793908](https://github.com/emmorts/formsnap/actions/runs/38057793908)
+on `08d462b` passed baseline lint, `svelte-check found 0 errors and 0 warnings`, all 117 tests across
+nine files, and package generation with publint — in the locked baseline and in all three
+compatibility jobs (Svelte 5.30.2/Superforms 2.19.0, Svelte 5.56.4/Superforms 3.0.0, current
+Svelte 5/Superforms 3), where the suite also type-checks the recipe against each pair. The total is
+117 tests across nine files, up from 110 across eight: the recipe file has 22, and the new browser
+file three. No local runtime workloads were started.
+
+Three earlier runs on the same branch are part of the evidence rather than discarded noise: they
+caught the shared `Fieldset` props union, the unboxed policy prop, an unused parameter in the docs
+build, the note field's missing minimum, the client validator that was never active, the association
+that was read before the input event settled, and the fresh id a re-created region produces. Each was
+fixed in the source it belonged to; none was worked around by relaxing an assertion.
 
 ### P4.2 Custom-control and group semantics (original priority 8)
 
