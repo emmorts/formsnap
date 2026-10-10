@@ -678,6 +678,14 @@ second copy of the prose.
   and repository `blob` links. The commit push also passed the full CI matrix on `main`
   ([run 38058743620](https://github.com/emmorts/formsnap/actions/runs/38058743620)).
 
+Documentation rewrite (2026-10-10): the repository README now explains the fork reason and
+separates released Superforms 3 support from unreleased improvements. The package README links
+to that summary; the published changelog uses short developer-facing entries and retains upstream
+history. [Documentation run 38060572763](https://github.com/emmorts/formsnap/actions/runs/38060572763)
+built all pages on `9b3965b`; its downloaded artifact contains the fork reason, change summary and
+working cross-page links. [CI run 38060572757](https://github.com/emmorts/formsnap/actions/runs/38060572757)
+passed all four jobs. PR #5 carries the rewrite; deployment waits for a merge to `main`.
+
 ## Phase 4: Complete announcement and custom-control composition
 
 Depends on Phase 2 and its browser harness. Finish this contract before designing ErrorSummary.
