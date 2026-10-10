@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { zodClient } from "sveltekit-superforms/adapters";
 	import { Control, Field, FieldErrors, Label } from "$lib/index.js";
-	import type { AnnouncementsData } from "./schema.js";
+	import { announcementsSchema, type AnnouncementsData } from "./schema.js";
 
 	let { data }: { data: { form: SuperValidated<AnnouncementsData> } } = $props();
 
-	// `oninput` is Superforms' own client-side validation: an error that already exists is replaced
-	// while the user types, without a request and without a navigation. That in-place update is what
-	// a live region announces, and it is what the policies on this page choose between.
+	// `zodClient` is Superforms' client-side validator: with it, an error that already exists is
+	// replaced while the user types, without a request and without a navigation. That in-place
+	// update is what a live region announces, and it is what the policies on this page choose
+	// between. Without JavaScript the same schema validates in the action instead.
 	const form = superForm(
 		untrack(() => data.form),
 		{
+			validators: zodClient(announcementsSchema),
 			validationMethod: "oninput",
 			resetForm: false,
 		}

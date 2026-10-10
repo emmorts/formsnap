@@ -631,13 +631,42 @@ Review (2026-10-10):
   exercised every index link, file-size rejection/recovery, corrected validity, and native submissions.
   No local runtime workloads were started. Manual screen-reader verification remains unperformed.
 
+### Repository documentation site (user request, 2026-10-10)
+
+The Phase 3 gate above states that a standalone docs deployment is not required. The maintainer
+asked for one afterwards: publish this repository's documentation to GitHub Pages. The scope is that
+deployment, not a documentation platform — no styled component catalogue, no search index and no
+second copy of the prose.
+
+- `scripts/build-docs-site.mjs` renders the public markdown into self-contained pages: the package
+  README as the documentation, the repository README, and the changelog. The implementation plan is
+  deliberately not published: it is an internal record, and the fixture routes cannot run without a
+  server. Pages are self-contained (inline stylesheet, no scripts, no bundled assets), so a project
+  Pages base path needs no asset rewriting.
+- The renderer is not a workspace dependency. `.github/workflows/docs.yml` installs an exact version
+  into `$RUNNER_TEMP` and passes that directory to the script, so the published package and
+  `pnpm-lock.yaml` gain nothing for documentation. The build says so explicitly when the directory
+  does not contain it.
+- The build fails rather than publishing a broken page. Heading anchors are generated with GitHub's
+  slug rules and every anchor link must resolve to a heading on the page it targets, a link to a
+  repository file becomes a `blob` or `tree` URL chosen by looking at the checkout, links between
+  published pages become site routes, and a page that renders without a heading, with a leftover code
+  fence or with an unresolved link fails the build.
+- The old `svecodocs`/`velite` site was deleted by the maintainer in `09b34b1` and was not restored:
+  its component pages document the unscoped upstream package and would contradict the fork's own
+  README. Markdown that already exists is published instead of resurrecting a second documentation
+  source.
+- Both triggers build the same artifact; only a push to the default branch deploys, so a pull request
+  or a manual run on another branch can never overwrite the live site. GitHub Pages was already
+  configured for workflow builds, so no repository setting changes.
+
 ## Phase 4: Complete announcement and custom-control composition
 
 Depends on Phase 2 and its browser harness. Finish this contract before designing ErrorSummary.
 
 ### P4.1 Configurable announcements (original priority 6)
 
-- [ ] Allow an explicit FieldErrors live-region policy and document precedence.
+- [x] Allow an explicit FieldErrors live-region policy and document precedence.
 
 Source: [generated error props](../packages/formsnap/src/lib/formsnap.svelte.ts#L243) hardcode
 `aria-live="assertive"`; [FieldErrors](../packages/formsnap/src/lib/components/field-errors.svelte#L23)
@@ -654,6 +683,47 @@ association/invalid state remains correct. Exercise input/blur validation, repea
 submit-time multiple errors, and conditional containers. Record NVDA/Firefox and
 VoiceOver/Safari observations, or leave manual acceptance incomplete if those environments are
 unavailable. Guidance prevents competing field/summary announcements.
+
+Outcome (2026-10-10):
+
+- `FieldErrors` takes `live`, and the components that own a region (`Field`, `ElementField`, native
+  `Fieldset`) take `fieldErrorsLive`. Both accept `"assertive"`, `"polite"` or `"off"`; the existing
+  default is unchanged, so no consumer sees a behaviour change. `getFieldErrorsProps` carries the
+  resolved policy, which is why a policy reaches owned and standalone containers through the same
+  code path.
+- Precedence is explicit and implemented rather than documented only: the prop wins over an
+  `aria-live` attribute passed with the other props, which wins over the default. The standalone
+  component resolves that order before the generated attributes are merged onto the element, because
+  generated attributes otherwise win over a spread and would make an explicit `aria-live` silently
+  ineffective. The `off` policy is rendered as `aria-live="off"` instead of an omitted attribute, so
+  it also suppresses an announcement implied by a `role` the caller added to a custom container.
+- The policy is independent of the association contract: IDs, `aria-describedby`, `aria-invalid` and
+  the rendered error text are unchanged, and an enabled region that is empty still carries its policy
+  in server-rendered HTML.
+- [`/recipes/announcements`](../packages/formsnap/src/routes/recipes/announcements/+page.svelte) runs
+  the three policies side by side: an owned region with the default, an owned region set to
+  `"polite"`, and a standalone `FieldErrors` with `"off"` that a checkbox withdraws and restores. The
+  page enables Superforms' client validator (`zodClient`) with `validationMethod: "oninput"`, so an
+  existing error is replaced while the user types — the update a live region exists to announce. A
+  rejected submission rendered on the server shows the standalone region's error and policy while the
+  control stays unassociated, because that region registers on mount; the hydrated case asserts the
+  association instead.
+- `tests/announcements.browser.test.ts` mounts a fixture and covers the default, the prop, the spread
+  fallback, the prop-over-spread precedence and a runtime policy change.
+- `tests/recipes.ssr.test.ts` adds the recipe to the index-navigation, server-rendered structure and
+  hydration matrices, plus two focused cases: the policy of every region in the first HTML and the
+  association of a rejected native submission (which ties a policy to the two owned regions without
+  the test guessing), and an error replaced in place while typing with no request, followed by a
+  conditional region whose association is withdrawn and restored.
+- Three first-run defects were the tests' and the recipe's, not the library's. Client-side validation
+  was never enabled: `SuperValidated` carries no `validators` in these versions, so the page has to
+  pass a client adapter (`zodClient`) rather than relying on the schema alone. The note field had no
+  minimum, so an empty native submission validly produced no error on it. The client-side association
+  was read once instead of awaited after the input event. All three were corrected rather than relaxed,
+  and none changed the library.
+- Manual screen-reader verification (NVDA/Firefox, VoiceOver/Safari) remains unperformed, so the
+  announcement behaviour itself is argued from the rendered live-region attributes only. That is the
+  same gap recorded for the other recipes, and it is why changing the default was not proposed.
 
 ### P4.2 Custom-control and group semantics (original priority 8)
 
