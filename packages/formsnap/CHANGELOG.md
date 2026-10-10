@@ -46,6 +46,11 @@
   `customValidity`, custom `child` snippets with ref forwarding, custom controls built on the
   `useFormField`/`useFormControl` hooks, multiple forms, pending and success feedback, and the
   keyboard/accessibility responsibilities that a custom control keeps.
+- Correct the nested JSON excerpt to retain the required parent `Fieldset`, store bindings and keyed
+  rows. Distinguish tested fixture pages from abbreviated README excerpts.
+- Clarify that `data-no-custom-validity` skips server-error assignment rather than guaranteeing
+  preservation of caller-set custom validity, and that file-picker `accept` hints are not server
+  file-type validation. Restore navigable recipe-index links.
 
 ### Verification
 
@@ -56,6 +61,10 @@
   associations, DOM identity across hydration, a JavaScript-free multipart file upload, native
   constraint blocking, `customValidity` and its `data-no-custom-validity` opt-out, custom snippet ref
   forwarding, a control built on the headless hooks, and the pending and success states.
+- Cover every recipe-index link without JavaScript, native composition/feedback rejection and
+  recovery, multipart file-size boundaries on both submission paths, corrected native validity, and
+  preserved document identity after enhanced uploads. Keep diagnostics across pages in one test and
+  release pending-request gates after failures.
 - Isolate optimizer caches between component tests and the real fixture app. Allocate the fixture
   port dynamically and close its server after setup failures and test completion.
 - Cover the Superforms 2 and 3 Svelte minimums plus current versions in CI; install Chromium in the
