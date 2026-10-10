@@ -3,7 +3,7 @@ import type { HTMLAttributes, HTMLFieldsetAttributes, HTMLLabelAttributes } from
 import type { FormPath, FormPathLeaves, SuperForm } from "sveltekit-superforms";
 import type { Snippet } from "svelte";
 import type { Expand, WithChild, Without } from "svelte-toolbelt";
-import type { ControlAttrs } from "$lib/attrs.types.js";
+import type { ControlAttrs, FieldErrorsLive } from "$lib/attrs.types.js";
 import type { FormPathValue, Primitive } from "$lib/internal/types.js";
 
 type PrimitiveFieldSetAttributes = Primitive<HTMLFieldsetAttributes>;
@@ -34,6 +34,8 @@ export type OwnedFieldContentProps = {
 	descriptionId?: string;
 	/** Override the owned errors ID. Ignored when fieldErrors is false or absent. */
 	fieldErrorsId?: string;
+	/** Announcement policy for the owned error region. Ignored when fieldErrors is false or absent. */
+	fieldErrorsLive?: FieldErrorsLive;
 };
 
 /**
@@ -199,7 +201,13 @@ export type LegendProps = LegendPropsWithoutHTML &
  * Props for the [FieldErrors](https://formsnap.dev/docs/components/field-errors) component.
  */
 export type FieldErrorsPropsWithoutHTML = WithChild<
-	{},
+	{
+		/**
+		 * The announcement policy for the errors container. Defaults to `"assertive"`, and takes
+		 * precedence over an `aria-live` attribute passed with the other props.
+		 */
+		live?: FieldErrorsLive;
+	},
 	{
 		errors: string[];
 		errorProps: Record<string, unknown>;

@@ -17,6 +17,10 @@
 - Preserve owned parent descriptions for `ElementField` inheritance. Place native `Fieldset` owned
   regions inside its container; reject combining enabled owned slots with its full-container `child`
   replacement in public types and at runtime.
+- Add an explicit announcement policy for error regions: `live` on `FieldErrors` and
+  `fieldErrorsLive` on the components that own a region accept `"assertive"` (the unchanged
+  default), `"polite"`, or `"off"`. The prop wins over a spread `aria-live`, which wins over the
+  default; associations, IDs and `aria-invalid` are unaffected by the policy.
 
 ### Fixes
 
@@ -51,6 +55,8 @@
 - Clarify that `data-no-custom-validity` skips server-error assignment rather than guaranteeing
   preservation of caller-set custom validity, and that file-picker `accept` hints are not server
   file-type validation. Restore navigable recipe-index links.
+- Document the announcement policies, their precedence and the guidance that keeps two live regions
+  from announcing the same message, and add the `/recipes/announcements` page to the recipes.
 
 ### Verification
 
@@ -61,6 +67,10 @@
   associations, DOM identity across hydration, a JavaScript-free multipart file upload, native
   constraint blocking, `customValidity` and its `data-no-custom-validity` opt-out, custom snippet ref
   forwarding, a control built on the headless hooks, and the pending and success states.
+- Cover the announcement policies in a mounted fixture (default, prop, spread fallback, prop
+  precedence, policy change) and in the recipe app (server-rendered policy on an empty region, the
+  association of a rejected submission, an error replaced in place while typing without a request,
+  and a conditional region that withdraws and restores its association).
 - Cover every recipe-index link without JavaScript, native composition/feedback rejection and
   recovery, multipart file-size boundaries on both submission paths, corrected native validity, and
   preserved document identity after enhanced uploads. Keep diagnostics across pages in one test and

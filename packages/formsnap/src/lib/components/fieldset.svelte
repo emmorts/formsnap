@@ -25,6 +25,7 @@
 		fieldErrors,
 		descriptionId = useId(instanceId, "description"),
 		fieldErrorsId = useId(instanceId, "errors"),
+		fieldErrorsLive,
 		...restProps
 	}: FieldsetProps<T, U> = $props();
 
@@ -91,6 +92,7 @@ A component that groups related form controls or fields and extends the [Field](
 			{fieldErrors}
 			{descriptionId}
 			{fieldErrorsId}
+			{fieldErrorsLive}
 			errors={fieldState.errors}
 		/>
 	</fieldset>

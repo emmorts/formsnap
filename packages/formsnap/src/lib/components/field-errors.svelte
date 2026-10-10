@@ -10,10 +10,16 @@
 	let {
 		id = useId(instanceId),
 		ref = $bindable(null),
+		live,
 		children,
 		child,
 		...restProps
 	}: FieldErrorsProps = $props();
+
+	// Precedence: the `live` prop, then an `aria-live` passed with the other attributes, then the
+	// default. Generated attributes win over the spread on the element, so a policy has to be
+	// resolved before they are merged.
+	const livePolicy = $derived(live ?? restProps["aria-live"] ?? "assertive");
 
 	const fieldErrorsState = useFieldErrors({
 		id: box.with(() => id),
@@ -21,6 +27,7 @@
 			() => ref,
 			(v) => (ref = v)
 		),
+		live: box.with(() => livePolicy),
 	});
 
 	const mergedProps = $derived(mergeProps(restProps, fieldErrorsState.fieldErrorsProps));
@@ -39,6 +46,7 @@ A component that renders the container for validation errors for a [Field](https
 - `errorAttrs` - A spreadable object of attributes for the individual error elements if `child` snippet is used.
 
 @param {string} [id] - The id of the field errors container.
+@param {FieldErrorsLive} [live] - The announcement policy for the container. Defaults to `"assertive"`.
 -->
 {#if child}
 	{@render child({

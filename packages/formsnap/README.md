@@ -187,12 +187,13 @@ must be present in server-rendered HTML, including with JavaScript disabled. The
 containers it will render before it renders any controls; child order does not affect these
 associations.
 
-| Prop            | Behavior                                                                                                                   |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `description`   | A content snippet. Omitted means no description container or reserved ID.                                                  |
-| `fieldErrors`   | `true` renders the default error content; a snippet renders custom content. Omitted or `false` renders no error container. |
-| `descriptionId` | Optional ID override for an enabled owned description. An ID alone does not render or associate a container.               |
-| `fieldErrorsId` | Optional ID override for an enabled owned error region. An ID alone does not render or associate a container.              |
+| Prop              | Behavior                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `description`     | A content snippet. Omitted means no description container or reserved ID.                                                  |
+| `fieldErrors`     | `true` renders the default error content; a snippet renders custom content. Omitted or `false` renders no error container. |
+| `descriptionId`   | Optional ID override for an enabled owned description. An ID alone does not render or associate a container.               |
+| `fieldErrorsId`   | Optional ID override for an enabled owned error region. An ID alone does not render or associate a container.              |
+| `fieldErrorsLive` | Announcement policy for an enabled owned error region: `"assertive"` (default), `"polite"` or `"off"`.                     |
 
 Generated IDs belong to the component instance, not the field path, so repeated fields and multiple
 forms have separate targets. Enabled error containers remain mounted when empty, but their IDs enter
@@ -243,6 +244,42 @@ every `urls[0]`/`urls[1]` control submits as `urls`). Nested object/array submis
 Superforms' `dataType: "json"`, its `enhance` action, and values bound to the form store; enhancement
 serializes that store, not the repeated HTML names. An explicit leaf `name` may also be needed for
 Superforms options that identify inputs by their full path, such as `customValidity`.
+
+### Error announcements
+
+An enabled error region is a live region: it announces errors that appear or change after the page
+has loaded, which is what client-side validation and enhanced submissions produce. The policy is set
+by whichever component renders the container, and defaults to `"assertive"`:
+
+| Container                                                      | Prop              |
+| -------------------------------------------------------------- | ----------------- |
+| owned region on `Field`, `ElementField` or a native `Fieldset` | `fieldErrorsLive` |
+| standalone `FieldErrors`                                       | `live`            |
+
+Both take `"assertive"`, `"polite"` or `"off"`. Precedence, highest first: that prop, then an
+`aria-live` attribute passed with the other props, then `"assertive"`. A spread `aria-live` is
+resolved before the generated attributes are merged, so it is not silently discarded — but the prop
+is the supported switch.
+
+- `"assertive"` interrupts whatever the screen reader is reading. It is the right default for an
+  error the user must act on before continuing.
+- `"polite"` waits for a pause in speech, which reads better for a message that changes on every
+  keystroke.
+- `"off"` renders no announcement at all. The error keeps its association (`aria-describedby`,
+  `aria-invalid`, the rendered text, and `data-fs-*` for styling), so a screen reader still reaches
+  it when the user moves to the control.
+
+The policy is independent of the association: a region is only referenced by `aria-describedby`
+while that field has errors, and an empty enabled region still carries its policy in server-rendered
+HTML. Withdrawal of a conditional region removes both.
+
+Do not let two live regions announce the same message. Field errors plus a form-wide error summary
+announce twice; either keep field errors `"assertive"` and give the summary no live region of its
+own, or make one of them `"off"` and let the other own the announcement.
+
+[`/recipes/announcements`](./src/routes/recipes/announcements/+page.svelte) runs all three policies
+side by side — an owned region with the default, an owned region set to `"polite"`, and a standalone
+`FieldErrors` with `"off"` that is withdrawn and restored by a checkbox.
 
 ## Recipes
 

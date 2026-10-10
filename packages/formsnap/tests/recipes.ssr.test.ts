@@ -40,7 +40,7 @@ async function openPage(javaScriptEnabled = true) {
 	return page;
 }
 
-const recipes = ["upload", "constraints", "composition", "feedback"] as const;
+const recipes = ["upload", "constraints", "composition", "feedback", "announcements"] as const;
 type Recipe = (typeof recipes)[number];
 
 const recipeUrl = (path: Recipe | "") => new URL(`recipes/${path}`, fixtureUrl()).href;
@@ -50,6 +50,22 @@ const form = (page: Page, path: Recipe) => page.locator(`form[data-testid="recip
 async function hydrated(page: Page, path: Recipe) {
 	await page.goto(recipeUrl(path));
 	await form(page, path).and(page.locator('[data-hydrated="true"]')).waitFor();
+}
+
+/**
+ * The id of the error container a control points at. The rendering supplies the association, so a
+ * test never has to guess which region belongs to which field.
+ */
+async function errorContainerId(page: Page, name: string) {
+	const describedBy =
+		(await page.locator(`input[name="${name}"]`).getAttribute("aria-describedby")) ?? "";
+	return page.evaluate(
+		(candidates) =>
+			candidates.find((id) =>
+				document.getElementById(id)?.hasAttribute("data-fs-field-errors")
+			) ?? null,
+		describedBy.split(/\s+/).filter(Boolean)
+	);
 }
 
 describe("documented integration recipes", () => {
@@ -90,7 +106,7 @@ describe("documented integration recipes", () => {
 		}
 	});
 
-	it.each(["upload", "constraints", "feedback"] as const)(
+	it.each(["upload", "constraints", "feedback", "announcements"] as const)(
 		"keeps ids, ARIA attributes and DOM nodes across hydration at /recipes/%s",
 		async (path) => {
 			const page = await openPage();
@@ -498,5 +514,96 @@ describe("documented integration recipes", () => {
 		} finally {
 			resume();
 		}
+	});
+
+	it("renders every announcement policy and associates the rejected submission's errors", async () => {
+		const page = await openPage(false);
+		await page.goto(recipeUrl("announcements"));
+		const initial = parseDocument(await page.content());
+		// An enabled region stays rendered while it is empty, so its policy is part of the first
+		// HTML: the two owned regions in field order, then the standalone region in the note field.
+		expect(
+			[...initial.querySelectorAll("[data-fs-field-errors]")].map((container) =>
+				container.getAttribute("aria-live")
+			)
+		).toEqual(["assertive", "polite", "off"]);
+
+		const [rejected] = await Promise.all([
+			page.waitForNavigation(),
+			page.getByRole("button", { name: "Save profile" }).click(),
+		]);
+		expect(rejected?.status()).toBe(400);
+		const document = parseDocument(await page.content());
+		expect(duplicateIds(document)).toEqual([]);
+		expect(danglingReferences(document)).toEqual([]);
+		for (const { name, live, message } of [
+			{ name: "username", live: "assertive", message: "Use at least three characters." },
+			{ name: "nickname", live: "polite", message: "Use at least two characters." },
+			{ name: "note", live: "off", message: "Keep the note to twelve characters." },
+		] as const) {
+			const control = document.querySelector(`input[name="${name}"]`);
+			expect(control?.getAttribute("aria-invalid")).toBe("true");
+			// Which region reports which control is the rendering's answer, not the test's.
+			const container = (control?.getAttribute("aria-describedby") ?? "")
+				.split(/\s+/)
+				.filter(Boolean)
+				.map((id) => document.getElementById(id))
+				.find((element) => element?.hasAttribute("data-fs-field-errors"));
+			expect(container, `error container of ${name}`).toBeTruthy();
+			expect(container?.getAttribute("aria-live")).toBe(live);
+			expect(container?.textContent).toContain(message);
+		}
+	});
+
+	it("replaces announced errors in place and follows a conditional region", async () => {
+		const page = await openPage();
+		await hydrated(page, "announcements");
+		const username = page.locator('input[name="username"]');
+		const note = page.locator('input[name="note"]');
+		let posted = 0;
+		page.on("request", (request) => {
+			if (request.method() === "POST") posted += 1;
+		});
+
+		// Superforms' client-side validation replaces an existing error while the user types, so the
+		// container is updated without a request and without a navigation.
+		await username.fill("a");
+		const firstId = await errorContainerId(page, "username");
+		expect(firstId).toBeTruthy();
+		const container = page.locator(`[id="${firstId}"]`);
+		await expect
+			.poll(() => container.innerText(), { timeout: 10000 })
+			.toContain("Use at least three characters.");
+		expect(await container.getAttribute("aria-live")).toBe("assertive");
+		expect(await username.getAttribute("aria-describedby")).toContain(firstId!);
+		expect(await username.getAttribute("aria-invalid")).toBe("true");
+
+		// The next update reuses the same container and its id, and only its content changes.
+		await username.fill("abcdefghij");
+		await expect
+			.poll(() => container.innerText(), { timeout: 10000 })
+			.toContain("Use at most eight characters.");
+		expect(await errorContainerId(page, "username")).toBe(firstId);
+		expect(posted).toBe(0);
+
+		// The standalone region keeps its policy, and its association is withdrawn with the element.
+		await note.fill("A note that is far too long.");
+		const noteId = await errorContainerId(page, "note");
+		expect(noteId).toBeTruthy();
+		expect(await page.locator(`[id="${noteId}"]`).getAttribute("aria-live")).toBe("off");
+		const toggle = page.getByLabel("Render the note's error region");
+		await toggle.uncheck();
+		await expect(page.locator(`[id="${noteId}"]`)).toHaveCount(0);
+		await expect
+			.poll(() => note.getAttribute("aria-describedby"), { timeout: 10000 })
+			.not.toContain(noteId!);
+		await toggle.check();
+		await expect
+			.poll(() => note.getAttribute("aria-describedby"), { timeout: 10000 })
+			.toContain(noteId!);
+		expect(await page.locator(`[id="${noteId}"]`).getAttribute("aria-live")).toBe("off");
+		expect(await page.locator(`[id="${noteId}"]`).innerText()).toContain(
+			"Keep the note to twelve characters."
+		);
 	});
 });
