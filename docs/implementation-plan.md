@@ -1,8 +1,8 @@
 # Formsnap implementation plan
 
 Initial assessment: `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
-Status: P1, P2.2, P2.3, and P2.4 are checked. P2.1's user-approved scope-owned SSR association
-API is implemented; final suite, compatibility, and packaging verification are pending in CI.
+Status: Phases 1–2 are complete, including P2.1 under the user-approved scope-owned SSR association
+contract. Full regression, compatibility, and packaging verification passed in GitHub Actions.
 Checked items do not approve a release or its classification. Historical evidence below refers
 to the initial assessment; outcome and review notes describe the implementation that replaced it.
 
@@ -225,7 +225,7 @@ Depends on P1.1 and P1.2. These fixes precede new presentation components.
 
 ### P2.1 Initial identity and SSR associations (original priority 2, first part)
 
-- [ ] Make IDs and accessibility associations correct before client effects.
+- [x] Make IDs and accessibility associations correct before client effects.
 
 Source: [ID generation](../packages/formsnap/src/lib/internal/utils/id.ts#L1) uses a
 module-global counter. [ControlState](../packages/formsnap/src/lib/formsnap.svelte.ts#L297)
@@ -315,8 +315,17 @@ Approved contract and implementation (2026-10-10):
 - The initial integrated suite had 86 passes and six failures: two real-page hydration timeouts
   and four isolated SSR harness failures. Runtime conflict coverage now uses real SvelteKit
   requests instead of rendering Superforms outside request context. Invocation instrumentation uses
-  a nonreactive record rather than a mutable `Map`. Final verification runs in GitHub Actions, not
-  on the production workstation; keep P2.1 unchecked until the suite and version matrix pass.
+  a nonreactive record rather than a mutable `Map`. Final verification ran in GitHub Actions, not
+  on the production workstation.
+- Implemented in `e9d0bc5` (`feat: add scope-owned SSR description and error slots`).
+  [Draft PR #1](https://github.com/emmorts/formsnap/pull/1) and
+  [CI run 38047818196](https://github.com/emmorts/formsnap/actions/runs/38047818196) exercise the
+  integrated implementation: lint passes; each of the four jobs reports 0 type errors/warnings,
+  all 92 tests across seven files passing, and successful package generation/publint.
+  The jobs cover the locked Svelte 5.57.2/Superforms 2.31.0 baseline, Svelte 5.30.2/Superforms 2.19.0,
+  Svelte 5.56.4/Superforms 3.0.0, and current Svelte 5/Superforms 3. Both original hydration timeouts
+  and all real-request conflict cases pass without raising timeouts. P2.1 is complete under the
+  approved ownership contract; Phases 3–6 remain.
 - Manual screen-reader announcements remain unverified. No validation/submission abstraction,
   dependency-range change, arbitrary SSR discovery, or release classification is part of this API.
 
