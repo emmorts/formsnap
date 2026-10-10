@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { superForm, type SuperValidated } from "sveltekit-superforms";
-	import { Control, Fieldset, Label, Legend, type FieldsetAttrs } from "$lib/index.js";
+	import { Control, Fieldset, Label, Legend } from "$lib/index.js";
 	import AgreementControl from "./agreement-control.svelte";
 	import type { GroupsData } from "./schema.js";
 
@@ -53,7 +53,7 @@
 
 	<!-- A child replaces the fieldset, so the caller owns every group region and association. -->
 	<Fieldset {form} name="customAccepted" id="custom-agreement" disabled={groupsDisabled}>
-		{#snippet child({ props, errors }: { props: FieldsetAttrs; errors: string[] })}
+		{#snippet child({ props, errors }: { props: Record<string, unknown>; errors: string[] })}
 			<div
 				{...props}
 				data-testid="custom-group"
