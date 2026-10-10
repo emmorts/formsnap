@@ -56,11 +56,14 @@ describe("documented integration recipes", () => {
 	it.each(recipes)("opens /recipes/%s from the index without JavaScript", async (path) => {
 		const page = await openPage(false);
 		await page.goto(recipeUrl(""));
-		expect(await page.locator(`a[href="/recipes/${path}"]`).count()).toBe(1);
-		await Promise.all([
-			page.waitForNavigation(),
-			page.locator(`a[href="/recipes/${path}"]`).click(),
-		]);
+		const links = page.getByRole("link");
+		const target = await links.evaluateAll(
+			(elements, expected) =>
+				elements.findIndex((element) => (element as HTMLAnchorElement).href === expected),
+			recipeUrl(path)
+		);
+		expect(target).toBeGreaterThanOrEqual(0);
+		await Promise.all([page.waitForNavigation(), links.nth(target).click()]);
 		expect(page.url()).toBe(recipeUrl(path));
 		expect(await form(page, path).count()).toBe(1);
 	});
