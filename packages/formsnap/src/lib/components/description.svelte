@@ -4,8 +4,10 @@
 	import { useId } from "$lib/internal/utils/index.js";
 	import { useDescription } from "$lib/formsnap.svelte.js";
 
+	const instanceId = $props.id();
+
 	let {
-		id = useId(),
+		id = useId(instanceId),
 		ref = $bindable(null),
 		children,
 		child,

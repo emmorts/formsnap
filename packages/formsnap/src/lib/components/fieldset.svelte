@@ -11,8 +11,10 @@
 	import { getDataFsError } from "$lib/internal/utils/attributes.js";
 	import { useId } from "$lib/internal/utils/id.js";
 
+	const instanceId = $props.id();
+
 	let {
-		id = useId(),
+		id = useId(instanceId),
 		ref = $bindable(null),
 		form,
 		name,
