@@ -38,7 +38,17 @@ export async function setup({ provide }: GlobalSetupContext) {
 			throw new Error("The consumer fixture did not bind an HTTP port.");
 		}
 		const url = `http://127.0.0.1:${address.port}/`;
-		for (const route of ["", "arrays", "json", "owned"]) {
+		for (const route of [
+			"",
+			"arrays",
+			"json",
+			"owned",
+			"recipes",
+			"recipes/upload",
+			"recipes/constraints",
+			"recipes/composition",
+			"recipes/feedback",
+		]) {
 			const response = await fetch(new URL(route, url), {
 				signal: AbortSignal.timeout(30000),
 			});
