@@ -8,9 +8,12 @@
 
 <!-- /automd -->
 
-[![](https://dcbadge.vercel.app/api/server/fdXy3Sk8Gq?style=flat)](https://discord.gg/fdXy3Sk8Gq)
-
 The goal of this library is to make working with the already incredible [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms) even more pleasant, by wrapping it with accessible form components.
+
+This repository is the maintained fork [`@emmorts/formsnap`](https://github.com/emmorts/formsnap) of
+[`formsnap`](https://github.com/svecosystem/formsnap). The components follow the upstream API
+documented at [formsnap.dev](https://formsnap.dev); this fork keeps the package published and the
+supported dependency range current.
 
 ## Installation
 
@@ -18,134 +21,41 @@ The goal of this library is to make working with the already incredible [sveltek
 npm i @emmorts/formsnap sveltekit-superforms <your-schema-library>
 ```
 
+The supported versions match the published peer range:
+
+| Dependency             | Supported range                                |
+| ---------------------- | ---------------------------------------------- |
+| `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10 |
+| `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
+
 ## Usage
 
-You'll handle the initial Superforms setup just as you normally would, where you define a schema and return the form from your load function.
+[`packages/formsnap/README.md`](./packages/formsnap/README.md) holds the canonical quickstart: a
+schema, a `load` function, the form component and the page that renders it. That code is the fixture
+app under [`packages/formsnap/src/routes`](./packages/formsnap/src/routes), and
+`pnpm --filter @emmorts/formsnap run check` type-checks it, so it stays correct against the released
+package.
 
-#### 1. Define a Zod schema
+You still handle the Superforms setup yourself — define a schema, return `superValidate(...)` from
+your load function, call `superForm` in your component — and Formsnap adds the accessible labelling,
+description and error markup plus the ARIA relationships for each field.
 
-```ts
-// schemas.ts
-import { z } from "zod";
-export const settingsFormSchema = z.object({
-	email: z.string().email(),
-	bio: z.string().max(250).optional(),
-	marketingEmails: z.boolean().default(true),
-	language: z.enum(["en", "es", "fr"]).default("en"),
-	theme: z.enum(["light", "dark"]).default("light"),
-});
-```
+## Components
 
-#### 2. Return the form from your load function
+`Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset` and `Legend`,
+plus the `useFormField`/`useFormControl` and `getFormField`/`getFormControl` hooks for custom
+widgets. Components are unstyled and mark their elements with `data-fs-*` attributes for styling.
 
-```ts
-// +page.server.ts
-import { superValidate } from "sveltekit-superforms";
-import { zod } from "sveltekit-superforms/adapters";
-import type { PageServerLoad } from "./$types";
-import { settingsFormSchema } from "./schemas";
+## Support
 
-export const load: PageServerLoad = async () => {
-	return {
-		form: await superValidate(zod(settingsFormSchema)),
-	};
-};
-```
-
-#### 3. Construct the form in your page
-
-```svelte
-<script lang="ts">
-	import {
-		Field,
-		Label,
-		FieldErrors,
-		Control,
-		Description,
-		Fieldset,
-		Legend,
-	} from "@emmorts/formsnap";
-	import { settingsFormSchema } from "./schemas";
-	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
-
-	let { data } = $props();
-
-	const form = superForm(data.form, {
-		validators: zodClient(settingsFormSchema),
-	});
-
-	const { form: formData, enhance } = form;
-</script>
-
-<form method="POST" use:enhance>
-	<Field {form} name="email">
-		<Control>
-			{#snippet children({ props })}
-				<Label>Email</Label>
-				<input type="email" {...props} bind:value={$formData.email} />
-			{/snippet}
-		</Control>
-		<Description>We'll provide critical updates about your account via email.</Description>
-		<FieldErrors />
-	</Field>
-
-	<Field {form} name="bio">
-		<Control>
-			{#snippet children({ props })}
-				<Label>Bio</Label>
-				<textarea bind:value={$formData.bio} {...props} />
-			{/snippet}
-		</Control>
-		<FieldErrors />
-	</Field>
-
-	<Field {form} name="language">
-		<Control>
-			{#snippet children({ props })}
-				<Label>Language</Label>
-				<select {...props} bind:value={$formData.language}>
-					<option value="en">English</option>
-					<option value="es">Spanish</option>
-					<option value="fr">French</option>
-				</select>
-			{/snippet}
-		</Control>
-		<FieldErrors />
-	</Field>
-
-	<Field {form} name="marketingEmails">
-		<Control>
-			{#snippet children({ props })}
-				<Label>Receive marketing emails from us</Label>
-				<input type="checkbox" {...props} bind:checked={$formData.marketingEmails} />
-			{/snippet}
-		</Control>
-		<FieldErrors />
-	</Field>
-
-	<Fieldset {form} name="theme">
-		<Legend>Select your theme</Legend>
-		{#each ["light", "dark"] as theme}
-			<Control>
-				{#snippet children({ props })}
-					<input {...props} type="radio" bind:group={$formData.theme} value={theme} />
-					<Label>{theme}</Label>
-				{/snippet}
-			</Control>
-		{/each}
-		<FieldErrors />
-	</Fieldset>
-
-	<button type="submit">Submit</button>
-</form>
-```
-
-Check out [Formsnap.dev](https://formsnap.dev) for more documentation.
+- Component API and guides: [formsnap.dev](https://formsnap.dev) (upstream documentation).
+- Problems specific to this fork — packaging, supported versions, releases: open an issue on
+  [emmorts/formsnap](https://github.com/emmorts/formsnap).
+- Behaviour of Superforms itself: [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
 
 ## Sponsors
 
-This project is supported by the following beautiful people/organizations:
+Upstream Formsnap is supported by the following beautiful people/organizations:
 
 <p align="center">
   <a href="https://github.com/sponsors/huntabyte">
@@ -165,17 +75,6 @@ Made by [@huntabyte](https://github.com/huntabyte) and [community](https://githu
 </a>
 
 <!-- /automd -->
-
-## Community
-
-Join the Discord server to ask questions, find collaborators, or just say hi!
-
-<a href="https://discord.gg/fdXy3Sk8Gq" alt="Svecosystem Discord community">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://invidget.switchblade.xyz/fdXy3Sk8Gq">
-  <img alt="Svecosystem Discord community" src="https://invidget.switchblade.xyz/fdXy3Sk8Gq?theme=light">
-</picture>
-</a>
 
 ## Releasing
 

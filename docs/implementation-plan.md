@@ -157,7 +157,7 @@ Findings the harness produced:
 
 ### P1.3 Immediate onboarding correction (original priority 5, first part)
 
-- [ ] Correct conflicting package instructions and fork support routing.
+- [x] Correct conflicting package instructions and fork support routing.
 
 Source: the [package README](../packages/formsnap/README.md#L8) installs/imports unscoped
 `formsnap`, uses `Control let:attrs`, and gives array defaults to scalar enums. The
@@ -174,6 +174,30 @@ Route fork reports to a supported fork channel; preserve upstream attribution an
 Acceptance: both READMEs describe the actual scoped API, their schema examples type-check, and
 support links/environment commands identify the fork. Version guidance matches P1.1. The full
 submission walkthrough remains tracked in P3.1.
+
+Outcome (2026-10-10):
+
+- Canonical quickstart: `packages/formsnap/README.md`. It shows the fixture app's own code — schema,
+  `load` function, form component, page — so the examples type-check through `pnpm check` rather
+  than merely resembling working code. It states the requirements table matching the peer range
+  (P1.1), the `zod/v3` constraint P1.2 uncovered, the upstream/fork split, and keeps the MIT
+  attribution to upstream.
+- The root README is now a landing page: goal, install, requirements, components, support, sponsors,
+  license, releasing. Its duplicated walkthrough was removed, because a second copy of the
+  quickstart is what drifted in the first place; the Fieldset/Legend/checkbox/radio showcase returns
+  with P3.1's recipes, where it can be verified. "Check out formsnap.dev" and the upstream Discord
+  link are replaced with an explicit upstream-versus-fork split.
+- Issue templates: `config.yml` help routing now states that upstream discussions answer usage
+  questions while fork-specific problems belong here; the bug report's `envinfo` command lists
+  `@emmorts/formsnap` instead of the unscoped name, and its stale Discord link is gone.
+- Verified: `pnpm lint` and `svelte-check` (0 errors) pass; no unscoped package or `let:attrs`
+  references remain in the READMEs or templates.
+
+Blocker, needs a maintainer action: the fork has no issue tracker. `emmorts/formsnap` reports
+`has_issues: false` and `has_discussions: false`, and the repository navigation has no Issues tab,
+so the fork link the READMEs and templates now point at cannot yet receive reports. Enabling Issues
+in the repository settings makes those links live; until then the fork-specific route is unusable,
+which also means P6.4's support-link acceptance cannot be met.
 
 Phase gate: normal loading and the verification harness work; no core accessibility fix is
 considered complete merely because compilation succeeds. P1.3 can proceed while P1.1 is resolved.
