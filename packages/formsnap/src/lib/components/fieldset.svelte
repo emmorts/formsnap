@@ -62,7 +62,7 @@ A component that groups related form controls or fields and extends the [Field](
 		{#if childProp}
 			{@render childProp({
 				props: mergedProps,
-				value: value as T[U],
+				value,
 				errors,
 				tainted,
 				constraints,
@@ -70,7 +70,7 @@ A component that groups related form controls or fields and extends the [Field](
 		{:else}
 			<fieldset {...mergedProps} data-fs-error={getDataFsError(errors)}>
 				{@render childrenProp?.({
-					value: value as T[U],
+					value,
 					errors,
 					tainted,
 					constraints,
