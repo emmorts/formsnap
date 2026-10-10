@@ -588,22 +588,40 @@ Outcome (2026-10-10):
 - `tests/recipes.ssr.test.ts` drives the fixture app in Chromium: server-rendered labels, associations
   and unique ids for every recipe; id, ARIA and DOM-node identity across hydration where associations
   are declared; a pattern mismatch blocked by the browser before any request; server errors surfaced
-  through `customValidity` and left untouched under `data-no-custom-validity`; a JavaScript-free
+  through `customValidity` and skipped under `data-no-custom-validity`; a JavaScript-free
   multipart upload reported back by name, and an enhanced upload that never navigates; ref forwarding
   and hook-built control props; and gated pending/success feedback states.
-- Verification ran in GitHub Actions rather than on this workstation. Run 38051925267 on `ed43068`
-  (draft PR #2) passed lint, zero type errors and warnings, all 102 tests across eight files, and
-  package generation with publint in each job: the locked baseline, Svelte 5.30.2/Superforms 2.19.0,
-  Svelte 5.56.4/Superforms 3.0.0, and current Svelte 5/Superforms 3. The recipe file adds ten tests
-  over the previous seven-file suite.
-- The first two verification runs are not evidence, but they earned their keep: an unnecessary
-  parameterless `children` snippet and an internal link without `resolve()` failed lint, and the new
-  harness was wrong twice — Playwright rewrites a `document` reference inside `page.waitForFunction`,
-  and an action result's payload is encoded for `applyAction`, so the raw response body is not the
-  action's return value. Both harness mistakes are now avoided by polling through locators and
-  asserting the rendered result.
+- Initial verification ran in GitHub Actions rather than on this workstation. Run 38051925267 on
+  `ed43068` (draft PR #2) passed baseline lint, zero type errors and warnings, all 102 tests across
+  eight files, and package generation with publint. Type-checking, all 102 tests and packaging also
+  passed in the three compatibility jobs: Svelte 5.30.2/Superforms 2.19.0,
+  Svelte 5.56.4/Superforms 3.0.0, and current Svelte 5/Superforms 3.
+- Earlier runs exposed an unnecessary parameterless `children` snippet and an internal link without
+  `resolve()`. The new harness also closed over a Node-side `document` variable in a serialized
+  `page.waitForFunction` callback, which cannot access that variable in the browser. Locator polling
+  avoids that closure; it is not a general prohibition on `page.waitForFunction`. SvelteKit's action
+  response encodes its `data`; tests now assert the rendered result rather than reading that encoded
+  value as an object.
 - Manual screen-reader verification of the recipes remains unverified, as it does elsewhere in this
   plan; the recipes are exercised through DOM and browser assertions only.
+
+Review (2026-10-10):
+
+- Corrected the nested JSON excerpt: `ElementField` requires an enclosing `Field` or `Fieldset`.
+  The example now includes the `contacts` fieldset, keyed row iteration, store bindings, and
+  enhanced form rather than a top-level array element with no parent context.
+- Corrected `data-no-custom-validity` guidance: it skips server-error assignment, but Superforms
+  may still clear caller-set custom validity during input processing. Native constraints still apply.
+- Restored actual links on the recipe index with SvelteKit's `resolve()`, replacing the text-only
+  paths. Upload instructions now distinguish the file picker's `accept` hint from server checks:
+  the schema validates non-empty files and the inclusive 64,000-byte maximum, not file types.
+- Strengthened browser coverage for index navigation without JavaScript, native composition and
+  feedback rejection/recovery, multipart file-size boundaries with and without JavaScript,
+  correction after `customValidity` errors, and preserved document identity after enhanced uploads.
+  The pattern-blocking case now has a valid invite code, avoiding an unrelated required-field failure.
+- Diagnostic collection now resets once per test, not per page, so opening the hydrated page cannot
+  hide warnings from the preceding server-rendered page. Pending-request gates release on failure.
+- Review verification is pending in GitHub Actions; no local runtime workloads were started.
 
 ## Phase 4: Complete announcement and custom-control composition
 

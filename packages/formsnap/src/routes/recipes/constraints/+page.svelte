@@ -50,8 +50,8 @@
 			{#snippet children({ props })}
 				<Label>Invite code</Label>
 				<!--
-					`data-no-custom-validity` opts this input out of `customValidity`. The field errors
-					region still reports the server error; only the native bubble stays quiet.
+					`data-no-custom-validity` skips assigning this field's server errors to its native
+					validity message. Built-in HTML constraints still apply.
 				-->
 				<input {...props} required data-no-custom-validity bind:value={$formData.invite} />
 			{/snippet}

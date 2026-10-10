@@ -45,8 +45,8 @@ your load function, call `superForm` in your component — and Formsnap adds the
 description and error markup plus the ARIA relationships for each field.
 The same README answers the questions that come next: progressive enhancement, nested JSON and
 arrays, stable row keys, file uploads, native constraints, custom `child` snippets, headless hooks,
-multiple forms, and pending or success feedback. Each recipe is a page in the fixture app, so the
-documented code is the code the tests run.
+multiple forms, and pending or success feedback. Each recipe links to a complete fixture page
+exercised by the consumer tests; the README shows excerpts from those pages.
 Use the scope-owned content slots when these relationships must work before hydration or without
 JavaScript; freely composed standalone regions still need explicit native associations on the server.
 

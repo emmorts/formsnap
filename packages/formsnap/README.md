@@ -174,8 +174,9 @@ state, so no submission API is added on top of Superforms.
 
 Two details matter when the same action serves both paths:
 
-- An enhanced submission resolves with HTTP 200 and a failure `ActionResult` in its JSON body, while
-  the equivalent native POST is HTTP 400. Assert on the payload when tests cover both.
+- A rejected enhanced submission resolves with HTTP 200 and a failure `ActionResult` in its JSON body,
+  while the equivalent native POST is HTTP 400. Assert the result's `type` and `status`; use SvelteKit's
+  `deserialize` on the response text if you need the action's returned values.
 - Return Superforms' `fail` rather than SvelteKit's when the form can carry `File` values: it removes
   them from the result, which SvelteKit's serialization cannot encode.
 
@@ -245,8 +246,9 @@ Superforms options that identify inputs by their full path, such as `customValid
 
 ## Recipes
 
-Every recipe is a page in the fixture app and is exercised by the consumer tests, so the code below
-is the code that runs. The sources live under [`src/routes`](./src/routes), and the version notes in
+Each recipe links to a complete page in the fixture app, exercised by the consumer tests. The excerpts
+below omit imports and test instrumentation; keep the enclosing scopes and store bindings when adapting
+them. Sources live under [`src/routes`](./src/routes), and the version notes in
 [Requirements](#requirements) apply to all of them.
 
 ### Nested data and object arrays
@@ -261,29 +263,46 @@ to `$formData` so that store stays the source of truth:
 		untrack(() => data.form),
 		{ dataType: "json", resetForm: false }
 	);
+	const { form: formData, enhance } = form;
+	const initialRowCount = untrack(() => data.form.data.contacts.length);
+	let rowIds = $state(Array.from({ length: initialRowCount }, (_, index) => index));
 </script>
 
-<Field {form} name="profile.name">
-	<Control>
-		{#snippet children({ props })}
-			<Label>Profile name</Label>
-			<input {...props} bind:value={$formData.profile.name} />
-		{/snippet}
-	</Control>
-</Field>
+<form method="POST" use:enhance>
+	<Field {form} name="profile.name">
+		<Control>
+			{#snippet children({ props })}
+				<Label>Profile name</Label>
+				<input {...props} bind:value={$formData.profile.name} />
+			{/snippet}
+		</Control>
+	</Field>
 
-<ElementField {form} name={`contacts[${index}].email` as `contacts[${number}].email`}>
-	<Control>
-		{#snippet children({ props })}
-			<Label>Contact {index + 1}</Label>
-			<input {...props} bind:value={$formData.contacts[index].email} />
-		{/snippet}
-	</Control>
-</ElementField>
+	<Fieldset {form} name="contacts" fieldErrors>
+		<Legend>Contacts</Legend>
+		{#each $formData.contacts as _, index (rowIds[index])}
+			<ElementField
+				{form}
+				name={`contacts[${index}].email` as `contacts[${number}].email`}
+				fieldErrors
+			>
+				<Control>
+					{#snippet children({ props })}
+						<Label>Contact {index + 1}</Label>
+						<input {...props} bind:value={$formData.contacts[index].email} />
+					{/snippet}
+				</Control>
+			</ElementField>
+		{/each}
+	</Fieldset>
+	<button type="submit">Save contacts</button>
+</form>
 ```
 
-`Field` and `ElementField` provide the field context and the snippet values; the control attributes
-come from the `Control` inside them, exactly as in the quickstart.
+`ElementField` needs an enclosing `Field` or `Fieldset`; here the `contacts` fieldset provides its
+parent context. The field components provide snippet values; control attributes come from the
+`Control` inside them. Keep `rowIds` aligned with the data when adding, removing or reordering rows,
+as the complete fixture does.
 
 Nesting needs the enhanced submission above. A native POST without JavaScript sends the repeated HTML
 names, which cannot express a nested path, so use [`/arrays`](#primitive-arrays-with-stable-row-identity)
@@ -299,7 +318,7 @@ when taint changes, so object identity is not a stable key:
 ```svelte
 <Fieldset {form} name="urls" fieldErrors>
 	<Legend>Website URLs</Legend>
-	{#each $formData.urls as _, index (ids[index])}
+	{#each $formData.urls as _, index (rowIds[index])}
 		<ElementField {form} name={`urls[${index}]` as `urls[${number}]`}>
 			<Control>
 				{#snippet children({ props })}
@@ -311,6 +330,9 @@ when taint changes, so object identity is not a stable key:
 	{/each}
 </Fieldset>
 ```
+
+Initialize `rowIds` once from the initial row count, as above. Update both arrays together on every
+row mutation; the complete fixture keeps its `nextRowId` counter separate from array indexes.
 
 ### File uploads
 
@@ -340,6 +362,9 @@ Superforms' `fail` from the action as described above. `File` values are strippe
 form — a file input cannot be repopulated — so report the file with a `message` instead of echoing it
 back. A file input cannot be given a value either, which is why the recipe leaves it unbound.
 
+The fixture's `accept=".txt,.md"` is a file-picker hint, not server-side type validation. Its schema
+accepts any non-empty `File` up to 64,000 bytes; it does not check extensions, MIME types or contents.
+
 ### Native constraints and custom validity
 
 [`/recipes/constraints`](./src/routes/recipes/constraints/+page.svelte) puts HTML attributes on the
@@ -360,12 +385,17 @@ constraints, so the announced state and the browser's state agree:
 `customValidity: true` copies each field's server errors onto its control's native validity message,
 so the browser's own bubble reports the same problem as the rendered errors:
 
-```svelte
-const form = superForm(untrack(() => data.form), { customValidity: true, resetForm: false });
+```ts
+const form = superForm(
+	untrack(() => data.form),
+	{ customValidity: true, resetForm: false }
+);
 ```
 
-Add `data-no-custom-validity` to an input that must keep its own validity message. Its field errors
-are still rendered, and its `aria-invalid` is still set; only the native message stays untouched.
+Add `data-no-custom-validity` to skip assigning Superforms' server errors to an input's native
+validity message. Field errors still render and `aria-invalid` still reflects them; built-in HTML
+constraints still apply. This is not a promise to preserve a caller-set `setCustomValidity` message:
+Superforms can clear that message when processing field changes.
 
 ### Custom `child` snippets and ref forwarding
 

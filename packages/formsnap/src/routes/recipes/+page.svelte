@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+
 	/**
 	 * Index of the integration recipes. Each entry is a runnable form in this fixture app, and the
 	 * consumer tests exercise the same pages the documentation quotes.
@@ -28,7 +30,7 @@
 			description:
 				"The submitting store while the action runs, and a Superforms message after.",
 		},
-	];
+	] as const;
 </script>
 
 <h1>Recipes</h1>
@@ -39,8 +41,8 @@
 <ul>
 	{#each recipes as recipe (recipe.path)}
 		<li>
-			<code>{recipe.path}</code>
-			— <strong>{recipe.title}</strong>: {recipe.description}
+			<a href={resolve(recipe.path)}>{recipe.title}</a>
+			— <code>{recipe.path}</code>: {recipe.description}
 		</li>
 	{/each}
 </ul>

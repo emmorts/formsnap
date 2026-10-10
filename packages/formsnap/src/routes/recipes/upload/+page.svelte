@@ -36,7 +36,7 @@
 				<input {...props} bind:value={$formData.title} />
 			{/snippet}
 		</Control>
-		{#snippet description()}Stored as text next to the uploaded file.{/snippet}
+		{#snippet description()}A title sent alongside the file.{/snippet}
 	</Field>
 
 	<Field {form} name="attachment" fieldErrors>
@@ -46,7 +46,9 @@
 				<input {...props} type="file" accept=".txt,.md" />
 			{/snippet}
 		</Control>
-		{#snippet description()}A text or Markdown file, at most 64 kB.{/snippet}
+		{#snippet description()}
+			A non-empty file, at most 64 kB. The picker suggests text or Markdown.
+		{/snippet}
 	</Field>
 
 	<button type="submit">Upload</button>
