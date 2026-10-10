@@ -156,6 +156,7 @@ export type FieldsetPropsWithoutHTML<
 				fieldErrors?: false;
 				descriptionId?: string;
 				fieldErrorsId?: string;
+				fieldErrorsLive?: FieldErrorsLive;
 		  }
 	);
 

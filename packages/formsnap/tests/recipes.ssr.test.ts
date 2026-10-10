@@ -593,7 +593,9 @@ describe("documented integration recipes", () => {
 		expect(await page.locator(`[id="${noteId}"]`).getAttribute("aria-live")).toBe("off");
 		const toggle = page.getByLabel("Render the note's error region");
 		await toggle.uncheck();
-		await expect(page.locator(`[id="${noteId}"]`)).toHaveCount(0);
+		await expect
+			.poll(() => page.locator(`[id="${noteId}"]`).count(), { timeout: 10000 })
+			.toBe(0);
 		await expect
 			.poll(() => note.getAttribute("aria-describedby"), { timeout: 10000 })
 			.not.toContain(noteId!);
