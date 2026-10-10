@@ -127,7 +127,7 @@ function renderMarkdown(markdown, marked) {
  */
 function resolveTarget(value, page, context) {
 	if (value.startsWith("#")) {
-		assertAnchor(value, page, context);
+		assertAnchor(value, page);
 		return value;
 	}
 	if (value.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(value)) return value;
@@ -143,7 +143,7 @@ function resolveTarget(value, page, context) {
 
 	const published = context.bySource.get(repositoryPath);
 	if (published) {
-		if (anchor) assertAnchor(anchor, published, context);
+		if (anchor) assertAnchor(anchor, published);
 		return `${context.base}${published.route ? `${published.route}/` : ""}${anchor}`;
 	}
 	if (!context.repoUrl) fail(`${page.source} links to ${value} and no --repo-url was given`);
@@ -154,7 +154,7 @@ function resolveTarget(value, page, context) {
 	return `${context.repoUrl}/${kind}/${context.ref}/${repositoryPath}${anchor}`;
 }
 
-function assertAnchor(anchor, page, context) {
+function assertAnchor(anchor, page) {
 	const id = decodeURIComponent(anchor.slice(1));
 	if (!page.ids.has(id))
 		fail(`${page.source} links to ${anchor}, which no heading on that page produces`);

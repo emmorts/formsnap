@@ -60,8 +60,8 @@ export type LabelAttrs = {
  *
  * - `"assertive"`: announce as soon as the errors change. The default.
  * - `"polite"`: announce when the user pauses.
- * - `"off"`: do not announce. Errors stay associated with the control, so a screen reader
- *   still reaches them when the user moves to the control.
+ * - `"off"`: do not announce, rendered as `aria-live="off"`. Errors stay associated with the
+ *   control, so a screen reader still reaches them when the user moves to the control.
  *
  * @category FieldErrors
  */
