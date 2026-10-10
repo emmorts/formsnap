@@ -1,8 +1,9 @@
 # Formsnap implementation plan
 
 Initial assessment: `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
-Status: Phases 1–2 are complete, including P2.1 under the user-approved scope-owned SSR association
-contract. Full regression, compatibility, and packaging verification passed in GitHub Actions.
+Status: Phase 1 and Phase 2 are complete. P3.1's quickstart walkthrough and integration recipes are
+implemented; its full regression, compatibility and packaging verification is still pending in GitHub
+Actions, so P3.1 remains unchecked. Phases 4–6 are open.
 Checked items do not approve a release or its classification. Historical evidence below refers
 to the initial assessment; outcome and review notes describe the implementation that replaced it.
 
@@ -562,6 +563,36 @@ version differences instead of assuming one example works unchanged for every su
 
 Phase gate: the published quickstart is complete, and recipes state where Formsnap's ownership
 ends. A standalone docs deployment or form builder is not required.
+
+Outcome (2026-10-10):
+
+- The canonical quickstart now documents the enhancement path with Superforms' own `enhance`, `fail`
+  and `message`. It states the difference between an enhanced failure `ActionResult` (HTTP 200 with a
+  failure payload) and the equivalent native POST (HTTP 400), and why a `File`-carrying form must
+  return Superforms' `fail`.
+- Added four runnable recipe pages under
+  [`src/routes/recipes`](../packages/formsnap/src/routes/recipes), linked from an index page:
+  `upload` (multipart file input, JavaScript-free and enhanced), `constraints` (HTML attributes,
+  schema-derived `aria-required`, `customValidity`, and the `data-no-custom-validity` opt-out),
+  `composition` (custom `child` snippets with `bind:ref`, plus a control built on
+  `useFormField`/`useFormControl`), and `feedback` (`$submitting` pending state and a Superforms
+  message).
+- Documented the remaining recipes against the fixtures that already exercise them: nested data and
+  object arrays (`/json`), primitive arrays with stable row identity (`/arrays`), and multiple forms
+  (`/owned`, two `superForm` calls with distinct ids). The section closes with the keyboard and
+  accessibility responsibilities a custom control keeps, so recipes show where Formsnap's ownership
+  ends.
+- The composition recipe keeps that boundary visible in the fixture itself: the hook-built control
+  still receives SSR associations from the owned `description`/`fieldErrors` slots on its `Field`,
+  while the freely composed `nickname` region registers only on mount. Both cases are asserted.
+- `tests/recipes.ssr.test.ts` drives the fixture app in Chromium: server-rendered labels, associations
+  and unique ids for every recipe; id, ARIA and DOM-node identity across hydration where associations
+  are declared; a pattern mismatch blocked by the browser before any request; server errors surfaced
+  through `customValidity` and left untouched under `data-no-custom-validity`; a JavaScript-free
+  multipart upload reported back by name, and an enhanced upload that never navigates; ref forwarding
+  and hook-built control props; and gated pending/success feedback states.
+- Verification runs in GitHub Actions; the local suite, packaging and dependency matrix are not run
+  on the production workstation. P3.1 stays unchecked until they pass.
 
 ## Phase 4: Complete announcement and custom-control composition
 
