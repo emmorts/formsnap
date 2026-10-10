@@ -84,7 +84,7 @@ export const actions = {
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
 	import type { SuperValidated } from "sveltekit-superforms";
-	import { Control, Description, Field, FieldErrors, Label } from "@emmorts/formsnap";
+	import { Control, Field, Label } from "@emmorts/formsnap";
 	import type { SettingsData } from "./schema.js";
 
 	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
@@ -95,26 +95,24 @@ export const actions = {
 </script>
 
 <form method="POST">
-	<Field {form} name="email">
+	<Field {form} name="email" fieldErrors>
 		<Control id="email-input">
 			{#snippet children({ props })}
 				<Label>Email</Label>
 				<input type="email" {...props} bind:value={$formData.email} />
 			{/snippet}
 		</Control>
-		<Description>We'll email you about your account.</Description>
-		<FieldErrors />
+		{#snippet description()}We'll email you about your account.{/snippet}
 	</Field>
 
-	<Field {form} name="bio">
+	<Field {form} name="bio" fieldErrors>
 		<Control>
 			{#snippet children({ props })}
 				<Label>Bio</Label>
 				<textarea {...props} bind:value={$formData.bio}></textarea>
 			{/snippet}
 		</Control>
-		<Description>Tell us about yourself.</Description>
-		<FieldErrors />
+		{#snippet description()}Tell us about yourself.{/snippet}
 	</Field>
 	<button type="submit">Save settings</button>
 </form>
@@ -142,21 +140,66 @@ separate Formsnap submission API.
 The fixture app imports Formsnap through its internal `$lib` alias. `Control`, `Label`,
 `Description`, `FieldErrors`, `Fieldset` and `Legend` accept an optional `id`; generated IDs
 are stable between server rendering and hydration. `Field` and `ElementField` provide context
-and snippet values, not HTML elements, and do not accept an `id`.
+and snippet values without a root element, and do not accept an `id`. Their optional owned
+content slots render description/error containers after the children.
 
 ### Accessibility associations
 
-Labels and explicit control IDs are present in server-rendered HTML. Description and error
-associations are registered on the client when their elements mount and withdrawn on unmount.
-Rendering `Description` or `FieldErrors` after a control cannot add `aria-describedby` to HTML
-the server has already emitted. If the association must work without JavaScript, give the
-containers explicit IDs and set native `aria-describedby` on the input yourself, including the
-error ID only when the error container exists and has errors.
+Use the owned content slots on `Field`, `ElementField`, or a native `Fieldset` when associations
+must be present in server-rendered HTML, including with JavaScript disabled. The scope knows which
+containers it will render before it renders any controls; child order does not affect these
+associations.
 
-Custom `Description`/`FieldErrors` child snippets must spread the supplied props onto their actual
-container; those props register the mounted element as well as its ID. The `useFormField`
+| Prop            | Behavior                                                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `description`   | A content snippet. Omitted means no description container or reserved ID.                                                  |
+| `fieldErrors`   | `true` renders the default error content; a snippet renders custom content. Omitted or `false` renders no error container. |
+| `descriptionId` | Optional ID override for an enabled owned description. An ID alone does not render or associate a container.               |
+| `fieldErrorsId` | Optional ID override for an enabled owned error region. An ID alone does not render or associate a container.              |
+
+Generated IDs belong to the component instance, not the field path, so repeated fields and multiple
+forms have separate targets. Enabled error containers remain mounted when empty, but their IDs enter
+`aria-describedby` only while that field has errors. A conditional snippet can be withdrawn by passing
+`undefined`; its association is withdrawn too. Changing an enabled region's ID updates both the
+container and its controls.
+
+Custom error snippets receive `{ errors, errorProps }`. Render only the content; Formsnap owns the
+outer container, its ID, and its `data-fs-field-errors` attributes. Spread `errorProps` onto each error
+item to preserve `data-fs-field-error`:
+
+```svelte
+<Field {form} name="email">
+	<Control>
+		{#snippet children({ props })}
+			<Label>Email</Label>
+			<input type="email" {...props} bind:value={$formData.email} />
+		{/snippet}
+	</Control>
+	{#snippet fieldErrors({ errors, errorProps })}
+		{#each errors as error, index (index)}
+			<p {...errorProps}>{error}</p>
+		{/each}
+	{/snippet}
+</Field>
+```
+
+An `ElementField` uses its local description when present, otherwise its parent's description,
+including an owned parent description on the server. A native `Fieldset` places its owned containers
+inside the fieldset. Its full-container `child` replacement cannot be combined with an enabled owned
+description or error region: choose the native container with owned content, or take responsibility
+for the custom container and its associations.
+
+Standalone `Description` and `FieldErrors` remain available for freely composed layouts. Their
+automatic associations are registered when the actual elements mount and withdrawn on unmount;
+they do not discover targets before server rendering. To associate caller-owned containers without
+JavaScript, provide explicit container IDs and native `aria-describedby` on the input, including
+an error ID only when its container is rendered and has errors.
+
+Custom standalone `Description`/`FieldErrors` child snippets must spread the supplied props onto their
+actual container; those props register the mounted element as well as its ID. The `useFormField`
 `descriptionId`/`errorsId` getters declare caller-owned containers: keep those elements rendered
-while their IDs are supplied, and return `null` or `undefined` when withdrawing them.
+while their IDs are supplied, and return `null` or `undefined` when withdrawing them. Additional mounted
+regions can coexist with owned content; their IDs are merged and deduplicated.
 
 `ElementField` uses repeated parent names for native primitive-array submissions (for example,
 every `urls[0]`/`urls[1]` control submits as `urls`). Nested object/array submissions require

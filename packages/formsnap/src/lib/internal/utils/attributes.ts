@@ -1,3 +1,5 @@
+import type { DescriptionAttrs, ErrorAttrs, FieldErrorsAttrs } from "../../attrs.types.js";
+
 /**
  * Parameters for the `getAriaDescribedBy` function.
  */
@@ -51,4 +53,28 @@ export function getAriaInvalid(errors: string[] | undefined) {
  */
 export function getDataFsError(errors: string[] | undefined): string | undefined {
 	return errors && errors.length ? "" : undefined;
+}
+
+export function getDescriptionProps(id: string, errors: string[]): DescriptionAttrs {
+	return {
+		id,
+		"data-fs-description": "",
+		"data-fs-error": getDataFsError(errors),
+	};
+}
+
+export function getFieldErrorsProps(id: string, errors: string[]): FieldErrorsAttrs {
+	return {
+		id,
+		"data-fs-field-errors": "",
+		"data-fs-error": getDataFsError(errors),
+		"aria-live": "assertive",
+	};
+}
+
+export function getErrorProps(errors: string[]): ErrorAttrs {
+	return {
+		"data-fs-field-error": "",
+		"data-fs-error": getDataFsError(errors),
+	};
 }

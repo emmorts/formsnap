@@ -1,10 +1,10 @@
 # Formsnap implementation plan
 
 Initial assessment: `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
-Status: the P1/P2 review fixes are implemented and exercised. P1, P2.2, P2.3, and P2.4 are checked;
-P2.1 remains open for automatic SSR description/error associations. Checked items do not approve
-new public APIs, breaking changes, or a release. Historical evidence below refers to the initial
-assessment; outcome and review notes describe the implementation that replaced it.
+Status: P1, P2.2, P2.3, and P2.4 are checked. P2.1's user-approved scope-owned SSR association
+API is implemented; final suite, compatibility, and packaging verification are pending in CI.
+Checked items do not approve a release or its classification. Historical evidence below refers
+to the initial assessment; outcome and review notes describe the implementation that replaced it.
 
 ## Scope and tracking rules
 
@@ -285,6 +285,41 @@ rendered by Svelte's server renderer. Consumers can already provide stable `Desc
 discovery before rendering still needs a design decision. Do not invent container presence from
 validation data or duplicate-render consumer snippets.
 
+Approved contract and implementation (2026-10-10):
+
+- The user approved scope-owned content slots rather than arbitrary optional-container discovery.
+  This explicitly replaces the original unbounded SSR association criterion: `Field`, `ElementField`,
+  and native `Fieldset` declare and render their own description/error containers. Freely composed
+  standalone regions and caller-owned headless containers retain their existing lifecycle and
+  require explicit native `aria-describedby` for server associations.
+- `description?: Snippet` and `fieldErrors?: boolean | Snippet` declare content only. Omitted
+  descriptions and omitted/false errors create neither a container nor an association. Optional
+  `descriptionId`/`fieldErrorsId` override enabled targets; IDs alone do not reserve containers.
+  Defaults derive from each owning scope's unconditional `$props.id()`, not paths or row indices.
+- Controls read those declarations synchronously before rendering children. Managed regions render
+  after children without a root wrapper, duplicate snippet execution, or mounted registration.
+  Enabled empty error wrappers stay present, but their IDs are referenced only while errors exist.
+  Additional mounted contributions still merge and deduplicate through the existing owner registry.
+- `ElementField` prefers local instructions and otherwise inherits its parent's declared description.
+  Native `Fieldset` keeps owned regions inside the fieldset. Full-container `child` replacement
+  remains available without owned content; enabled owned content plus `child` is rejected in public
+  types and through a reactive runtime guard.
+- Migrated settings, primitive arrays, and enhanced JSON examples. Added `/owned` with conditional
+  slots, ID changes, custom errors, parent/local inheritance, multiple forms, disabled regions,
+  caller-owned native references, native containment, and snippet-execution counters.
+- Observed before the workstation interruption: `svelte-check` reported 0 errors and 0 warnings;
+  all six owned-content browser regressions passed. Real-page `/owned`, `/owned?local=true`, and
+  `/json` SSR/hydration checks passed, as did native rejected/corrected submissions. Manual Chromium
+  smoke confirmed initial no-JavaScript description references, rejected POST error references,
+  correction withdrawing error references, reactive ID changes, and local/parent inheritance.
+- The initial integrated suite had 86 passes and six failures: two real-page hydration timeouts
+  and four isolated SSR harness failures. Runtime conflict coverage now uses real SvelteKit
+  requests instead of rendering Superforms outside request context. Invocation instrumentation uses
+  a nonreactive record rather than a mutable `Map`. Final verification runs in GitHub Actions, not
+  on the production workstation; keep P2.1 unchecked until the suite and version matrix pass.
+- Manual screen-reader announcements remain unverified. No validation/submission abstraction,
+  dependency-range change, arbitrary SSR discovery, or release classification is part of this API.
+
 ### P2.2 Association ownership and inherited instructions (original priority 2, second part)
 
 - [x] Define and implement association registration, cleanup, and inheritance.
@@ -483,9 +518,10 @@ Review outcome (2026-10-10):
   were removed in favor of consumer-visible association, value, and submission assertions.
   Browser console warnings/errors and uncaught exceptions fail the real-page cases; only the
   expected network diagnostic for deliberately rejected HTTP 400 submissions is allowed.
-- Automatic SSR `aria-describedby` remains outside the exercised contract and keeps P2.1
-  unchecked. Manual screen-reader announcement and focus-order checks remain explicitly
-  unverified. No new public API or release classification was approved by this review.
+- At this review, automatic SSR `aria-describedby` remained outside the exercised contract and
+  kept P2.1 unchecked. The subsequent user-approved scope-owned contract and its verification are
+  recorded under P2.1. Manual screen-reader announcement and focus-order checks remain unverified;
+  release classification remains a maintainer decision.
 
 Phase gate: the existing component contract works in ordinary consumers, including initial HTML
 and reactive transitions. Release-policy decisions are recorded for changed names/types/peers.

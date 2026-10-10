@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { fixtureUrl } from "./fixture-url.js";
 import { danglingReferences, duplicateIds, parseDocument } from "./html.js";
+import { expectFixtureAssociations } from "./owned-associations.js";
+import { expectOwnedFixture } from "./owned-fixture.js";
 
 async function renderFixture(): Promise<Document> {
 	const response = await fetch(fixtureUrl());
@@ -55,12 +57,8 @@ describe("server-rendered consumer fixture", () => {
 		expect((await renderFixture()).querySelector("[aria-invalid]")).toBeNull();
 	});
 
-	it("renders the descriptions and the error containers", async () => {
-		const document = await renderFixture();
-
-		expect(document.body.textContent).toContain("We'll email you about your account.");
-		expect(document.body.textContent).toContain("Tell us about yourself.");
-		expect(document.querySelectorAll("[data-fs-field-errors]")).toHaveLength(2);
+	it("references each field's owned description before any client code runs", async () => {
+		expectFixtureAssociations(await renderFixture());
 	});
 
 	it("never references an element that is not rendered", async () => {
@@ -92,10 +90,7 @@ describe("server-rendered consumer fixture", () => {
 
 		const document = parseDocument(await response.text());
 		expect(document.querySelector('[name="email"]')?.getAttribute("aria-invalid")).toBe("true");
-		expect(
-			document.querySelector("[data-fs-field-errors]")?.textContent?.trim().length,
-			"the rejected message is rendered"
-		).toBeGreaterThan(0);
+		expectFixtureAssociations(document);
 		expect(danglingReferences(document)).toEqual([]);
 	});
 
@@ -105,5 +100,42 @@ describe("server-rendered consumer fixture", () => {
 
 		const document = parseDocument(await response.text());
 		expect(document.querySelector('[name="email"]')?.getAttribute("aria-invalid")).toBeNull();
+		expectFixtureAssociations(document);
+	});
+
+	it.each(["arrays", "json"])(
+		"renders owned inherited descriptions and row error targets on /%s",
+		async (path) => {
+			const response = await fetch(new URL(path, fixtureUrl()));
+			expect(response.status).toBe(200);
+			expectFixtureAssociations(parseDocument(await response.text()));
+		}
+	);
+
+	it.each([false, true])(
+		"declares owned SSR regions and executes content once (local=%s)",
+		async (localInitially) => {
+			const response = await fetch(new URL(`owned?local=${localInitially}`, fixtureUrl()));
+			expect(response.status).toBe(200);
+			expectOwnedFixture(parseDocument(await response.text()), localInitially);
+		}
+	);
+
+	it.each(["description", "default-errors", "custom-errors"] as const)(
+		"rejects custom Fieldset containers with active %s at runtime",
+		async (mode) => {
+			const response = await fetch(new URL(`owned?conflict=${mode}`, fixtureUrl()));
+			expect(response.status).toBe(500);
+		}
+	);
+
+	it("preserves unowned custom Fieldset containers with disabled regions and ID overrides", async () => {
+		const response = await fetch(new URL("owned?conflict=disabled", fixtureUrl()));
+		expect(response.status).toBe(200);
+		const document = parseDocument(await response.text());
+		expect(document.querySelector("section[data-custom-group]")).not.toBeNull();
+		expect(document.querySelector("[data-fs-description], [data-fs-field-errors]")).toBeNull();
+		expect(document.getElementById("unused-custom-help")).toBeNull();
+		expect(document.getElementById("unused-custom-errors")).toBeNull();
 	});
 });

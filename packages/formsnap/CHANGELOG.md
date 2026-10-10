@@ -8,6 +8,16 @@
   Superforms 3.0.0 additionally requires Svelte 5.56.4. The release version and classification
   remain a maintainer decision.
 
+### Features
+
+- Add opt-in `description` and `fieldErrors` content slots to `Field`, `ElementField`, and native
+  `Fieldset`, with scope-owned hydration-stable IDs and optional `descriptionId`/`fieldErrorsId`
+  overrides. Controls reference rendered instructions and current errors in server-rendered HTML
+  without mounting effects or rendering consumer snippets twice.
+- Preserve owned parent descriptions for `ElementField` inheritance. Place native `Fieldset` owned
+  regions inside its container; reject combining enabled owned slots with its full-container `child`
+  replacement in public types and at runtime.
+
 ### Fixes
 
 - Generate hydration-stable component IDs and honor explicit control IDs in server-rendered HTML.
@@ -24,13 +34,14 @@
   top-level schema keys and numeric object keys. Deduplicate description/error IDs in the final
   `aria-describedby` value.
 - Correct the scoped-package quickstart, version guidance, support routing, and native submission
-  example. Document the existing client-only automatic description/error associations and the
-  native `aria-describedby` escape hatch for server-rendered HTML.
+  example. Use owned slots for server-rendered associations; document client-only automatic
+  standalone regions and the native `aria-describedby` escape hatch for caller-owned containers.
 
 ### Verification
 
 - Add real SvelteKit browser hydration, no-JavaScript repeated-name array submissions, enhanced JSON
-  validation, stable keyed row interactions, association ownership/lifecycle, and public type cases.
+  validation, stable keyed row interactions, association ownership/lifecycle, owned SSR regions,
+  conditional content, custom error snippets, and public type cases.
 - Isolate optimizer caches between component tests and the real fixture app. Allocate the fixture
   port dynamically and close its server after setup failures and test completion.
 - Cover the Superforms 2 and 3 Svelte minimums plus current versions in CI; install Chromium in the

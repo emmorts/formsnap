@@ -3,6 +3,7 @@
 	import type { FieldErrorsProps } from "./types.js";
 	import { useId } from "$lib/internal/utils/index.js";
 	import { useFieldErrors } from "$lib/formsnap.svelte.js";
+	import ErrorContent from "./error-content.svelte";
 
 	const instanceId = $props.id();
 
@@ -49,9 +50,10 @@ A component that renders the container for validation errors for a [Field](https
 		{#if children}
 			{@render children(fieldErrorsState.snippetProps)}
 		{:else}
-			{#each fieldErrorsState.field.errors as error, i (i)}
-				<div {...fieldErrorsState.errorProps}>{error}</div>
-			{/each}
+			<ErrorContent
+				errors={fieldErrorsState.field.errors}
+				errorProps={fieldErrorsState.errorProps}
+			/>
 		{/if}
 	</div>
 {/if}

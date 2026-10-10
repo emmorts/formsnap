@@ -1,16 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { superForm, type SuperValidated } from "sveltekit-superforms";
-	import {
-		Control,
-		Description,
-		ElementField,
-		Field,
-		FieldErrors,
-		Fieldset,
-		Label,
-		Legend,
-	} from "$lib/index.js";
+	import { Control, ElementField, Field, Fieldset, Label, Legend } from "$lib/index.js";
 	import type { ContactsData } from "./schema.js";
 
 	let { data }: { data: { form: SuperValidated<ContactsData> } } = $props();
@@ -55,7 +46,7 @@
 </script>
 
 <form method="POST" use:enhance data-hydrated={hydrated} novalidate>
-	<Field {form} name="profile.name">
+	<Field {form} name="profile.name" fieldErrors>
 		{#snippet children({ value })}
 			<output data-testid="profile-value" data-value={JSON.stringify(value)}>{value}</output>
 			<Control>
@@ -64,17 +55,20 @@
 					<input {...props} bind:value={$formData.profile.name} />
 				{/snippet}
 			</Control>
-			<Description>Use at least two characters.</Description>
-			<FieldErrors />
 		{/snippet}
+		{#snippet description()}Use at least two characters.{/snippet}
 	</Field>
-	<Fieldset {form} name="contacts">
+	<Fieldset {form} name="contacts" fieldErrors>
 		<Legend>Contacts</Legend>
-		<Description>Enter an email address for each contact.</Description>
+		{#snippet description()}Enter an email address for each contact.{/snippet}
 		{#each $formData.contacts as _, index (rowIds[index])}
-			<ElementField {form} name={`contacts[${index}].email` as `contacts[${number}].email`}>
-				{#snippet children({ value, tainted })}
-					<div data-row={index}>
+			<div data-row={index}>
+				<ElementField
+					{form}
+					name={`contacts[${index}].email` as `contacts[${number}].email`}
+					fieldErrors
+				>
+					{#snippet children({ value, tainted })}
 						<output data-value={JSON.stringify(value)} data-tainted={tainted}
 							>{value}</output
 						>
@@ -84,12 +78,10 @@
 								<input {...props} bind:value={$formData.contacts[index].email} />
 							{/snippet}
 						</Control>
-						<FieldErrors />
-					</div>
-				{/snippet}
-			</ElementField>
+					{/snippet}
+				</ElementField>
+			</div>
 		{/each}
-		<FieldErrors />
 	</Fieldset>
 	<button type="button" onclick={addRow}>Add row</button>
 	<button type="button" onclick={reorderRows}>Reorder rows</button>

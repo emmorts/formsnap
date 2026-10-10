@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { fixtureUrl } from "./fixture-url.js";
 import { danglingReferences, duplicateIds, parseDocument } from "./html.js";
+import { expectFixtureAssociations } from "./owned-associations.js";
+import { expectOwnedFixture } from "./owned-fixture.js";
 
 let browser: Browser;
 let context: BrowserContext | undefined;
@@ -40,6 +42,9 @@ async function assertAssociations(page: Page) {
 	const document = parseDocument(await page.content());
 	expect(duplicateIds(document)).toEqual([]);
 	expect(danglingReferences(document)).toEqual([]);
+	if (document.querySelector('[data-testid="owned-primary"]'))
+		expectOwnedFixture(document, new URL(page.url()).searchParams.get("local") === "true");
+	else expectFixtureAssociations(document);
 	for (const input of document.querySelectorAll("form input, form textarea")) {
 		const id = input.getAttribute("id");
 		expect(id, `id for ${input.getAttribute("name")}`).toBeTruthy();
@@ -58,50 +63,66 @@ async function rows(page: Page) {
 }
 
 describe("real SvelteKit consumers", () => {
-	it("hydrates the very same SSR document without changing ids or replacing controls", async () => {
-		const page = await openPage();
-		let releaseScripts!: () => void;
-		const scriptsReady = new Promise<void>((resolve) => {
-			releaseScripts = resolve;
-		});
-		await page.route("**/*", async (route) => {
-			if (route.request().resourceType() === "script") await scriptsReady;
-			await route.continue();
-		});
-		try {
-			const response = await page.goto(fixtureUrl(), { waitUntil: "commit" });
-			expect(response?.status()).toBe(200);
-			await page.locator('form[data-hydrated="false"]').waitFor();
-			const before = await page.locator("form [id]").evaluateAll((elements) => {
-				(window as Window & { ssrNodes?: Element[] }).ssrNodes = elements;
-				return elements.map((element) => ({ tag: element.tagName, id: element.id }));
+	it.each(["", "arrays", "json", "owned", "owned?local=true"])(
+		"preserves SSR targets, attributes and DOM identity through hydration at /%s",
+		async (path) => {
+			const page = await openPage();
+			let releaseScripts!: () => void;
+			const scriptsReady = new Promise<void>((resolve) => {
+				releaseScripts = resolve;
 			});
-			expect(before.length).toBeGreaterThan(2);
-			expect(await page.locator('[name="email"]').getAttribute("id")).toBe("email-input");
-			expect(await page.locator('[name="bio"]').getAttribute("id")).toBeTruthy();
-			await assertAssociations(page);
+			await page.route("**/*", async (route) => {
+				if (route.request().resourceType() === "script") await scriptsReady;
+				await route.continue();
+			});
+			try {
+				const response = await page.goto(new URL(path, fixtureUrl()).href, {
+					waitUntil: "commit",
+				});
+				expect(response?.status()).toBe(200);
+				await page.locator('form[data-hydrated="false"]').waitFor();
+				const before = await page.locator("form [id]").evaluateAll((elements) => {
+					(window as Window & { ssrNodes?: Element[] }).ssrNodes = elements;
+					return elements.map((element) => ({
+						tag: element.tagName,
+						id: element.id,
+						describedBy: element.getAttribute("aria-describedby"),
+						required: element.getAttribute("aria-required"),
+						invalid: element.getAttribute("aria-invalid"),
+					}));
+				});
+				if (path === "") {
+					expect(await page.locator('[name="email"]').getAttribute("id")).toBe(
+						"email-input"
+					);
+					expect(await page.locator('[name="bio"]').getAttribute("id")).toBeTruthy();
+				}
+				await assertAssociations(page);
 
-			releaseScripts();
-			await page.locator('form[data-hydrated="true"]').waitFor();
-			const after = await page.locator("form [id]").evaluateAll((elements) => ({
-				ids: elements.map((element) => ({ tag: element.tagName, id: element.id })),
-				reused: elements.every(
-					(element, index) =>
-						element === (window as Window & { ssrNodes?: Element[] }).ssrNodes?.[index]
-				),
-			}));
-			expect(after.ids).toEqual(before);
-			expect(after.reused).toBe(true);
-			for (const name of ["email", "bio"]) {
-				expect(
-					await page.locator(`[name="${name}"]`).getAttribute("aria-describedby")
-				).toBeTruthy();
+				releaseScripts();
+				await page.locator('form[data-hydrated="true"]').waitFor();
+				const after = await page.locator("form [id]").evaluateAll((elements) => ({
+					ids: elements.map((element) => ({
+						tag: element.tagName,
+						id: element.id,
+						describedBy: element.getAttribute("aria-describedby"),
+						required: element.getAttribute("aria-required"),
+						invalid: element.getAttribute("aria-invalid"),
+					})),
+					reused: elements.every(
+						(element, index) =>
+							element ===
+							(window as Window & { ssrNodes?: Element[] }).ssrNodes?.[index]
+					),
+				}));
+				expect(after.ids).toEqual(before);
+				expect(after.reused).toBe(true);
+				await assertAssociations(page);
+			} finally {
+				releaseScripts();
 			}
-			await assertAssociations(page);
-		} finally {
-			releaseScripts();
 		}
-	});
+	);
 
 	it("submits and renders rejected and accepted settings with JavaScript disabled", async () => {
 		const page = await openPage(false);
@@ -134,6 +155,7 @@ describe("real SvelteKit consumers", () => {
 		// The canonical example retains Superforms' default reset-on-success behavior.
 		expect(await page.getByLabel("Bio", { exact: true }).inputValue()).toBe("");
 		expect(await page.locator("[aria-invalid]").count()).toBe(0);
+		await assertAssociations(page);
 	});
 
 	it("uses actual repeated-name browser POSTs for arrays without JavaScript", async () => {
@@ -175,6 +197,7 @@ describe("real SvelteKit consumers", () => {
 			urls: ["https://first.example", "https://second.example"],
 		});
 		expect(await page.locator("[aria-invalid]").count()).toBe(0);
+		await assertAssociations(page);
 	});
 
 	it("keeps primitive row values, labels and native names aligned after mutations", async () => {
@@ -183,6 +206,9 @@ describe("real SvelteKit consumers", () => {
 		await page.locator('form[data-hydrated="true"]').waitFor();
 		await page.getByRole("button", { name: "Add row", exact: true }).click();
 		const movedId = await page.locator('[data-row="2"] input').getAttribute("id");
+		const movedErrorsId = await page
+			.locator('[data-row="2"] [data-fs-field-errors]')
+			.getAttribute("id");
 		await page.getByRole("button", { name: "Reorder rows", exact: true }).click();
 		await page.getByRole("button", { name: "Remove row", exact: true }).click();
 		expect(await rows(page)).toEqual([
@@ -190,6 +216,9 @@ describe("real SvelteKit consumers", () => {
 			{ value: "https://b.example", input: "https://b.example", name: "urls" },
 		]);
 		expect(await page.locator('[data-row="0"] input').getAttribute("id")).toBe(movedId);
+		expect(await page.locator('[data-row="0"] [data-fs-field-errors]').getAttribute("id")).toBe(
+			movedErrorsId
+		);
 		expect(await page.locator("fieldset > legend").innerText()).toBe("Website URLs");
 		expect(await page.locator("fieldset input").count()).toBe(2);
 		await assertAssociations(page);
@@ -221,6 +250,9 @@ describe("real SvelteKit consumers", () => {
 		);
 		await page.getByRole("button", { name: "Add row", exact: true }).click();
 		const movedId = await page.locator('[data-row="2"] input').getAttribute("id");
+		const movedErrorsId = await page
+			.locator('[data-row="2"] [data-fs-field-errors]')
+			.getAttribute("id");
 		await page.getByRole("button", { name: "Reorder rows", exact: true }).click();
 		await page.getByRole("button", { name: "Remove row", exact: true }).click();
 		expect(await page.getByTestId("profile-value").getAttribute("data-value")).toBe('"x"');
@@ -229,6 +261,9 @@ describe("real SvelteKit consumers", () => {
 			{ value: "broken", input: "broken", name: "contacts" },
 		]);
 		expect(await page.locator('[data-row="0"] input').getAttribute("id")).toBe(movedId);
+		expect(await page.locator('[data-row="0"] [data-fs-field-errors]').getAttribute("id")).toBe(
+			movedErrorsId
+		);
 		expect(await page.locator('[data-row="1"] output').getAttribute("data-tainted")).toBe(
 			"true"
 		);

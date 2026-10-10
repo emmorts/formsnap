@@ -11,9 +11,10 @@
 The goal of this library is to make working with the already incredible [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms) even more pleasant, by wrapping it with accessible form components.
 
 This repository is the maintained fork [`@emmorts/formsnap`](https://github.com/emmorts/formsnap) of
-[`formsnap`](https://github.com/svecosystem/formsnap). The components follow the upstream API
-documented at [formsnap.dev](https://formsnap.dev); this fork keeps the package published and the
-supported dependency range current.
+[`formsnap`](https://github.com/svecosystem/formsnap). The composable upstream API documented at
+[formsnap.dev](https://formsnap.dev) remains available. This fork also provides
+[scope-owned description/error slots](./packages/formsnap/README.md#accessibility-associations)
+for server-rendered associations and maintains the published package and supported dependency range.
 
 ## Installation
 
@@ -42,6 +43,8 @@ exercised by the consumer tests.
 You still handle the Superforms setup yourself — define a schema, return `superValidate(...)` from
 your load function, call `superForm` in your component — and Formsnap adds the accessible labelling,
 description and error markup plus the ARIA relationships for each field.
+Use the scope-owned content slots when these relationships must work before hydration or without
+JavaScript; freely composed standalone regions still need explicit native associations on the server.
 
 ## Components
 
