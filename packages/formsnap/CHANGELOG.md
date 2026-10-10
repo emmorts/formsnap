@@ -1,102 +1,53 @@
-# formsnap
+# Changelog
+
+`@emmorts/formsnap` is a fork of [svecosystem/formsnap](https://github.com/svecosystem/formsnap),
+created because the original repository has not been maintained since April 2025.
+Versions 2.1.0 and later belong to this fork; earlier entries are upstream history.
 
 ## Unreleased
 
 ### Compatibility
 
-- Raise the minimum supported Svelte version to 5.30.2, matching `svelte-toolbelt` 0.10.6.
-  Superforms 3.0.0 additionally requires Svelte 5.56.4. The release version and classification
-  remain a maintainer decision.
+- Require Svelte `^5.30.2`. Superforms 3.0.0 requires Svelte `^5.56.4`.
 
-### Features
+### Added
 
-- Add opt-in `description` and `fieldErrors` content slots to `Field`, `ElementField`, and native
-  `Fieldset`, with scope-owned hydration-stable IDs and optional `descriptionId`/`fieldErrorsId`
-  overrides. Controls reference rendered instructions and current errors in server-rendered HTML
-  without mounting effects or rendering consumer snippets twice.
-- Preserve owned parent descriptions for `ElementField` inheritance. Place native `Fieldset` owned
-  regions inside its container; reject combining enabled owned slots with its full-container `child`
-  replacement in public types and at runtime.
-- Add an explicit announcement policy for error regions: `live` on `FieldErrors` and
-  `fieldErrorsLive` on the components that own a region accept `"assertive"` (the unchanged
-  default), `"polite"`, or `"off"`. The prop wins over a spread `aria-live`, which wins over the
-  default; associations, IDs and `aria-invalid` are unaffected by the policy.
+- `description` and `fieldErrors` slots on `Field`, `ElementField` and native `Fieldset`.
+  Controls reference descriptions and current errors before hydration and without JavaScript.
+  Override generated IDs with `descriptionId` and `fieldErrorsId`. Native `Fieldset` cannot
+  combine enabled slots with a full-container `child` replacement.
+- `live` on `FieldErrors` and `fieldErrorsLive` on owning fields: `"assertive"` (default),
+  `"polite"` or `"off"`. The policy changes announcements, not associations or `aria-invalid`.
+  On `FieldErrors`, precedence is `live` > spread `aria-live` > default.
 
-### Fixes
+### Fixed
 
-- Generate hydration-stable component IDs and honor explicit control IDs in server-rendered HTML.
-- Track description, error, and control-ID contributions by owner. Releasing or destroying one
-  owner preserves other contributions, removes stale references, and restores inherited descriptions
-  or control IDs.
-- Register `Description` and `FieldErrors` through their actual mounted elements, including custom
-  child snippets. Custom containers must spread their supplied props; unrelated document IDs are
-  no longer mistaken for those containers.
-- Resolve nested and array snippet values consistently across `Field`, `ElementField`, and
-  `Fieldset`. Preserve literal top-level keys containing path delimiters and include `undefined`
-  in snippet types when traversing optional or nullable ancestors.
-- Resolve array constraints using schema paths without bracket indices, while preserving literal
-  top-level schema keys and numeric object keys. Deduplicate description/error IDs in the final
-  `aria-describedby` value.
-- Correct the scoped-package quickstart, version guidance, support routing, and native submission
-  example. Use owned slots for server-rendered associations; document client-only automatic
-  standalone regions and the native `aria-describedby` escape hatch for caller-owned containers.
+- Keep generated IDs stable across hydration and respect explicit control IDs in server-rendered HTML.
+- Remove stale description, error and control-ID references without removing another owner's
+  associations. Restore inherited descriptions and IDs when overrides disappear.
+- Register standalone `Description` and `FieldErrors` against their mounted elements, including
+  custom snippets. Automatic standalone associations remain client-only.
+- Resolve nested and array values and constraints consistently. Preserve literal keys, handle
+  optional or nullable parents in snippet types, and deduplicate `aria-describedby` IDs.
 
-### Documentation
+### Docs and tests
 
-- Complete the canonical quickstart with the enhancement path: Superforms' own `enhance`, `fail` and
-  `message`, and the difference between an enhanced failure `ActionResult` and a native HTTP 400.
-- Add integration recipes, each backed by a fixture page the consumer tests exercise: nested data and
-  object arrays, primitive arrays with stable row identity, file uploads, native constraints with
-  `customValidity`, custom `child` snippets with ref forwarding, custom controls built on the
-  `useFormField`/`useFormControl` hooks, multiple forms, pending and success feedback, and the
-  keyboard/accessibility responsibilities that a custom control keeps.
-- Correct the nested JSON excerpt to retain the required parent `Fieldset`, store bindings and keyed
-  rows. Distinguish tested fixture pages from abbreviated README excerpts.
-- Clarify that `data-no-custom-validity` skips server-error assignment rather than guaranteeing
-  preservation of caller-set custom validity, and that file-picker `accept` hints are not server
-  file-type validation. Restore navigable recipe-index links.
-- Document the announcement policies, their precedence and the guidance that keeps two live regions
-  from announcing the same message, and add the `/recipes/announcements` page to the recipes.
-
-### Verification
-
-- Add real SvelteKit browser hydration, no-JavaScript repeated-name array submissions, enhanced JSON
-  validation, stable keyed row interactions, association ownership/lifecycle, owned SSR regions,
-  conditional content, custom error snippets, and public type cases.
-- Exercise the documented recipes end to end in the same fixture app: server-rendered labels and
-  associations, DOM identity across hydration, a JavaScript-free multipart file upload, native
-  constraint blocking, `customValidity` and its `data-no-custom-validity` opt-out, custom snippet ref
-  forwarding, a control built on the headless hooks, and the pending and success states.
-- Cover the announcement policies in a mounted fixture (default, prop, spread fallback, prop
-  precedence, policy change) and in the recipe app (server-rendered policy on an empty region, the
-  association of a rejected submission, an error replaced in place while typing without a request,
-  and a conditional region that withdraws and restores its association).
-- Cover every recipe-index link without JavaScript, native composition/feedback rejection and
-  recovery, multipart file-size boundaries on both submission paths, corrected native validity, and
-  preserved document identity after enhanced uploads. Keep diagnostics across pages in one test and
-  release pending-request gates after failures.
-- Isolate optimizer caches between component tests and the real fixture app. Allocate the fixture
-  port dynamically and close its server after setup failures and test completion.
-- Cover the Superforms 2 and 3 Svelte minimums plus current versions in CI; install Chromium in the
-  release workflow before running consumer tests.
+- Add a complete Superforms quickstart and tested recipes for nested data, arrays, uploads,
+  native validation, custom controls, multiple forms, submission feedback and error announcements.
+- Publish the fork documentation and changelog on GitHub Pages.
+- Test server rendering, hydration, JavaScript-free and enhanced submissions, dynamic associations
+  and public types across Superforms 2 and 3. Manual screen-reader checks remain pending.
 
 ## 2.1.1 (2026-10-09)
 
-No functional change. This release exists to exercise the release pipeline end to end: the tag
-`v2.1.1` is picked up by GitHub Actions, which type-checks, tests, builds and publishes the package
-over npm trusted publishing, then opens this GitHub release from this changelog section.
+No functional changes. Verify npm trusted publishing and GitHub release generation.
 
 ## 2.1.0
 
-Forked as `@emmorts/formsnap` from `svecosystem/formsnap` 2.0.1, which has been
-unmaintained since 2025-04. Published from https://github.com/emmorts/formsnap.
+Fork upstream 2.0.1 as `@emmorts/formsnap`.
 
-### Minor Changes
-
-- Support `sveltekit-superforms` 3, whose `FormPathLeaves<T>` is no longer
-  assignable to `FormPath<T>`. The internal generics are now constrained on the
-  union of the two; the public component props keep their narrower types.
-- Widened the `sveltekit-superforms` peer range to `^2.19.0 || ^3.0.0`.
+- Support Superforms 3 while keeping the existing public field-path types.
+- Expand the Superforms peer range to `^2.19.0 || ^3.0.0`.
 
 ## 2.0.1
 

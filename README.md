@@ -1,101 +1,66 @@
 # Formsnap
 
-<!-- automd:badges license name="formsnap" color="blue" github="svecosystem/formsnap" -->
-
 [![npm version](https://flat.badgen.net/npm/v/@emmorts%2Fformsnap?color=blue)](https://npmjs.com/package/@emmorts/formsnap)
-[![npm downloads](https://flat.badgen.net/npm/dm/@emmorts%2Fformsnap?color=blue)](https://npmjs.com/package/@emmorts/formsnap)
-[![license](https://flat.badgen.net/github/license/svecosystem/formsnap?color=blue)](https://github.com/svecosystem/formsnap/blob/main/LICENSE)
+[![license](https://flat.badgen.net/github/license/emmorts/formsnap?color=blue)](./LICENSE)
 
-<!-- /automd -->
+Accessible, unstyled form components for SvelteKit and
+[sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
+Formsnap handles labels, descriptions, errors and ARIA relationships. Superforms handles
+validation, submission and form state.
 
-The goal of this library is to make working with the already incredible [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms) even more pleasant, by wrapping it with accessible form components.
+`@emmorts/formsnap` is a fork of [svecosystem/formsnap](https://github.com/svecosystem/formsnap),
+created because the original repository has not been maintained since April 2025.
+This fork continues maintenance and adds Superforms 3 support.
 
-This repository is the maintained fork [`@emmorts/formsnap`](https://github.com/emmorts/formsnap) of
-[`formsnap`](https://github.com/svecosystem/formsnap). The composable upstream API documented at
-[formsnap.dev](https://formsnap.dev) remains available. This fork also provides
-[scope-owned description/error slots](./packages/formsnap/README.md#accessibility-associations)
-for server-rendered associations and maintains the published package and supported dependency range.
+## Changes in this fork
+
+Released in 2.1.0: Superforms 2 and 3 support under the `@emmorts/formsnap` package name.
+
+On `main`, not yet released:
+
+- IDs stay stable across server rendering and hydration. Explicit control IDs are respected.
+- Description and error associations update correctly when content mounts, unmounts or changes.
+- Nested fields and arrays resolve values and constraints correctly, including optional paths.
+- `description` and `fieldErrors` slots on `Field`, `ElementField` and native `Fieldset` associate
+  content before hydration and without JavaScript.
+- `live` on `FieldErrors` and `fieldErrorsLive` on owning fields accept `"assertive"`, `"polite"`
+  or `"off"`. The default remains `"assertive"`.
+- Tested recipes cover uploads, arrays, custom controls, native validation and submission feedback.
+
+See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 
 ## Installation
 
 ```bash
-npm i @emmorts/formsnap sveltekit-superforms <your-schema-library>
+npm i @emmorts/formsnap sveltekit-superforms zod
 ```
 
-The supported versions match the published peer range:
+Requires Svelte `^5.30.2` and Superforms `^2.19.0 || ^3.0.0`.
+Superforms 3.0.0 requires Svelte `^5.56.4`. Other schema libraries work through Superforms adapters.
 
-| Dependency             | Supported range                                |
-| ---------------------- | ---------------------------------------------- |
-| `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10 |
-| `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
+## Usage and docs
 
-These ranges are not an unrestricted cross-product: Superforms 3.0.0 requires Svelte
-`^5.56.4`. Use Svelte 5.30.2 or later with Superforms 2, and satisfy Superforms' own Svelte
-peer requirement when choosing Superforms 3.
+Start with the [quickstart](./packages/formsnap/README.md). Use `@emmorts/formsnap` in imports
+instead of `formsnap`.
 
-## Usage
+- [Fork documentation](https://emmorts.github.io/formsnap/): setup, APIs added by this fork and recipes.
+- [Upstream API reference](https://formsnap.dev): the original component API.
+- [Recipe source](./packages/formsnap/src/routes): complete SvelteKit examples exercised by browser tests.
 
-[`packages/formsnap/README.md`](./packages/formsnap/README.md) holds the canonical quickstart:
-a schema, a load function and action, the form component, and the page that renders it. The fixture
-app under [`packages/formsnap/src/routes`](./packages/formsnap/src/routes) is type-checked and
-exercised by the consumer tests.
+Components: `Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset`
+and `Legend`. Headless hooks support custom controls. Style components with `data-fs-*` attributes.
 
-You still handle the Superforms setup yourself — define a schema, return `superValidate(...)` from
-your load function, call `superForm` in your component — and Formsnap adds the accessible labelling,
-description and error markup plus the ARIA relationships for each field.
-The same README answers the questions that come next: progressive enhancement, nested JSON and
-arrays, stable row keys, file uploads, native constraints, custom `child` snippets, headless hooks,
-multiple forms, and pending or success feedback. Each recipe links to a complete fixture page
-exercised by the consumer tests; the README shows excerpts from those pages.
-Use the scope-owned content slots when these relationships must work before hydration or without
-JavaScript; freely composed standalone regions still need explicit native associations on the server.
+Report fork bugs on [emmorts/formsnap](https://github.com/emmorts/formsnap/issues).
+Report Superforms bugs on [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms/issues).
 
-## Components
+## License and credits
 
-`Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset` and `Legend`,
-plus the `useFormField`/`useFormControl` and `getFormField`/`getFormControl` hooks for custom
-widgets. Components are unstyled and mark their elements with `data-fs-*` attributes for styling.
-
-## Support
-
-- Component API and guides: [formsnap.dev](https://formsnap.dev) (upstream documentation).
-- This fork's documentation, rendered from the files in this repository:
-  [emmorts.github.io/formsnap](https://emmorts.github.io/formsnap/).
-- Problems specific to this fork — packaging, supported versions, releases: open an issue on
-  [emmorts/formsnap](https://github.com/emmorts/formsnap).
-- Behaviour of Superforms itself: [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
-
-## Sponsors
-
-Upstream Formsnap is supported by the following beautiful people/organizations:
-
-<p align="center">
-  <a href="https://github.com/sponsors/huntabyte">
-    <img src='https://cdn.jsdelivr.net/gh/huntabyte/static/sponsors.svg' alt="Logos from Sponsors" />
-  </a>
-</p>
-
-## License
-
-<!-- automd:contributors license=MIT author="huntabyte" github="svecosystem/formsnap" -->
-
-Published under the [MIT](https://github.com/svecosystem/formsnap/blob/main/LICENSE) license.
-Made by [@huntabyte](https://github.com/huntabyte) and [community](https://github.com/svecosystem/formsnap/graphs/contributors) 💛
-<br><br>
-<a href="https://github.com/svecosystem/formsnap/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=svecosystem/formsnap" />
-</a>
-
-<!-- /automd -->
+[MIT](./LICENSE). Original library by [@huntabyte](https://github.com/huntabyte) and
+[contributors](https://github.com/svecosystem/formsnap/graphs/contributors).
+[Support the original author](https://github.com/sponsors/huntabyte).
 
 ## Releasing
 
-This repository publishes [`@emmorts/formsnap`](https://www.npmjs.com/package/@emmorts/formsnap) from
-GitHub Actions.
-
-1. Add a `## <version>` section to
-   [`packages/formsnap/CHANGELOG.md`](./packages/formsnap/CHANGELOG.md) describing the change.
-2. Run `npm run release -- <version>`. It checks the tree, the changelog and the tag, then bumps
-   `packages/formsnap/package.json`, commits, tags `v<version>` and pushes.
-3. CI type-checks, tests, builds and publishes the package, then opens a GitHub release whose notes
-   are that changelog section.
+1. Add a version section to [the changelog](./packages/formsnap/CHANGELOG.md).
+2. Run `npm run release -- <version>` to check, bump, commit, tag and push.
+3. GitHub Actions verifies and publishes `@emmorts/formsnap`, then creates release notes from that section.
