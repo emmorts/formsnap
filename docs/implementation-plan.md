@@ -621,7 +621,15 @@ Review (2026-10-10):
   The pattern-blocking case now has a valid invite code, avoiding an unrelated required-field failure.
 - Diagnostic collection now resets once per test, not per page, so opening the hydrated page cannot
   hide warnings from the preceding server-rendered page. Pending-request gates release on failure.
-- Review verification is pending in GitHub Actions; no local runtime workloads were started.
+- The test-only regression commit `191570b` reproduced the missing index links in
+  [run 38053626796](https://github.com/emmorts/formsnap/actions/runs/38053626796): four failures,
+  106 passes. The first fix run exposed the test's absolute-`href` assumption; navigation now uses
+  browser-resolved destinations, supporting SvelteKit's relative server-rendered links.
+- [Run 38053957127](https://github.com/emmorts/formsnap/actions/runs/38053957127) on `d4d08ec`
+  passed baseline lint and all four dependency jobs: zero type errors/warnings, all 110 tests across
+  eight files, package generation and publint. The recipe file now has 18 tests. Browser scenarios
+  exercised every index link, file-size rejection/recovery, corrected validity, and native submissions.
+  No local runtime workloads were started. Manual screen-reader verification remains unperformed.
 
 ## Phase 4: Complete announcement and custom-control composition
 
