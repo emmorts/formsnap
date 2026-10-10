@@ -714,7 +714,8 @@ Outcome (2026-10-10):
   hydration matrices, plus two focused cases: the policy of every region in the first HTML and the
   association of a rejected native submission (which ties a policy to the two owned regions without
   the test guessing), and an error replaced in place while typing with no request, followed by a
-  conditional region whose association is withdrawn and restored.
+  conditional region whose association is withdrawn and restored — the re-created component gets a
+  fresh id, so the test follows the element rather than a remembered id.
 - Three first-run defects were the tests' and the recipe's, not the library's. Client-side validation
   was never enabled: `SuperValidated` carries no `validators` in these versions, so the page has to
   pass a client adapter (`zodClient`) rather than relying on the schema alone. The note field had no
