@@ -81,4 +81,40 @@ describe("server-rendered consumer fixture", () => {
 	it("never repeats an id", async () => {
 		expect(duplicateIds(await renderFixture())).toEqual([]);
 	});
+
+	/** Submits the fixture form the way a browser without JavaScript would. */
+	async function submit(body: string) {
+		return fetch(DEV_SERVER_URL, {
+			method: "POST",
+			headers: {
+				"content-type": "application/x-www-form-urlencoded",
+				// Kit re-renders the page for a document request; without this it answers with the
+				// serialized action result, which is the fetch-driven path.
+				accept: "text/html",
+				origin: new URL(DEV_SERVER_URL).origin,
+			},
+			body,
+		});
+	}
+
+	it("renders the errors the action reports for a rejected submission", async () => {
+		const response = await submit("email=not-an-email&bio=hi");
+		expect(response.status).toBe(400);
+
+		const document = parseDocument(await response.text());
+		expect(document.querySelector('[name="email"]')?.getAttribute("aria-invalid")).toBe("true");
+		expect(
+			document.querySelector("[data-fs-field-errors]")?.textContent?.trim().length,
+			"the rejected message is rendered"
+		).toBeGreaterThan(0);
+		expect(danglingReferences(document)).toEqual([]);
+	});
+
+	it("accepts a submission that validates", async () => {
+		const response = await submit("email=a@b.com&bio=hello");
+		expect(response.status).toBe(200);
+
+		const document = parseDocument(await response.text());
+		expect(document.querySelector('[name="email"]')?.getAttribute("aria-invalid")).toBeNull();
+	});
 });
