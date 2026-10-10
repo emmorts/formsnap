@@ -241,12 +241,11 @@ describe("documented integration recipes", () => {
 			page.getByRole("button", { name: "Upload" }).click(),
 		]);
 		expect(response.status()).toBe(200);
-		const result = await response.json();
-		expect(result).toMatchObject({ type: "success", status: 200 });
+		// A success means the schema accepted the submission, which requires a non-empty File.
+		expect(await response.json()).toMatchObject({ type: "success", status: 200 });
+		expect(response.request().headers()["x-sveltekit-action"]).toBe("true");
 		// The action can only name the file and its size if Superforms parsed a real File out of the
 		// enhanced submission.
-		expect(result.data.form.message).toBe("Received notes.txt (5 bytes).");
-		expect(response.request().headers()["x-sveltekit-action"]).toBe("true");
 		await page.locator('[data-testid="upload-message"]').waitFor();
 		expect(await page.getByTestId("upload-message").innerText()).toBe(
 			"Received notes.txt (5 bytes)."
@@ -257,16 +256,16 @@ describe("documented integration recipes", () => {
 		// Server-rendered: the owned slot declares its target, the freely composed region cannot.
 		const server = await openPage(false);
 		await server.goto(recipeUrl("composition"));
-		const document = parseDocument(await server.content());
-		const ratingDescriptionId = document
+		const serverDocument = parseDocument(await server.content());
+		const ratingDescriptionId = serverDocument
 			.querySelector('input[name="rating"]')
 			?.getAttribute("aria-describedby");
 		expect(ratingDescriptionId).toBeTruthy();
 		expect(
-			document.getElementById(ratingDescriptionId!)?.hasAttribute("data-fs-description")
+			serverDocument.getElementById(ratingDescriptionId!)?.hasAttribute("data-fs-description")
 		).toBe(true);
 		expect(
-			document.querySelector('input[name="nickname"]')?.getAttribute("aria-describedby")
+			serverDocument.querySelector('input[name="nickname"]')?.getAttribute("aria-describedby")
 		).toBeNull();
 		await context?.close();
 		context = undefined;
