@@ -481,6 +481,36 @@ const control = useFormControl({});
 the widget has to be rendered inside them. The result matches spreading a snippet's `props`; reach for
 the hooks when the widget is its own component and cannot receive them as an argument.
 
+### Native and custom groups
+
+[`/recipes/groups`](./src/routes/recipes/groups/+page.svelte) compares a native `Fieldset`/`Legend`
+with a full-container `child` replacement. Both forward `data-fs-fieldset` and expose `data-fs-error`
+only while their field has errors; the replacement must spread the supplied `props`.
+
+Prefer a native fieldset: its legend names the group and `disabled` disables its controls and
+excludes them from native form submission. A replacement container must provide the corresponding
+semantics itself:
+
+- Give it the appropriate group role and an accessible name. The recipe uses `role="group"` and
+  `aria-labelledby` pointing to its visible heading.
+- `aria-disabled` communicates state but does not disable descendants. Disable the interactive
+  controls and their transport inputs explicitly; an attribute on a `<div>` is not native fieldset
+  behavior.
+- A full-container `child` cannot enable the owned description/error slots. Render caller-owned
+  regions with stable IDs and supply matching `aria-describedby` for server-rendered associations.
+  Include the error ID only when the rendered region has errors.
+
+The [role-based checkbox](./src/routes/recipes/groups/agreement-control.svelte) uses the existing
+`useFormControl` hook. Its visible label takes `control.labelProps.id`, and the button references
+that ID with `aria-labelledby`. Spread `control.props` onto the actual focus target and bind the
+widget's `ref` to that node. The recipe's focus button uses the returned `HTMLButtonElement`.
+
+The hidden input transports the boolean using `control.props.name`; it does not receive the
+control's ID, ARIA attributes or `data-fs-control`. One `Control` still identifies one accessible
+control, not its transport input or group wrapper. The button's native activation handles Space
+and Enter, while JavaScript updates its checked state. The native checkbox remains usable without
+JavaScript; the role-based example does not provide a JavaScript-free toggle.
+
 ### Multiple forms
 
 [`/owned`](./src/routes/owned/owned-form.svelte) renders two independent forms on one page from the
@@ -511,9 +541,10 @@ attributes for styling. It does not own interaction:
   its own grouping and labelling rather than several controls sharing one ID.
 - Replacing a native element means owning its keyboard behaviour, focus management and ARIA pattern.
   `useFormField` and `useFormControl` expose the field's `errors`, `constraints`, `tainted`,
-  `errorsId` and `descriptionId`, and the control's `id` and `props`; the rest of the widget is yours.
-- Use `Fieldset` with `Legend` for a group of related controls, and `Label` for a single control.
-  A group of custom widgets belongs in a fieldset rather than behind one label aimed at a wrapper.
+  `errorsId` and `descriptionId`, and the control's `id`, `labelProps` and `props`; the rest of the
+  widget is yours.
+- Group related controls separately from their individual labels. Prefer `Fieldset` with `Legend`;
+  replacing that container means taking responsibility for the group's native/custom semantics.
 
 ## Components
 

@@ -43,6 +43,14 @@ jobs:
             - name: Test
               run: pnpm test:package
 
+            - name: Upload group recipe smoke screenshot
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: groups-smoke
+                  path: /tmp/formsnap-groups.png
+                  retention-days: 7
+
             - name: Build the package
               run: pnpm --filter @emmorts/formsnap run package
 
