@@ -261,7 +261,7 @@ Outcome (2026-10-10):
 
 ### P2.2 Association ownership and inherited instructions (original priority 2, second part)
 
-- [ ] Define and implement association registration, cleanup, and inheritance.
+- [x] Define and implement association registration, cleanup, and inheritance.
 
 Source: [field state](../packages/formsnap/src/lib/formsnap.svelte.ts#L87) stores one description
 and one error slot. Updates only write IDs when nodes are present; the
@@ -284,6 +284,33 @@ remain; change custom IDs; release nullable overrides; and add/remove element-lo
 Every Formsnap-owned description/error reference names a current target, with no duplicate
 tokens. Parent instructions are restored when a local description disappears. Error targets are
 included only while relevant errors exist. Exercise supported multiplicity and form isolation.
+
+Outcome (2026-10-10):
+
+- The single node slots are gone. Each field now holds an `AssociationIds` registry: a contributor
+  registers the id it actually rendered and withdraws that id when the element goes away, so one
+  description unmounting cannot erase another's association and no reference outlives its target.
+  `getAriaDescribedBy` takes the two id lists and still appends error containers only while the
+  field has errors.
+- `errorNode`, `descriptionNode` and `derivedDescriptionNode` were deleted. The last one was only
+  ever written, never read, which is why an `ElementField` never actually inherited anything: the
+  element's state now falls back to the parent field's description ids at read time, so an element
+  with its own description uses that one and an element without one inherits the field's.
+- Headless overrides are contributions with owners: `useFormField` withdraws the id it previously
+  contributed before adding the new one, so a getter returning null releases it. `useFormControl`
+  now clears an override instead of writing an id, and `ControlState.id` is a getter that falls back
+  to the component's own id, so a null override no longer pins a stale id.
+- Evidence, all in `tests/associations.browser.test.ts` (9 tests, Chromium): every rendered
+  description is referenced in render order; only the unmounted one is withdrawn; one field's
+  descriptions never appear on another field; an error container that unmounts stops being
+  referenced while `aria-invalid` stays true; six alternating toggles never leave a dangling
+  reference or a duplicate id; an `ElementField` uses its own description while it exists and gets
+  the field's description back when it disappears; a null override is released. The regression test
+  that previously pinned the unmount defect now passes as an ordinary test, because the fix landed
+  with it.
+- Ordering is registration order, which equals document order for a static tree. A description that
+  remounts re-registers at the end rather than being re-sorted by DOM position; the plan's
+  "ordered" requirement is met without reading the DOM during state access.
 
 ### P2.3 Nested values, constraints, and public inference (original priority 3)
 
