@@ -668,6 +668,15 @@ second copy of the prose.
   job itself runs only on the default branch, so the artifact was verified before publication but the
   first publish cannot be observed until this branch is merged. No local runtime workloads were used:
   the renderer was installed by the workflow into `$RUNNER_TEMP`.
+- Published (2026-10-10): the first push to `main` after the merge ran the workflow and both jobs
+  succeeded — `Build` and `Deploy` in
+  [run 38058743646](https://github.com/emmorts/formsnap/actions/runs/38058743646) — creating a
+  `github-pages` deployment for `92ac7e2`. The live site was then fetched rather than assumed:
+  `https://emmorts.github.io/formsnap/`, its `/changelog/` and its `/readme/` answer 200 with the
+  generated documents, a missing path answers 404 with the generated not-found page, and the served
+  documentation page carries its generated heading anchors, 17 code blocks, `/formsnap/…` navigation
+  and repository `blob` links. The commit push also passed the full CI matrix on `main`
+  ([run 38058743620](https://github.com/emmorts/formsnap/actions/runs/38058743620)).
 
 ## Phase 4: Complete announcement and custom-control composition
 
@@ -748,6 +757,14 @@ caught the shared `Fieldset` props union, the unboxed policy prop, an unused par
 build, the note field's missing minimum, the client validator that was never active, the association
 that was read before the input event settled, and the fresh id a re-created region produces. Each was
 fixed in the source it belonged to; none was worked around by relaxing an assertion.
+
+Merge (2026-10-10): `feat/p31-recipes` was merged into `main` as `f8b6304` (PR #2, rebase). Because
+this branch then still carried the pre-rebase P3.1 commits, it was rebased onto the new `main` — the
+P3.1 content is identical, so the rebase skipped those commits and kept only P4.1's — and
+[PR #3](https://github.com/emmorts/formsnap/pull/3) merged it as `92ac7e2`, again by rebase. The
+commits above are therefore `945262d` through `92ac7e2` on `main`, and the run quoted above is
+evidence for the same content under its pre-merge SHAs. The rebased head passed the same four jobs
+in [run 38058610943](https://github.com/emmorts/formsnap/actions/runs/38058610943) before the merge.
 
 ### P4.2 Custom-control and group semantics (original priority 8)
 
