@@ -25,6 +25,12 @@
 				"Child snippets, ref forwarding, and a control built on the headless hooks.",
 		},
 		{
+			path: "/recipes/groups",
+			title: "Native and custom groups",
+			description:
+				"Native fieldset semantics beside a caller-owned group and a headless checkbox control.",
+		},
+		{
 			path: "/recipes/feedback",
 			title: "Pending and success feedback",
 			description:

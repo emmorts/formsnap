@@ -47,6 +47,7 @@ export async function setup({ provide }: GlobalSetupContext) {
 			"recipes/upload",
 			"recipes/constraints",
 			"recipes/composition",
+			"recipes/groups",
 			"recipes/feedback",
 			"recipes/announcements",
 		]) {
