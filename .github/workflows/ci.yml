@@ -28,6 +28,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Install the browser used by the browser test project
+              run: pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
+
             - name: Lint
               run: pnpm lint
 
@@ -36,6 +39,56 @@ jobs:
 
             - name: Test
               run: pnpm test:package
+
+            - name: Build the package
+              run: pnpm --filter @emmorts/formsnap run package
+
+    # The verify job covers the locked, current versions. These jobs cover the edges of the
+    # published support range: `svelte` ^5.30.2 and `sveltekit-superforms` ^2.19.0 || ^3.0.0.
+    # Each combination pairs a schema library the adapter can type against:
+    # `sveltekit-superforms` 2.19 wants the zod v3 API at `zod`, and 3.0.0 resolves the zod v3
+    # API through its own `zod/v3`, so the fixture uses the same version superforms resolves.
+    compatibility:
+        name: Compatibility (${{ matrix.description }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - description: Svelte 5.30.2, Superforms 2.19.0
+                      svelte: "5.30.2"
+                      superforms: "2.19.0"
+                      zod: "3.25.76"
+                    - description: Svelte 5, Superforms 3.0.0
+                      svelte: "5"
+                      superforms: "3.0.0"
+                      zod: "4.6.5"
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 24
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install the matrix versions
+              run: >-
+                  pnpm --filter @emmorts/formsnap add -D --save-exact
+                  svelte@${{ matrix.svelte }}
+                  sveltekit-superforms@${{ matrix.superforms }}
+                  zod@${{ matrix.zod }}
+
+            - name: Install the browser used by the browser test project
+              run: pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
+
+            - name: Type-check
+              run: pnpm --filter @emmorts/formsnap run check
+
+            - name: Test
+              run: pnpm --filter @emmorts/formsnap test
 
             - name: Build the package
               run: pnpm --filter @emmorts/formsnap run package

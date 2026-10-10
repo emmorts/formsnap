@@ -83,8 +83,8 @@ Outcome (2026-10-10):
 - Verified at this commit: `pnpm lint`, `pnpm --filter @emmorts/formsnap run check` (0 errors),
   `pnpm test:package` (29 tests), `pnpm --filter @emmorts/formsnap run package` (publint clean).
 
-Remaining for P1.1: the Svelte 5.30.2 floor and Superforms 2/3 combinations are proven by hand on
-5.57.2 only; the automated version matrix is P1.2. Browser loading is unverified until P1.2.
+Remaining for P1.1: the version matrix and browser loading were P1.2's work, which verified the
+Svelte 5.30.2 floor and the Superforms 2/3 combinations in CI and by hand (see P1.2).
 
 Release note to publish with the next version: "Raises the minimum supported Svelte version to
 5.30.2, which `svelte-toolbelt` 0.10 already requires; earlier 5.x releases could not load the
@@ -92,7 +92,7 @@ package."
 
 ### P1.2 Consumer verification harness (original priority 4, first part)
 
-- [ ] Establish reusable SSR, browser, and consumer-type verification.
+- [x] Establish reusable SSR, browser, and consumer-type verification.
 
 Source: [current tests](../packages/formsnap/src/lib/internal/utils/path.test.ts#L188) exercise
 path/error utilities; [Vitest configuration](../packages/formsnap/vite.config.ts#L4) contains
@@ -109,6 +109,51 @@ Acceptance: the fixture loads through the normal dependency path; compatibility 
 both runtime loading and public types. The browser runner can observe DOM attributes after
 state updates and mount/unmount transitions. Tests remain deterministic and isolated. Assertions
 cover consumer-visible behavior, not source text, forwarding mocks, or coverage percentages.
+
+Outcome (2026-10-10):
+
+- The harness lives inside the library package. It is already a minimal SvelteKit project
+  (`src/app.html`, the `sveltekit()` plugin, a generated tsconfig that already includes
+  `tests/**`), and both `src/routes/` and `tests/` sit outside `src/lib`, so svelte-package ships
+  nothing new. Artifact-level verification deliberately stays with P6.2.
+- `src/routes/` is now a runnable fixture app: `+page.server.ts` validates with `superValidate`,
+  `settings-form.svelte` is the reusable form, and `+page.svelte` passes `data.form` to it. P3.1
+  turns this into the documented walkthrough.
+- `vitest.workspace.ts` defines two projects. `unit` runs the Node tests and
+  `tests/**/*.ssr.test.ts`; its global setup boots the fixture app on a fixed port (5199) and the
+  tests assert the server-rendered document through `linkedom`. Component-level SSR rendering was
+  rejected: `superForm` reads `$app/stores`, which only works inside SvelteKit's request context.
+  `browser` runs `tests/**/*.browser.test.ts` in Chromium through Playwright, mounting fixtures
+  directly so lifecycle and effects are observed for real.
+- Public type cases live in `tests/types.ts`, which no test glob matches: `svelte-check` checks it
+  through the package tsconfig, so a broken exported type fails `pnpm check`.
+- CI installs Chromium for the verify job and adds a two-entry compatibility matrix covering the
+  advertised edges — `svelte@5.30.2` + `sveltekit-superforms@2.19.0` + `zod@3.25.76`, and `svelte@5`
+    - `sveltekit-superforms@3.0.0` + `zod@4.6.5` — each running type-check, tests and packaging.
+- Verified by hand for all three combinations (locked baseline: Svelte 5.57.2, Superforms 2.31.0,
+  zod 4.6.5): `svelte-check` reports 0 errors and all 38 tests pass in both projects.
+- Toolchain alignment this required: `vitest` and `@vitest/browser` on 2.1.9, `vite` unified on
+  5.4.11 (the browser runner had pulled a second copy whose types collided in the Vitest config),
+  and `typescript` resolving to 5.9.3 within the unchanged `^5.6.2` range.
+
+Findings the harness produced:
+
+- Observed, was [INFERENCE]: unmounting a `Description` leaves the mounted control's
+  `aria-describedby` pointing at the removed node. `tests/lifecycle.browser.test.ts` encodes this
+  with `it.fails` and names P2.2; the assertion flips to `it` when P2.2 lands.
+- Observed: the server-rendered control carries no `aria-describedby` although its description
+  element is rendered, because the association id is derived from DOM refs in effects. That is
+  P2.1's target; the SSR test does not assert the buggy absence.
+- Consumer constraint: `sveltekit-superforms` 2.31 and 3.0.0 type their zod adapter against
+  `zod/v3`, and the zod copy must be the one superforms resolves — unrelated duplicates make the
+  adapter types incompatible. The fixture imports `zod/v3` and pins zod 4.6.5; the 2.19.0 floor job
+  installs zod 3.25.76, where the adapter reads the `zod` main entry. P3.1 must document this,
+  because nothing in Formsnap reveals it.
+- Consumer constraint: `superValidate` in the browser needs an adapter carrying a JSON schema, so
+  `zodClient` cannot build a browser fixture; the tests use the `zod` adapter.
+- Consumer constraint: Svelte 5.57 warns `state_referenced_locally` for the `superForm(data.form)`
+  pattern the root README shows. The fixture reads the value through `untrack`, which is the pattern
+  P3.1 should document.
 
 ### P1.3 Immediate onboarding correction (original priority 5, first part)
 
@@ -169,8 +214,9 @@ and one error slot. Updates only write IDs when nodes are present; the
 [headless overrides](../packages/formsnap/src/lib/formsnap.svelte.ts#L454) accept nullable getters
 but only write truthy results. [ElementField](../packages/formsnap/src/lib/formsnap.svelte.ts#L159)
 derives a parent-description fallback, but its ID update observes only the local description.
-[INFERENCE]: unmounting leaves dangling references; descriptions compete; the intended inherited
-instructions do not reach the rendered control.
+Observed (browser harness, P1.2): unmounting a `Description` leaves the control's
+`aria-describedby` pointing at the removed node. [INFERENCE]: descriptions compete for the single
+slot; the intended inherited instructions do not reach the rendered control.
 
 Implementation: reproduce these transitions in the normal fixture. Propose ordered, deduplicated,
 owner-specific registration for multiple descriptions, with cleanup that does not erase another
