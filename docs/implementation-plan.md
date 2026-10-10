@@ -1,9 +1,9 @@
 # Formsnap implementation plan
 
 Initial assessment: `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
-Status: Phase 1 and Phase 2 are complete. P3.1's quickstart walkthrough and integration recipes are
-implemented; its full regression, compatibility and packaging verification is still pending in GitHub
-Actions, so P3.1 remains unchecked. Phases 4–6 are open.
+Status: Phases 1–3 are complete, including P3.1's quickstart walkthrough and integration recipes,
+which the full regression, compatibility and packaging matrix verified in GitHub Actions. Phases 4–6
+are open.
 Checked items do not approve a release or its classification. Historical evidence below refers
 to the initial assessment; outcome and review notes describe the implementation that replaced it.
 
@@ -542,7 +542,7 @@ Depends on Phases 1–2. This documentation work can run alongside Phase 4.
 
 ### P3.1 Runnable quickstart and integration recipes (original priority 5, remaining work)
 
-- [ ] Complete the submission walkthrough and the missing composition recipes.
+- [x] Complete the submission walkthrough and the missing composition recipes.
 
 Source: the [root server example](../README.md#L39) provides `load` without a POST action, while
 the page submits with `method="POST" use:enhance`. Existing components/hooks support more than
@@ -591,8 +591,19 @@ Outcome (2026-10-10):
   through `customValidity` and left untouched under `data-no-custom-validity`; a JavaScript-free
   multipart upload reported back by name, and an enhanced upload that never navigates; ref forwarding
   and hook-built control props; and gated pending/success feedback states.
-- Verification runs in GitHub Actions; the local suite, packaging and dependency matrix are not run
-  on the production workstation. P3.1 stays unchecked until they pass.
+- Verification ran in GitHub Actions rather than on this workstation. Run 38051925267 on `ed43068`
+  (draft PR #2) passed lint, zero type errors and warnings, all 102 tests across eight files, and
+  package generation with publint in each job: the locked baseline, Svelte 5.30.2/Superforms 2.19.0,
+  Svelte 5.56.4/Superforms 3.0.0, and current Svelte 5/Superforms 3. The recipe file adds ten tests
+  over the previous seven-file suite.
+- The first two verification runs are not evidence, but they earned their keep: an unnecessary
+  parameterless `children` snippet and an internal link without `resolve()` failed lint, and the new
+  harness was wrong twice — Playwright rewrites a `document` reference inside `page.waitForFunction`,
+  and an action result's payload is encoded for `applyAction`, so the raw response body is not the
+  action's return value. Both harness mistakes are now avoided by polling through locators and
+  asserting the rendered result.
+- Manual screen-reader verification of the recipes remains unverified, as it does elsewhere in this
+  plan; the recipes are exercised through DOM and browser assertions only.
 
 ## Phase 4: Complete announcement and custom-control composition
 
