@@ -6,6 +6,10 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Fixed
+
+- Include `CHANGELOG.md` in the npm package so the README's changelog link resolves.
+
 ## 2.2.0 (2026-10-10)
 
 ### Compatibility
