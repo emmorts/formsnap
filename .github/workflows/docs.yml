@@ -1,0 +1,77 @@
+name: Documentation
+
+# Publishes the repository's markdown as a static site on GitHub Pages. The renderer is installed
+# into a temporary prefix instead of the workspace, so neither the published package nor the
+# lockfile gains a dependency for documentation. A pull request builds and uploads the same
+# artifact without deploying it, which is what makes the build verifiable before it is published.
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - README.md
+            - packages/formsnap/README.md
+            - packages/formsnap/CHANGELOG.md
+            - scripts/build-docs-site.mjs
+            - .github/workflows/docs.yml
+    pull_request:
+        paths:
+            - README.md
+            - packages/formsnap/README.md
+            - packages/formsnap/CHANGELOG.md
+            - scripts/build-docs-site.mjs
+            - .github/workflows/docs.yml
+    workflow_dispatch:
+
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 24
+
+            - name: Install the pinned markdown renderer
+              run: npm install --no-save --prefix "$RUNNER_TEMP/docs-tools" marked@18.1.0
+
+            - name: Build the site
+              run: >-
+                  node scripts/build-docs-site.mjs
+                  --renderer "$RUNNER_TEMP/docs-tools"
+                  --base "/${{ github.event.repository.name }}/"
+                  --repo-url "${{ github.server_url }}/${{ github.repository }}"
+                  --ref "${{ github.event.repository.default_branch }}"
+                  --out _site
+
+            - uses: actions/upload-pages-artifact@v5
+              with:
+                  path: _site
+
+    deploy:
+        name: Deploy
+        needs: build
+        # A pull request only builds; a branch other than the default one is never published over
+        # the live site, even when the workflow is triggered by hand.
+        if: >-
+            github.event_name != 'pull_request' &&
+            github.ref_name == github.event.repository.default_branch
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        permissions:
+            pages: write
+            id-token: write
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v5
