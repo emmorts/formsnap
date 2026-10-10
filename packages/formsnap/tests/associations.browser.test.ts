@@ -173,11 +173,24 @@ describe("association integrity through every transition", () => {
 
 describe("element fields", () => {
 	async function mountElementField() {
-		const data = await superValidate({ urls: ["https://example.com"] }, zod(urlsSchema));
+		const data = await superValidate(
+			{ urls: ["https://example.com", "https://example.org"] },
+			zod(urlsSchema)
+		);
 		mounted = mount(ElementInheritance, { target: document.body, props: { validated: data } });
 		flushSync();
 		return controlFor("urls");
 	}
+
+	it("submits every array element under the field's own name", async () => {
+		await mountElementField();
+
+		const inputs = [...document.querySelectorAll('input[name="urls"]')];
+		expect(inputs, "one control per element").toHaveLength(2);
+		expect(new Set(inputs.map((input) => input.getAttribute("id"))).size, "distinct ids").toBe(
+			2
+		);
+	});
 
 	it("inherits the field description until the element renders one of its own", async () => {
 		const control = await mountElementField();

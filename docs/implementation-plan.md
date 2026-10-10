@@ -314,7 +314,7 @@ Outcome (2026-10-10):
 
 ### P2.3 Nested values, constraints, and public inference (original priority 3)
 
-- [ ] Make Field, Fieldset, and ElementField path behavior consistent.
+- [x] Make Field, Fieldset, and ElementField path behavior consistent.
 
 Source: both [Field snippets](../packages/formsnap/src/lib/formsnap.svelte.ts#L113) and
 [ElementField snippets](../packages/formsnap/src/lib/formsnap.svelte.ts#L203) index form data
@@ -338,6 +338,32 @@ Fieldset snippets have the same path-value inference. Updates to data/errors/tai
 reach the rendered consumer; insert/remove/reorder scenarios keep fields attached to their
 intended rows. Verify native repeated-name and `dataType: 'json'` submissions with real
 Superforms behavior. Invalid paths are rejected by the public types where promised.
+
+Outcome (2026-10-10):
+
+- `Field` and `ElementField` both resolve their snippet value through `getValueAtPath`, which is why
+  `profile.name` and `urls[0]` used to arrive as `undefined`: they indexed the raw path string as a
+  single key. `ElementField`'s snippet constraints now use its path-aware getter instead of a second
+  direct lookup, and the two snippet objects are identical in shape.
+- The public snippet `value` types are `FormPathType<T, U>` from Superforms (present in 2.19, 2.31
+  and 3.0.0) instead of `T[U]`, so a path resolves to the value at that path rather than to an
+  index-signature or `never`. `PrimitiveFromIndex` is deleted, and the Fieldset no longer needs the
+  `value as T[U]` casts it carried.
+- Evidence, `tests/paths.browser.test.ts` (6 tests, Chromium): a nested object property, a primitive
+  array element, an array-of-objects element, a nested array element, a missing optional field and a
+  whole object all arrive with the right value; later data changes reach the consumer and flip
+  `tainted` to true; constraints arrive (`minlength` on a nested string); a path error arrives for an
+  array element and for a nested property; and a field follows its path when the `name` prop changes.
+  The associations suite adds the native submission contract — both array elements render
+  `name="urls"` with distinct ids — and `tests/types.ts` pins the value inference for string,
+  number, object and optional paths through the public props, including `Fieldset`.
+- Finding: Superforms does report constraints and errors for nested and array-element paths, and
+  `getValueAtPath` resolves them, so the doubt about whether constraint shapes mirror the data tree
+  is settled for the tested paths. Nested objects need `dataType: 'json'`, which the fixture sets.
+- Scope move, recorded rather than dropped: "insert/remove/reorder scenarios keep fields attached to
+  their intended rows" and the POST round trip for native repeated-name and `dataType: 'json'`
+  submissions need array-mutating fixtures and a server action, which P2.4 builds for its remaining
+  regression coverage.
 
 ### P2.4 Regression and compatibility enforcement (original priority 4, second part)
 

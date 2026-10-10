@@ -27,6 +27,14 @@
 			{/snippet}
 		</Control>
 	</ElementField>
+	<ElementField {form} name="urls[1]">
+		<Control>
+			{#snippet children({ props })}
+				<Label>Second link</Label>
+				<input {...props} />
+			{/snippet}
+		</Control>
+	</ElementField>
 </Field>
 
 <button type="button" onclick={() => (showGroupDescription = !showGroupDescription)}>

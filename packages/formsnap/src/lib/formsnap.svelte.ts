@@ -9,7 +9,7 @@ import { fromStore } from "svelte/store";
 import type {
 	FormPath,
 	FormPathLeaves,
-	InputConstraint,
+	FormPathType,
 	InputConstraints,
 } from "sveltekit-superforms";
 import type { FormPathArrays, TaintedFields, ValidationErrors } from "sveltekit-superforms/client";
@@ -22,7 +22,6 @@ import {
 	getAriaRequired,
 	getDataFsError,
 } from "./internal/utils/attributes.js";
-import type { PrimitiveFromIndex } from "./internal/types.js";
 import type {
 	ControlAttrs,
 	DescriptionAttrs,
@@ -156,7 +155,10 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	snippetProps = $derived.by(
 		() =>
 			({
-				value: this.#formData.current[this.#name.current],
+				value: getValueAtPath(this.#name.current, this.#formData.current) as FormPathType<
+					T,
+					U
+				>,
 				errors: this.errors,
 				tainted: this.tainted,
 				constraints: this.constraints,
@@ -200,10 +202,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	/** Description elements and error containers rendered inside this element. */
 	associations = new AssociationIds();
 	value = $derived.by(() => {
-		return getValueAtPath(this.#name.current, this.#formData.current) as PrimitiveFromIndex<
-			T,
-			U
-		>;
+		return getValueAtPath(this.#name.current, this.#formData.current) as FormPathType<T, U>;
 	});
 
 	/**
@@ -243,12 +242,10 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	snippetProps = $derived.by(
 		() =>
 			({
-				value: this.#formData.current[this.#name.current],
+				value: this.value,
 				errors: this.errors,
 				tainted: this.tainted,
-				constraints:
-					// @ts-expect-error - this type is wonky
-					this.#formConstraints.current[this.#name.current] ?? ({} as InputConstraint),
+				constraints: this.constraints,
 			}) as const
 	);
 }
