@@ -39,15 +39,15 @@
 		"!dist/**/*.spec.*"
 	],
 	"peerDependencies": {
-		"svelte": "^5.0.0",
+		"svelte": "^5.30.2",
 		"sveltekit-superforms": "^2.19.0 || ^3.0.0"
 	},
 	"devDependencies": {
-		"@sveltejs/kit": "^2.5.28",
+		"@sveltejs/kit": "^2.21.0",
 		"@sveltejs/package": "^2.3.7",
 		"@sveltejs/vite-plugin-svelte": "4.0.0",
 		"publint": "^0.2.11",
-		"svelte": "^5.11.0",
+		"svelte": "^5.30.2",
 		"svelte-check": "4.0.5",
 		"sveltekit-superforms": "^2.19.0",
 		"tailwindcss": "^3.3.6",
