@@ -265,7 +265,8 @@ is the supported switch.
   error the user must act on before continuing.
 - `"polite"` waits for a pause in speech, which reads better for a message that changes on every
   keystroke.
-- `"off"` renders no announcement at all. The error keeps its association (`aria-describedby`,
+- `"off"` renders `aria-live="off"`, which suppresses announcements — including one implied by a
+  `role` the caller put on a custom container. The error keeps its association (`aria-describedby`,
   `aria-invalid`, the rendered text, and `data-fs-*` for styling), so a screen reader still reaches
   it when the user moves to the control.
 

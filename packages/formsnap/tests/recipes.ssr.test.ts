@@ -68,6 +68,17 @@ async function errorContainerId(page: Page, name: string) {
 	);
 }
 
+/**
+ * Client-side validation settles after the input event and a tick, so the association is awaited
+ * rather than read once.
+ */
+async function announcedContainer(page: Page, name: string) {
+	await expect.poll(() => errorContainerId(page, name), { timeout: 10000 }).not.toBeNull();
+	const id = await errorContainerId(page, name);
+	if (!id) throw new Error(`no announced error container for ${name}`);
+	return id;
+}
+
 describe("documented integration recipes", () => {
 	it.each(recipes)("opens /recipes/%s from the index without JavaScript", async (path) => {
 		const page = await openPage(false);
@@ -539,7 +550,7 @@ describe("documented integration recipes", () => {
 		for (const { name, live, message } of [
 			{ name: "username", live: "assertive", message: "Use at least three characters." },
 			{ name: "nickname", live: "polite", message: "Use at least two characters." },
-			{ name: "note", live: "off", message: "Keep the note to twelve characters." },
+			{ name: "note", live: "off", message: "Enter a note." },
 		] as const) {
 			const control = document.querySelector(`input[name="${name}"]`);
 			expect(control?.getAttribute("aria-invalid")).toBe("true");
@@ -568,14 +579,13 @@ describe("documented integration recipes", () => {
 		// Superforms' client-side validation replaces an existing error while the user types, so the
 		// container is updated without a request and without a navigation.
 		await username.fill("a");
-		const firstId = await errorContainerId(page, "username");
-		expect(firstId).toBeTruthy();
+		const firstId = await announcedContainer(page, "username");
 		const container = page.locator(`[id="${firstId}"]`);
 		await expect
 			.poll(() => container.innerText(), { timeout: 10000 })
 			.toContain("Use at least three characters.");
 		expect(await container.getAttribute("aria-live")).toBe("assertive");
-		expect(await username.getAttribute("aria-describedby")).toContain(firstId!);
+		expect(await username.getAttribute("aria-describedby")).toContain(firstId);
 		expect(await username.getAttribute("aria-invalid")).toBe("true");
 
 		// The next update reuses the same container and its id, and only its content changes.
@@ -588,8 +598,7 @@ describe("documented integration recipes", () => {
 
 		// The standalone region keeps its policy, and its association is withdrawn with the element.
 		await note.fill("A note that is far too long.");
-		const noteId = await errorContainerId(page, "note");
-		expect(noteId).toBeTruthy();
+		const noteId = await announcedContainer(page, "note");
 		expect(await page.locator(`[id="${noteId}"]`).getAttribute("aria-live")).toBe("off");
 		const toggle = page.getByLabel("Render the note's error region");
 		await toggle.uncheck();
