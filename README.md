@@ -59,6 +59,8 @@ widgets. Components are unstyled and mark their elements with `data-fs-*` attrib
 ## Support
 
 - Component API and guides: [formsnap.dev](https://formsnap.dev) (upstream documentation).
+- This fork's documentation, rendered from the files in this repository:
+  [emmorts.github.io/formsnap](https://emmorts.github.io/formsnap/).
 - Problems specific to this fork — packaging, supported versions, releases: open an issue on
   [emmorts/formsnap](https://github.com/emmorts/formsnap).
 - Behaviour of Superforms itself: [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
