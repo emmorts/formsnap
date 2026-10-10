@@ -392,7 +392,6 @@ describe("native and custom agreement groups", () => {
 		// CI captures the actual invalid surface before the regression assertion, even if it fails.
 		await page.screenshot({ path: "/tmp/formsnap-groups.png", fullPage: true });
 		expect(await page.getByTestId("native-group").getAttribute("data-fs-error")).toBe("");
-		// Focused regression: before the Fieldset fix, native has this marker and custom lacks it.
 		expect(await page.getByTestId("custom-group").getAttribute("data-fs-error")).toBe("");
 		const customErrorId = await page.getByTestId("custom-errors").getAttribute("id");
 		await nativeControl(page).check();

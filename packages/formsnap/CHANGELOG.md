@@ -6,6 +6,16 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Fixed
+
+- Forward `data-fs-error` to custom `Fieldset` child containers, matching the native container
+  as field errors appear and clear.
+
+### Docs and tests
+
+- Add a runnable native/custom group recipe covering role-based control naming, refs, keyboard
+  activation, disabled controls and transport, server-rendered associations and submission errors.
+
 ## 2.2.1 (2026-10-10)
 
 ### Fixed

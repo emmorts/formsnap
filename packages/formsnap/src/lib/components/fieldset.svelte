@@ -57,6 +57,7 @@
 		mergeProps(restProps, {
 			id,
 			"data-fs-fieldset": "",
+			"data-fs-error": getDataFsError(fieldState.errors),
 		})
 	);
 </script>
@@ -85,7 +86,7 @@ A component that groups related form controls or fields and extends the [Field](
 		...fieldState.snippetProps,
 	})}
 {:else}
-	<fieldset {...mergedProps} data-fs-error={getDataFsError(fieldState.errors)}>
+	<fieldset {...mergedProps}>
 		{@render childrenProp?.(fieldState.snippetProps)}
 		<OwnedFieldContent
 			{description}
