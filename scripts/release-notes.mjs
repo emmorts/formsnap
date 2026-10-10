@@ -25,6 +25,55 @@ export function readReleaseNotes(changelogPath, version) {
 	return body.join("\n").trim() || null;
 }
 
+/**
+ * Turns curated Unreleased entries into a dated release section and leaves an empty
+ * Unreleased section for the next version. Release notes are read from this generated section.
+ */
+export function prepareChangelog(
+	changelog,
+	version,
+	previousVersion,
+	date = new Date().toISOString().slice(0, 10)
+) {
+	const lines = changelog.split(/\r?\n/);
+	const heading = `## ${version}`;
+	if (lines.some((line) => line === heading || line.startsWith(`${heading} `))) {
+		throw new Error(`the changelog already contains ${version}`);
+	}
+
+	const start = lines.indexOf("## Unreleased");
+	if (start === -1 || start !== lines.lastIndexOf("## Unreleased")) {
+		throw new Error("the changelog must contain exactly one '## Unreleased' section");
+	}
+	let end = start + 1;
+	while (end < lines.length && !lines[end].startsWith("## ")) end += 1;
+	const notes = lines
+		.slice(start + 1, end)
+		.join("\n")
+		.trim();
+	if (
+		!notes
+			.replace(/^#{3,6} .*$/gm, "")
+			.replace(/<!--[\s\S]*?-->/g, "")
+			.trim()
+	) {
+		throw new Error("the Unreleased section has no release notes");
+	}
+
+	lines.splice(
+		start + 1,
+		end - start - 1,
+		"",
+		`## ${version} (${date})`,
+		"",
+		notes,
+		"",
+		`[Full changelog](https://github.com/emmorts/formsnap/compare/v${previousVersion}...v${version})`,
+		""
+	);
+	return lines.join("\n");
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const [version, changelogPath = "CHANGELOG.md"] = process.argv.slice(2);
 	const notes = version ? readReleaseNotes(changelogPath, version) : null;

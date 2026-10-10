@@ -8,7 +8,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ### Compatibility
 
-- Require Svelte `^5.30.2`. Superforms 3.0.0 requires Svelte `^5.56.4`.
+- Correct the advertised Svelte minimum to `^5.30.2`, already required by `svelte-toolbelt`.
+  Superforms 3.0.0 requires Svelte `^5.56.4`.
 
 ### Added
 
@@ -35,6 +36,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 - Add a complete Superforms quickstart and tested recipes for nested data, arrays, uploads,
   native validation, custom controls, multiple forms, submission feedback and error announcements.
 - Publish the fork documentation and changelog on GitHub Pages.
+- Generate dated changelog sections and comparison links from `Unreleased`. Create the GitHub
+  release automatically from those notes after npm publication.
 - Test server rendering, hydration, JavaScript-free and enhanced submissions, dynamic associations
   and public types across Superforms 2 and 3. Manual screen-reader checks remain pending.
 

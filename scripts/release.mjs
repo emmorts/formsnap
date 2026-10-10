@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // One-command release for @emmorts/formsnap:
 //
-//   npm run release -- 2.1.1
+//   npm run release -- 2.2.0
 //
-// It refuses to run unless the working tree is clean apart from the changelog, the changelog
-// already documents the version, the branch is main and level with origin/main, and the tag is
-// free. It then bumps the version, commits, tags and pushes; CI publishes to npm and opens the
-// GitHub release from the same changelog section.
+// It requires main to match origin/main, a free tag and a clean working tree apart from
+// the changelog. It generates a dated version section from Unreleased, bumps the manifest,
+// commits, creates an annotated tag and pushes both atomically. CI publishes to npm and
+// creates the GitHub release from the generated changelog section.
 //
 // Only plain `X.Y.Z` versions are accepted: a prerelease would have to be published under a
 // different npm dist-tag, which this pipeline deliberately does not do.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { readReleaseNotes } from "./release-notes.mjs";
+import { prepareChangelog } from "./release-notes.mjs";
 
 const PACKAGE_JSON = "packages/formsnap/package.json";
 const CHANGELOG = "packages/formsnap/CHANGELOG.md";
@@ -37,7 +37,9 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
 
 const rank = (value) => value.split(".").map((part) => Number(part));
 const [major, minor, patch] = rank(version);
-const [curMajor, curMinor, curPatch] = rank(JSON.parse(readFileSync(PACKAGE_JSON, "utf8")).version);
+const manifest = readFileSync(PACKAGE_JSON, "utf8");
+const currentVersion = JSON.parse(manifest).version;
+const [curMajor, curMinor, curPatch] = rank(currentVersion);
 const isNewer =
 	major > curMajor ||
 	(major === curMajor && minor > curMinor) ||
@@ -52,10 +54,6 @@ if (dirty.length > 0) {
 	fail(`the working tree has changes other than ${CHANGELOG}:\n  ${dirty.join("\n  ")}`);
 }
 
-if (!readReleaseNotes(CHANGELOG, version)) {
-	fail(`${CHANGELOG} has no '## ${version}' section with any content — document it first`);
-}
-
 if (gitOut("rev-parse", "--abbrev-ref", "HEAD") !== "main") fail("releases are cut from main");
 gitOut("fetch", "origin", "main");
 if (gitOut("rev-parse", "HEAD") !== gitOut("rev-parse", "origin/main")) {
@@ -64,6 +62,13 @@ if (gitOut("rev-parse", "HEAD") !== gitOut("rev-parse", "origin/main")) {
 if (gitOut("tag", "--list", `v${version}`)) fail(`tag v${version} already exists locally`);
 if (gitOut("ls-remote", "--tags", "origin", `refs/tags/v${version}`)) {
 	fail(`tag v${version} already exists on origin`);
+}
+
+let changelog;
+try {
+	changelog = prepareChangelog(readFileSync(CHANGELOG, "utf8"), version, currentVersion);
+} catch (error) {
+	fail(error.message);
 }
 
 if (!assumeYes) {
@@ -75,16 +80,15 @@ if (!assumeYes) {
 	if (answer.trim().toLowerCase() !== "y") fail("aborted");
 }
 
-const manifest = readFileSync(PACKAGE_JSON, "utf8");
 const bumped = manifest.replace(/("version"\s*:\s*")[^"]+(")/, `$1${version}$2`);
 if (bumped === manifest) fail(`could not find a version field in ${PACKAGE_JSON}`);
 writeFileSync(PACKAGE_JSON, bumped);
+writeFileSync(CHANGELOG, changelog);
 
 runGit("add", PACKAGE_JSON, CHANGELOG);
 runGit("commit", "-m", `chore(release): ${version}`);
-runGit("tag", `v${version}`);
-runGit("push", "origin", "main");
-runGit("push", "origin", `v${version}`);
+runGit("tag", "-a", `v${version}`, "-m", `v${version}`);
+runGit("push", "--atomic", "origin", "main", `refs/tags/v${version}`);
 
 console.log(`\nv${version} pushed. CI publishes it to npm and creates the GitHub release.`);
 console.log("Follow it with: gh run list --workflow=release.yml --limit 3");

@@ -1,10 +1,8 @@
 # Publishing `@emmorts/formsnap`.
 #
-# Cut a release with `npm run release -- <version>` (scripts/release.mjs): it checks the tree,
-# the changelog and the tag, then bumps, commits, tags and pushes. To do it by hand:
-#   1. Add a `## <version>` section to `packages/formsnap/CHANGELOG.md`.
-#   2. Bump `version` in `packages/formsnap/package.json` and push to `main`; CI must be green.
-#   3. `git tag v<version> && git push origin v<version>`.
+# Cut a release with `npm run release -- <version>` (scripts/release.mjs). It generates a dated
+# changelog section from Unreleased, bumps the manifest, commits, creates an annotated tag and
+# pushes main and the tag atomically. The generated changelog is the source of release notes.
 #
 # The tag must equal `v<package version>`, or this workflow fails before publishing.
 # npm authenticates with the OIDC trusted publisher configured for this repository and workflow
@@ -53,6 +51,14 @@ jobs:
                     exit 1
                   fi
 
+            - name: Prepare release notes
+              run: |
+                  version="$(node -p "require('./packages/formsnap/package.json').version")"
+                  node scripts/release-notes.mjs "$version" packages/formsnap/CHANGELOG.md > release-notes.md
+
+            - name: Test release tooling
+              run: node --test scripts/release.test.mjs
+
             - name: Type-check
               run: pnpm --filter @emmorts/formsnap run check
 
@@ -73,5 +79,4 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   version="$(node -p "require('./packages/formsnap/package.json').version")"
-                  node scripts/release-notes.mjs "$version" packages/formsnap/CHANGELOG.md > release-notes.md
-                  gh release create "v$version" --title "v$version" --notes-file release-notes.md --verify-tag
+                  gh release create "v$version" --repo "${{ github.repository }}" --title "v$version" --notes-file release-notes.md --verify-tag

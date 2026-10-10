@@ -48,7 +48,7 @@ and `Legend`. Headless hooks support custom controls. Style components with `dat
 
 Released in 2.1.0: Superforms 2 and 3 support under the `@emmorts/formsnap` package name.
 
-On `main`, not yet released:
+Changes since 2.1.1 (see the changelog for release status):
 
 - IDs stay stable across server rendering and hydration. Explicit control IDs are respected.
 - Description and error associations update correctly when content mounts, unmounts or changes.
@@ -81,6 +81,7 @@ CI uses Node.js 24 and pnpm 9.14.4. From the repository root:
 pnpm install --frozen-lockfile
 pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
 pnpm lint
+node --test scripts/release.test.mjs
 pnpm --filter @emmorts/formsnap run check
 pnpm test:package
 pnpm --filter @emmorts/formsnap run package
@@ -88,9 +89,12 @@ pnpm --filter @emmorts/formsnap run package
 
 ### Releases (maintainers)
 
-1. Add a version section to [the changelog](./packages/formsnap/CHANGELOG.md).
-2. Run `npm run release -- <version>` to check, bump, commit, tag and push.
-3. GitHub Actions verifies and publishes `@emmorts/formsnap`, then creates release notes from that section.
+1. Keep developer-facing entries under `Unreleased` in [the changelog](./packages/formsnap/CHANGELOG.md).
+2. On an up-to-date `main`, run `npm run release -- <version>`. It generates the dated version
+   section and comparison link, bumps the manifest, commits, and atomically pushes `main` and
+   an annotated tag.
+3. GitHub Actions verifies and publishes `@emmorts/formsnap` through npm trusted publishing with
+   provenance, then creates the GitHub release from the generated changelog section.
 
 ## License and credits
 
