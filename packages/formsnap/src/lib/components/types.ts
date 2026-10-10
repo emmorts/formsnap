@@ -24,6 +24,18 @@ export type FsSuperForm<T extends Record<string, unknown>, M = any> = Omit<
 	restore?: any;
 };
 
+/** Content rendered inside containers owned by a field scope. */
+export type OwnedFieldContentProps = {
+	/** Content-only description; the scope renders its container after children. */
+	description?: Snippet;
+	/** Enable default error content, or provide content for the owned error container. */
+	fieldErrors?: boolean | Snippet<[{ errors: string[]; errorProps: Record<string, unknown> }]>;
+	/** Override the owned description ID. Ignored when description is absent. */
+	descriptionId?: string;
+	/** Override the owned errors ID. Ignored when fieldErrors is false or absent. */
+	fieldErrorsId?: string;
+};
+
 /**
  * Props for the [Description](https://formsnap.dev/docs/components/description) component.
  */
@@ -35,7 +47,11 @@ export type DescriptionProps = DescriptionPropsWithoutHTML &
 /**
  * Props for the [Field](https://formsnap.dev/docs/components/field) component.
  */
-export type FieldProps<T extends Record<string, unknown>, U extends FormPath<T>, M = any> = {
+export type FieldProps<
+	T extends Record<string, unknown>,
+	U extends FormPath<T>,
+	M = any,
+> = OwnedFieldContentProps & {
 	/**
 	 * The form object returned from calling `superForm` in your component.
 	 */
@@ -72,7 +88,7 @@ export type ElementFieldProps<
 	T extends Record<string, unknown>,
 	U extends FormPathLeaves<T>,
 	M = any,
-> = {
+> = OwnedFieldContentProps & {
 	/**
 	 * The form object returned from calling `superForm` in your component.
 	 */
@@ -130,7 +146,16 @@ export type FieldsetPropsWithoutHTML<
 		tainted: boolean;
 		constraints: Record<string, unknown>;
 	}
->;
+> &
+	(
+		| (OwnedFieldContentProps & { child?: never })
+		| {
+				description?: never;
+				fieldErrors?: false;
+				descriptionId?: string;
+				fieldErrorsId?: string;
+		  }
+	);
 
 export type FieldsetProps<
 	T extends Record<string, unknown>,

@@ -21,14 +21,11 @@ import {
 	getAriaInvalid,
 	getAriaRequired,
 	getDataFsError,
+	getDescriptionProps,
+	getErrorProps,
+	getFieldErrorsProps,
 } from "./internal/utils/attributes.js";
-import type {
-	ControlAttrs,
-	DescriptionAttrs,
-	ErrorAttrs,
-	FieldErrorsAttrs,
-	LabelAttrs,
-} from "./attrs.types.js";
+import type { ControlAttrs, LabelAttrs } from "./attrs.types.js";
 import type { FsSuperForm } from "./components/types.js";
 
 /**
@@ -55,17 +52,37 @@ type FormFieldStateProps<
 > = ReadableBoxedValues<{
 	form: FsSuperForm<T, M>;
 	name: U;
+	descriptionId?: string;
+	fieldErrorsId?: string;
 }>;
+
+type OwnedAssociationProps = Pick<
+	FormFieldStateProps<Record<string, unknown>, string>,
+	"descriptionId" | "fieldErrorsId"
+>;
 
 /**
  * Description and error registrations belong to their contributors, not to their id strings.
  * Several owners can describe the same element; releasing one owner must leave the others intact.
  */
 class AssociationIds {
+	#owned: OwnedAssociationProps;
 	#descriptions = $state<{ owner: symbol; id: string }[]>([]);
 	#errors = $state<{ owner: symbol; id: string }[]>([]);
-	#descriptionIds = $derived([...new Set(this.#descriptions.map(({ id }) => id))]);
-	#errorIds = $derived([...new Set(this.#errors.map(({ id }) => id))]);
+	#descriptionIds = $derived.by(() => {
+		const ownedId = this.#owned.descriptionId?.current;
+		const mountedIds = this.#descriptions.map(({ id }) => id);
+		return [...new Set(ownedId === undefined ? mountedIds : [ownedId, ...mountedIds])];
+	});
+	#errorIds = $derived.by(() => {
+		const ownedId = this.#owned.fieldErrorsId?.current;
+		const mountedIds = this.#errors.map(({ id }) => id);
+		return [...new Set(ownedId === undefined ? mountedIds : [ownedId, ...mountedIds])];
+	});
+
+	constructor(owned: OwnedAssociationProps) {
+		this.#owned = owned;
+	}
 
 	get descriptionIds() {
 		return this.#descriptionIds;
@@ -160,10 +177,10 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 				true
 			: false
 	);
-	/** Description elements and error containers currently rendered inside this field. */
-	associations = new AssociationIds();
+	/** Owned declarations and additional mounted contributors for this field. */
+	associations: AssociationIds;
 
-	/** Distinct description ids in registration order. */
+	/** Distinct description ids, with the owned target first. */
 	get descriptionIds() {
 		return this.associations.descriptionIds;
 	}
@@ -183,6 +200,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	}
 
 	constructor(props: FormFieldStateProps<T, U>) {
+		this.associations = new AssociationIds(props);
 		this.#name = props.name;
 		this.form = props.form.current;
 		this.#formErrors = fromStore(props.form.current.errors);
@@ -213,6 +231,8 @@ type ElementFieldStateProps<
 > = ReadableBoxedValues<{
 	form: FsSuperForm<T, M>;
 	name: U;
+	descriptionId?: string;
+	fieldErrorsId?: string;
 }>;
 
 class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
@@ -244,8 +264,8 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 			? getValueAtPath(this.#name.current, this.#formTainted.current) === true
 			: false
 	);
-	/** Description elements and error containers rendered inside this element. */
-	associations = new AssociationIds();
+	/** Owned declarations and additional mounted contributors for this element. */
+	associations: AssociationIds;
 	value = $derived.by(() => {
 		return getValueAtPath(this.#name.current, this.#formData.current) as FormPathType<T, U>;
 	});
@@ -275,6 +295,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	}
 
 	constructor(props: ElementFieldStateProps<T, U>, field: FieldState<T, U>) {
+		this.associations = new AssociationIds(props);
 		this.#name = props.name;
 		this.form = props.form.current;
 		this.#formErrors = fromStore(props.form.current.errors);
@@ -301,7 +322,6 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 	#attachment: AssociationAttachment;
 	#id: FieldErrorsStateProps["id"];
 	field: FieldState<T, U>;
-	#errorAttr = $derived.by(() => getDataFsError(this.field.errors));
 
 	constructor(props: FieldErrorsStateProps, field: FieldState<T, U>) {
 		this.#attachment = useAssociationRef(props, (id) => field.associations.addErrors(id));
@@ -314,24 +334,12 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 		errorProps: this.errorProps,
 	}));
 
-	fieldErrorsProps = $derived.by(
-		() =>
-			({
-				id: this.#id.current,
-				...this.#attachment,
-				"data-fs-error": this.#errorAttr,
-				"data-fs-field-errors": "",
-				"aria-live": "assertive",
-			}) satisfies FieldErrorsAttrs
-	);
+	fieldErrorsProps = $derived.by(() => ({
+		...getFieldErrorsProps(this.#id.current, this.field.errors),
+		...this.#attachment,
+	}));
 
-	errorProps = $derived.by(
-		() =>
-			({
-				"data-fs-field-error": "",
-				"data-fs-error": this.#errorAttr,
-			}) satisfies ErrorAttrs
-	);
+	errorProps = $derived.by(() => getErrorProps(this.field.errors));
 }
 
 type DescriptionStateProps = WithRefProps;
@@ -347,15 +355,10 @@ class DescriptionState {
 		this.field = field;
 	}
 
-	props = $derived.by(
-		() =>
-			({
-				id: this.#id.current,
-				...this.#attachment,
-				"data-fs-error": getDataFsError(this.field.errors),
-				"data-fs-description": "",
-			}) satisfies DescriptionAttrs
-	);
+	props = $derived.by(() => ({
+		...getDescriptionProps(this.#id.current, this.field.errors),
+		...this.#attachment,
+	}));
 }
 
 type ControlStateProps = ReadableBoxedValues<{

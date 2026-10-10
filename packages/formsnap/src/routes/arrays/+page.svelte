@@ -1,15 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { superForm, type SuperValidated } from "sveltekit-superforms";
-	import {
-		Control,
-		Description,
-		ElementField,
-		FieldErrors,
-		Fieldset,
-		Label,
-		Legend,
-	} from "$lib/index.js";
+	import { Control, ElementField, Fieldset, Label, Legend } from "$lib/index.js";
 	import type { UrlsData } from "./schema.js";
 
 	let {
@@ -50,13 +42,13 @@
 </script>
 
 <form method="POST" data-hydrated={hydrated}>
-	<Fieldset {form} name="urls">
+	<Fieldset {form} name="urls" fieldErrors>
 		<Legend>Website URLs</Legend>
-		<Description>Enter one URL per row.</Description>
+		{#snippet description()}Enter one URL per row.{/snippet}
 		{#each $formData.urls as _, index (rowIds[index])}
-			<ElementField {form} name={`urls[${index}]` as `urls[${number}]`}>
-				{#snippet children({ value, tainted })}
-					<div data-row={index}>
+			<div data-row={index}>
+				<ElementField {form} name={`urls[${index}]` as `urls[${number}]`} fieldErrors>
+					{#snippet children({ value, tainted })}
 						<output data-value={JSON.stringify(value)} data-tainted={tainted}
 							>{value}</output
 						>
@@ -66,12 +58,10 @@
 								<input {...props} bind:value={$formData.urls[index]} />
 							{/snippet}
 						</Control>
-						<FieldErrors />
-					</div>
-				{/snippet}
-			</ElementField>
+					{/snippet}
+				</ElementField>
+			</div>
 		{/each}
-		<FieldErrors />
 	</Fieldset>
 	<button type="button" onclick={addRow}>Add row</button>
 	<button type="button" onclick={reorderRows}>Reorder rows</button>

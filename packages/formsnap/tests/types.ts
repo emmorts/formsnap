@@ -25,6 +25,100 @@ expectTypeOf<FieldProps<SettingsData, "email">["name"]>().toEqualTypeOf<"email">
 expectTypeOf<ControlProps["id"]>().toEqualTypeOf<string | undefined>();
 expectTypeOf<ControlAttrs["id"]>().toEqualTypeOf<string>();
 expectTypeOf<ControlAttrs["aria-describedby"]>().toEqualTypeOf<string | undefined>();
+
+// Owned content is optional and IDs are overrides, not declarations by themselves.
+type ErrorContent = Snippet<[{ errors: string[]; errorProps: Record<string, unknown> }]>;
+expectTypeOf<FieldProps<SettingsData, "email">["description"]>().toEqualTypeOf<
+	Snippet | undefined
+>();
+expectTypeOf<FieldProps<SettingsData, "email">["fieldErrors"]>().toEqualTypeOf<
+	boolean | ErrorContent | undefined
+>();
+expectTypeOf<FieldProps<SettingsData, "email">["descriptionId"]>().toEqualTypeOf<
+	string | undefined
+>();
+expectTypeOf<FieldProps<SettingsData, "email">["fieldErrorsId"]>().toEqualTypeOf<
+	string | undefined
+>();
+expectTypeOf<ElementFieldProps<Paths, "urls[0]">["description"]>().toEqualTypeOf<
+	Snippet | undefined
+>();
+expectTypeOf<ElementFieldProps<Paths, "urls[0]">["fieldErrors"]>().toEqualTypeOf<
+	boolean | ErrorContent | undefined
+>();
+expectTypeOf<ElementFieldProps<Paths, "urls[0]">["descriptionId"]>().toEqualTypeOf<
+	string | undefined
+>();
+expectTypeOf<ElementFieldProps<Paths, "urls[0]">["fieldErrorsId"]>().toEqualTypeOf<
+	string | undefined
+>();
+expectTypeOf<FieldsetProps<Paths, "profile">["description"]>().toEqualTypeOf<Snippet | undefined>();
+expectTypeOf<FieldsetProps<Paths, "profile">["fieldErrors"]>().toEqualTypeOf<
+	boolean | ErrorContent | undefined
+>();
+expectTypeOf<FieldsetProps<Paths, "profile">["descriptionId"]>().toEqualTypeOf<
+	string | undefined
+>();
+expectTypeOf<FieldsetProps<Paths, "profile">["fieldErrorsId"]>().toEqualTypeOf<
+	string | undefined
+>();
+
+declare const groupForm: SuperForm<Paths>;
+declare const descriptionContent: Snippet;
+declare const errorContent: ErrorContent;
+declare const customGroup: NonNullable<FieldsetProps<Paths, "profile">["child"]>;
+const nativeOwnedGroup: FieldsetProps<Paths, "profile"> = {
+	form: groupForm,
+	name: "profile",
+	description: descriptionContent,
+	fieldErrors: errorContent,
+	descriptionId: "profile-help",
+	fieldErrorsId: "profile-errors",
+};
+const unownedCustomGroup: FieldsetProps<Paths, "profile"> = {
+	form: groupForm,
+	name: "profile",
+	child: customGroup,
+	fieldErrors: false,
+	descriptionId: "unused-help",
+	fieldErrorsId: "unused-errors",
+};
+// @ts-expect-error A whole-container child cannot guarantee the owned description container.
+const customGroupWithDescription: FieldsetProps<Paths, "profile"> = {
+	form: groupForm,
+	name: "profile",
+	child: customGroup,
+	description: descriptionContent,
+};
+// @ts-expect-error A whole-container child cannot guarantee default owned errors.
+const customGroupWithDefaultErrors: FieldsetProps<Paths, "profile"> = {
+	form: groupForm,
+	name: "profile",
+	child: customGroup,
+	fieldErrors: true,
+};
+// @ts-expect-error A whole-container child cannot guarantee custom owned error content.
+const customGroupWithErrorContent: FieldsetProps<Paths, "profile"> = {
+	form: groupForm,
+	name: "profile",
+	child: customGroup,
+	fieldErrors: errorContent,
+};
+// @ts-expect-error Owned descriptions accept content-only snippets, not container props.
+const invalidDescription: FieldProps<SettingsData, "email">["description"] = errorContent;
+// @ts-expect-error Owned errors always provide string[] errors to custom content.
+const invalidErrors: FieldProps<SettingsData, "email">["fieldErrors"] = {} as Snippet<
+	[{ errors: number[]; errorProps: Record<string, unknown> }]
+>;
+export {
+	nativeOwnedGroup,
+	unownedCustomGroup,
+	customGroupWithDescription,
+	customGroupWithDefaultErrors,
+	customGroupWithErrorContent,
+	invalidDescription,
+	invalidErrors,
+};
 expectTypeOf<ControlAttrs["aria-required"]>().toEqualTypeOf<"true" | undefined>();
 
 // A label always names the control it belongs to.

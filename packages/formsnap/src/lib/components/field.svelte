@@ -8,12 +8,26 @@
 	import { box } from "svelte-toolbelt";
 	import type { FieldProps } from "./types.js";
 	import { useField } from "$lib/formsnap.svelte.js";
+	import { useId } from "$lib/internal/utils/id.js";
+	import OwnedFieldContent from "./owned-field-content.svelte";
 
-	let { form, name, children }: FieldProps<T, U> = $props();
+	const instanceId = $props.id();
+
+	let {
+		form,
+		name,
+		children,
+		description,
+		fieldErrors,
+		descriptionId = useId(instanceId, "description"),
+		fieldErrorsId = useId(instanceId, "errors"),
+	}: FieldProps<T, U> = $props();
 
 	const fieldState = useField({
 		form: box.with(() => form),
 		name: box.with(() => name),
+		descriptionId: box.with(() => (description ? descriptionId : undefined)),
+		fieldErrorsId: box.with(() => (fieldErrors ? fieldErrorsId : undefined)),
 	});
 </script>
 
@@ -35,3 +49,10 @@ A component that provides the necessary context for a form field.
 -->
 
 {@render children?.(fieldState.snippetProps)}
+<OwnedFieldContent
+	{description}
+	{fieldErrors}
+	{descriptionId}
+	{fieldErrorsId}
+	errors={fieldState.errors}
+/>
