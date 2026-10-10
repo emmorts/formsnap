@@ -316,7 +316,8 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	);
 }
 
-type FieldErrorsStateProps = WithRefProps<{ live?: FieldErrorsLive }>;
+type FieldErrorsStateProps = WithRefProps &
+	ReadableBoxedValues<{ live: FieldErrorsLive | undefined }>;
 
 class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#attachment: AssociationAttachment;
