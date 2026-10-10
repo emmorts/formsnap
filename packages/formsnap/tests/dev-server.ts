@@ -16,6 +16,8 @@ export async function setup() {
 		server: { port: DEV_SERVER_PORT, strictPort: true },
 	});
 	await server.listen();
+	// Compile the fixture route once, so the first test does not pay the cold transform cost.
+	await fetch(DEV_SERVER_URL);
 }
 
 /** Vitest global teardown: releases the port even when tests fail. */

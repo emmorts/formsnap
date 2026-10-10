@@ -367,7 +367,7 @@ Outcome (2026-10-10):
 
 ### P2.4 Regression and compatibility enforcement (original priority 4, second part)
 
-- [ ] Keep failing-before/passing-after coverage for the corrected public contracts.
+- [x] Keep failing-before/passing-after coverage for the corrected public contracts.
 
 Implementation: add the P2.1–P2.3 scenarios to the P1.2 harness as each fix lands. Cover native
 checkbox/radio labeling and native fieldset/legend grouping alongside the failures, so new
@@ -379,6 +379,41 @@ Acceptance: failures are reproduced before fixes; targeted regression cases pass
 normal SSR-to-hydration and invalid-submit scenarios work in the fixture. A deliberate broken
 association or wrong nested value fails the corresponding behavioral assertion. Record browser
 results and remaining manual assistive-technology limits.
+
+Outcome (2026-10-10):
+
+- Native controls, `tests/regressions.browser.test.ts`: a checkbox is associated with the label that
+  follows it and its checked state comes from the submitted value; a radio group renders inside the
+  `fieldset` its `legend` names, one control per option, each with its own label and id, with the
+  selected option taken from the data.
+- Array rows, same file: rows added, reordered and removed keep their own value, with no dangling
+  reference and no repeated id after every step.
+- Submissions, `tests/server-rendering.ssr.test.ts`: the fixture app has a POST action now, and a
+  urlencoded submission that fails validation answers 400 with `aria-invalid="true"` and the rendered
+  error text, while a valid one answers 200. One detail worth keeping: a `fetch` POST without
+  `accept: text/html` receives Kit's serialized action result instead of the re-rendered page, so the
+  no-JavaScript path has to ask for the document.
+- The array name contract is verified against Superforms itself (`tests/submissions.ssr.test.ts`): a
+  `FormData` carrying two `urls` entries validates into the array, which is what the single
+  `name="urls"` the components render is for.
+- The assertions are not vacuous: deliberately broken markup — a `for` and an `aria-describedby`
+  naming nothing, and a duplicated id — is reported by the shared helpers.
+- Consumer type cases run against both supported Superforms majors through the P1.2 CI matrix, which
+  type-checks `tests/types.ts` on 2.19.0 and 3.0.0.
+
+Not verified, with the reason recorded rather than assumed:
+
+- The `dataType: 'json'` submission round trip. `dataType` is a `superForm` option, not a
+  `superValidate` one, so the JSON body the enhance path posts cannot be produced through the
+  fixture's action here; the JSON data type is exercised client-side by the paths fixture only.
+- SSR-to-hydration parity. Rendering the fixture inside the browser resolves the client build of
+  `sveltekit-superforms`, whose `superForm` calls `$effect`, which the server renderer rejects with
+  `effect_orphan`; hydrating a bare component over a fetched Kit document is not equivalent.
+  Hydration stability therefore rests on identical ids across server renders (asserted) plus the
+  documented `$props.id()` contract.
+- Screen-reader behaviour. The browser project asserts DOM and attribute behaviour; announcement
+  mechanics and focus order still need manual testing with a real assistive technology, and no
+  automated scan is treated as a substitute for that.
 
 Phase gate: the existing component contract works in ordinary consumers, including initial HTML
 and reactive transitions. Release-policy decisions are recorded for changed names/types/peers.
