@@ -6,9 +6,13 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.1 (2026-10-10)
+
 ### Fixed
 
 - Include `CHANGELOG.md` in the npm package so the README's changelog link resolves.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.0...v2.2.1)
 
 ## 2.2.0 (2026-10-10)
 
