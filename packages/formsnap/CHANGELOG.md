@@ -1,5 +1,41 @@
 # formsnap
 
+## Unreleased
+
+### Compatibility
+
+- Raise the minimum supported Svelte version to 5.30.2, matching `svelte-toolbelt` 0.10.6.
+  Superforms 3.0.0 additionally requires Svelte 5.56.4. The release version and classification
+  remain a maintainer decision.
+
+### Fixes
+
+- Generate hydration-stable component IDs and honor explicit control IDs in server-rendered HTML.
+- Track description, error, and control-ID contributions by owner. Releasing or destroying one
+  owner preserves other contributions, removes stale references, and restores inherited descriptions
+  or control IDs.
+- Register `Description` and `FieldErrors` through their actual mounted elements, including custom
+  child snippets. Custom containers must spread their supplied props; unrelated document IDs are
+  no longer mistaken for those containers.
+- Resolve nested and array snippet values consistently across `Field`, `ElementField`, and
+  `Fieldset`. Preserve literal top-level keys containing path delimiters and include `undefined`
+  in snippet types when traversing optional or nullable ancestors.
+- Resolve array constraints using schema paths without bracket indices, while preserving literal
+  top-level schema keys and numeric object keys. Deduplicate description/error IDs in the final
+  `aria-describedby` value.
+- Correct the scoped-package quickstart, version guidance, support routing, and native submission
+  example. Document the existing client-only automatic description/error associations and the
+  native `aria-describedby` escape hatch for server-rendered HTML.
+
+### Verification
+
+- Add real SvelteKit browser hydration, no-JavaScript repeated-name array submissions, enhanced JSON
+  validation, stable keyed row interactions, association ownership/lifecycle, and public type cases.
+- Isolate optimizer caches between component tests and the real fixture app. Allocate the fixture
+  port dynamically and close its server after setup failures and test completion.
+- Cover the Superforms 2 and 3 Svelte minimums plus current versions in CI; install Chromium in the
+  release workflow before running consumer tests.
+
 ## 2.1.1 (2026-10-09)
 
 No functional change. This release exists to exercise the release pipeline end to end: the tag

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { DEV_SERVER_URL } from "./dev-server.js";
+import { fixtureUrl } from "./fixture-url.js";
 import { danglingReferences, duplicateIds, parseDocument } from "./html.js";
 
 async function renderFixture(): Promise<Document> {
-	const response = await fetch(DEV_SERVER_URL);
+	const response = await fetch(fixtureUrl());
 	expect(response.status).toBe(200);
 	return parseDocument(await response.text());
 }
@@ -40,17 +40,6 @@ describe("server-rendered consumer fixture", () => {
 		expect(label?.getAttribute("for")).toBe("email-input");
 	});
 
-	it("generates the same ids on every render of the same page", async () => {
-		const idsOf = async () =>
-			[...(await renderFixture()).querySelectorAll("[id]")]
-				.map((element) => element.getAttribute("id"))
-				.sort();
-
-		const first = await idsOf();
-		expect(first.length).toBeGreaterThan(0);
-		expect(await idsOf()).toEqual(first);
-	});
-
 	it("marks the controls of required fields as required", async () => {
 		const document = await renderFixture();
 
@@ -84,14 +73,14 @@ describe("server-rendered consumer fixture", () => {
 
 	/** Submits the fixture form the way a browser without JavaScript would. */
 	async function submit(body: string) {
-		return fetch(DEV_SERVER_URL, {
+		return fetch(fixtureUrl(), {
 			method: "POST",
 			headers: {
 				"content-type": "application/x-www-form-urlencoded",
 				// Kit re-renders the page for a document request; without this it answers with the
 				// serialized action result, which is the fetch-driven path.
 				accept: "text/html",
-				origin: new URL(DEV_SERVER_URL).origin,
+				origin: new URL(fixtureUrl()).origin,
 			},
 			body,
 		});

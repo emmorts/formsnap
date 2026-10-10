@@ -2,7 +2,7 @@
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
 	import type { SuperValidated } from "sveltekit-superforms";
-	import { Control, Field, Fieldset, Label, Legend } from "$lib/index.js";
+	import { Control, ElementField, Field, Fieldset, Label, Legend } from "$lib/index.js";
 	import type { PathsData } from "./paths-schema.js";
 
 	let { validated }: { validated: SuperValidated<PathsData> } = $props();
@@ -39,21 +39,33 @@
 </Field>
 
 <Field {form} name="urls[0]">
-	{#snippet children({ value, errors })}
-		<output data-path="urls[0]" data-value={shown(value)} data-errors={JSON.stringify(errors)}
+	{#snippet children({ value, errors, constraints })}
+		<output
+			data-path="urls[0]"
+			data-value={shown(value)}
+			data-errors={JSON.stringify(errors)}
+			data-constraints={JSON.stringify(constraints)}
 		></output>
 	{/snippet}
 </Field>
 
 <Field {form} name="items[0].id">
-	{#snippet children({ value })}
-		<output data-path="items[0].id" data-value={shown(value)}></output>
+	{#snippet children({ value, constraints })}
+		<output
+			data-path="items[0].id"
+			data-value={shown(value)}
+			data-constraints={JSON.stringify(constraints)}
+		></output>
 	{/snippet}
 </Field>
 
 <Field {form} name="matrix[0][1]">
-	{#snippet children({ value })}
-		<output data-path="matrix[0][1]" data-value={shown(value)}></output>
+	{#snippet children({ value, constraints })}
+		<output
+			data-path="matrix[0][1]"
+			data-value={shown(value)}
+			data-constraints={JSON.stringify(constraints)}
+		></output>
 	{/snippet}
 </Field>
 
@@ -70,9 +82,91 @@
 	{/snippet}
 </Fieldset>
 
+<Field {form} name="urls">
+	<ElementField {form} name="urls[0]">
+		{#snippet children({ value, errors, constraints })}
+			<output
+				data-path="element.urls[0]"
+				data-value={shown(value)}
+				data-errors={JSON.stringify(errors)}
+				data-constraints={JSON.stringify(constraints)}
+			></output>
+		{/snippet}
+	</ElementField>
+</Field>
+
+<Field {form} name="items">
+	<ElementField {form} name="items[0].id">
+		{#snippet children({ value, constraints })}
+			<output
+				data-path="element.items[0].id"
+				data-value={shown(value)}
+				data-constraints={JSON.stringify(constraints)}
+			></output>
+		{/snippet}
+	</ElementField>
+</Field>
+
+<Field {form} name="matrix">
+	<ElementField {form} name="matrix[0][1]">
+		{#snippet children({ value, constraints })}
+			<output
+				data-path="element.matrix[0][1]"
+				data-value={shown(value)}
+				data-constraints={JSON.stringify(constraints)}
+			></output>
+		{/snippet}
+	</ElementField>
+</Field>
+
 <Field {form} name={which}>
+	{#snippet children({ value, constraints })}
+		<output
+			data-path="switching"
+			data-value={shown(value)}
+			data-constraints={JSON.stringify(constraints)}
+		></output>
+	{/snippet}
+</Field>
+
+<Field {form} name="optionalProfile.name">
 	{#snippet children({ value })}
-		<output data-path="switching" data-value={shown(value)}></output>
+		<output data-path="optionalProfile.name" data-value={shown(value)}></output>
+	{/snippet}
+</Field>
+<Field {form} name="optionalUrls">
+	<ElementField {form} name="optionalUrls[0]">
+		{#snippet children({ value })}
+			<output data-path="optionalUrls[0]" data-value={shown(value)}></output>
+		{/snippet}
+	</ElementField>
+</Field>
+<Field {form} name="codes.123">
+	{#snippet children({ constraints })}
+		<output data-path="codes.123" data-constraints={JSON.stringify(constraints)}></output>
+	{/snippet}
+</Field>
+<Field {form} name="contact.email">
+	{#snippet children({ value })}
+		<output data-path="contact.email" data-value={shown(value)}></output>
+	{/snippet}
+</Field>
+<Field {form} name="contact[0]">
+	{#snippet children({ value, constraints })}
+		<output
+			data-path="contact[0]"
+			data-value={shown(value)}
+			data-constraints={JSON.stringify(constraints)}
+		></output>
+		<ElementField {form} name="contact[0]">
+			{#snippet children({ value, constraints })}
+				<output
+					data-path="element.contact[0]"
+					data-value={shown(value)}
+					data-constraints={JSON.stringify(constraints)}
+				></output>
+			{/snippet}
+		</ElementField>
 	{/snippet}
 </Field>
 

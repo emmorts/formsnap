@@ -4,12 +4,14 @@
 	import type { SuperValidated } from "sveltekit-superforms";
 	import { Control, Description, ElementField, Field, Label } from "$lib/index.js";
 	import type { UrlsData } from "./urls-schema.js";
+	import AssociationContribution from "./association-contribution.svelte";
 
 	let { validated }: { validated: SuperValidated<UrlsData> } = $props();
 
 	const form = superForm(untrack(() => validated));
 	let showGroupDescription = $state(true);
 	let showLocalDescription = $state(false);
+	let showHeadlessDescription = $state(false);
 </script>
 
 <Field {form} name="urls">
@@ -19,6 +21,14 @@
 	<ElementField {form} name="urls[0]">
 		{#if showLocalDescription}
 			<Description id="urls-0-help">The first link.</Description>
+		{/if}
+		{#if showHeadlessDescription}
+			<AssociationContribution
+				owner="element"
+				descriptionId="urls-0-headless-help"
+				errorsId={null}
+			/>
+			<p id="urls-0-headless-help">Custom first link help</p>
 		{/if}
 		<Control>
 			{#snippet children({ props })}
@@ -42,4 +52,7 @@
 </button>
 <button type="button" onclick={() => (showLocalDescription = !showLocalDescription)}>
 	toggle local description
+</button>
+<button type="button" onclick={() => (showHeadlessDescription = !showHeadlessDescription)}>
+	toggle headless description
 </button>

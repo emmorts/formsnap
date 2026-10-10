@@ -28,13 +28,16 @@ The supported versions match the published peer range:
 | `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10 |
 | `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
 
+These ranges are not an unrestricted cross-product: Superforms 3.0.0 requires Svelte
+`^5.56.4`. Use Svelte 5.30.2 or later with Superforms 2, and satisfy Superforms' own Svelte
+peer requirement when choosing Superforms 3.
+
 ## Usage
 
-[`packages/formsnap/README.md`](./packages/formsnap/README.md) holds the canonical quickstart: a
-schema, a `load` function, the form component and the page that renders it. That code is the fixture
-app under [`packages/formsnap/src/routes`](./packages/formsnap/src/routes), and
-`pnpm --filter @emmorts/formsnap run check` type-checks it, so it stays correct against the released
-package.
+[`packages/formsnap/README.md`](./packages/formsnap/README.md) holds the canonical quickstart:
+a schema, a load function and action, the form component, and the page that renders it. The fixture
+app under [`packages/formsnap/src/routes`](./packages/formsnap/src/routes) is type-checked and
+exercised by the consumer tests.
 
 You still handle the Superforms setup yourself — define a schema, return `superValidate(...)` from
 your load function, call `superForm` in your component — and Formsnap adds the accessible labelling,

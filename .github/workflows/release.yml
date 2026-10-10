@@ -42,6 +42,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Install the browser used by the consumer tests
+              run: pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
+
             - name: Confirm the tag matches the package version
               run: |
                   declared="$(node -p "require('./packages/formsnap/package.json').version")"

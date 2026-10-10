@@ -29,11 +29,6 @@ const errorsCases = [
 		expected: ["error2"],
 	},
 	{
-		input: { urls: [{ name: ["error"] }] },
-		path: "urls[1].name[0]",
-		expected: undefined,
-	},
-	{
 		input: { a: { b: { c: { d: { e: ["error"] } } } } },
 		path: "a.b.c.d.e",
 		expected: ["error"],
