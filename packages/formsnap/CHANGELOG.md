@@ -37,11 +37,25 @@
   example. Use owned slots for server-rendered associations; document client-only automatic
   standalone regions and the native `aria-describedby` escape hatch for caller-owned containers.
 
+### Documentation
+
+- Complete the canonical quickstart with the enhancement path: Superforms' own `enhance`, `fail` and
+  `message`, and the difference between an enhanced failure `ActionResult` and a native HTTP 400.
+- Add integration recipes, each backed by a fixture page the consumer tests exercise: nested data and
+  object arrays, primitive arrays with stable row identity, file uploads, native constraints with
+  `customValidity`, custom `child` snippets with ref forwarding, custom controls built on the
+  `useFormField`/`useFormControl` hooks, multiple forms, pending and success feedback, and the
+  keyboard/accessibility responsibilities that a custom control keeps.
+
 ### Verification
 
 - Add real SvelteKit browser hydration, no-JavaScript repeated-name array submissions, enhanced JSON
   validation, stable keyed row interactions, association ownership/lifecycle, owned SSR regions,
   conditional content, custom error snippets, and public type cases.
+- Exercise the documented recipes end to end in the same fixture app: server-rendered labels and
+  associations, DOM identity across hydration, a JavaScript-free multipart file upload, native
+  constraint blocking, `customValidity` and its `data-no-custom-validity` opt-out, custom snippet ref
+  forwarding, a control built on the headless hooks, and the pending and success states.
 - Isolate optimizer caches between component tests and the real fixture app. Allocate the fixture
   port dynamically and close its server after setup failures and test completion.
 - Cover the Superforms 2 and 3 Svelte minimums plus current versions in CI; install Chromium in the
