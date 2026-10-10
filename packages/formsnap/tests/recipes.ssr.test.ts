@@ -628,14 +628,16 @@ describe("documented integration recipes", () => {
 			.toBe(0);
 		await expect
 			.poll(() => note.getAttribute("aria-describedby"), { timeout: 10000 })
-			.not.toContain(noteId!);
+			.not.toContain(noteId);
+		// Restoring it associates the element that is rendered now. A caller-created component is new
+		// when it is re-created, so it produces a new id; the association follows the element, not a
+		// remembered id, and the policy is unchanged.
 		await toggle.check();
+		const restoredId = await announcedContainer(page, "note");
+		expect(restoredId).not.toBe(noteId);
+		expect(await page.locator(`[id="${restoredId}"]`).getAttribute("aria-live")).toBe("off");
 		await expect
-			.poll(() => note.getAttribute("aria-describedby"), { timeout: 10000 })
-			.toContain(noteId!);
-		expect(await page.locator(`[id="${noteId}"]`).getAttribute("aria-live")).toBe("off");
-		expect(await page.locator(`[id="${noteId}"]`).innerText()).toContain(
-			"Keep the note to twelve characters."
-		);
+			.poll(() => page.locator(`[id="${restoredId}"]`).innerText(), { timeout: 10000 })
+			.toContain("Keep the note to twelve characters.");
 	});
 });

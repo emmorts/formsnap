@@ -60,7 +60,8 @@
 				<input {...props} bind:value={$formData.note} />
 			{/snippet}
 		</Control>
-		{#snippet description()}Off: the error is associated, but never announced.{/snippet}
+		{#snippet description()}Off: nothing announces the error, and the region is associated once
+			it mounts.{/snippet}
 		{#if showNoteErrors}
 			<FieldErrors live="off" />
 		{/if}

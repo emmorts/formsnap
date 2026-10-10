@@ -285,7 +285,7 @@ client validator (`zodClient`) with `validationMethod: "oninput"`, so an existin
 while the user types, with no request and no navigation: that in-place update is the change a live
 region exists to announce. Like every freely composed region, that standalone container is associated
 only once it mounts, so a rejected submission rendered on the server shows its error without pointing
-at it.
+at it. Re-creating it assigns a new id and the association follows the new element.
 
 ## Recipes
 
