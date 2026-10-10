@@ -34,6 +34,9 @@ jobs:
             - name: Lint
               run: pnpm lint
 
+            - name: Test release tooling
+              run: node --test scripts/release.test.mjs
+
             - name: Type-check
               run: pnpm --filter @emmorts/formsnap run check
 
