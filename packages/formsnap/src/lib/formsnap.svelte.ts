@@ -2,7 +2,6 @@ import {
 	type Getter,
 	type ReadableBoxedValues,
 	type WithRefProps,
-	useOnChange,
 	useRefById,
 } from "svelte-toolbelt";
 import { fromStore } from "svelte/store";
@@ -13,7 +12,8 @@ import type {
 	InputConstraints,
 } from "sveltekit-superforms";
 import type { FormPathArrays, TaintedFields, ValidationErrors } from "sveltekit-superforms/client";
-import { getContext, setContext } from "svelte";
+import { createAttachmentKey, type Attachment } from "svelte/attachments";
+import { getContext, onDestroy, setContext, untrack } from "svelte";
 import { extractErrorArray } from "./internal/utils/errors.js";
 import { getValueAtPath } from "./internal/utils/path.js";
 import {
@@ -58,43 +58,74 @@ type FormFieldStateProps<
 }>;
 
 /**
- * The description elements and error containers that are currently rendered inside one field.
- *
- * Every contributor registers the id it actually rendered and withdraws it when that element goes
- * away, so one description unmounting cannot remove another's association, and a reference is never
- * left pointing at an element that is no longer there.
+ * Description and error registrations belong to their contributors, not to their id strings.
+ * Several owners can describe the same element; releasing one owner must leave the others intact.
  */
 class AssociationIds {
-	#descriptionIds = $state<string[]>([]);
-	#errorIds = $state<string[]>([]);
+	#descriptions = $state<{ owner: symbol; id: string }[]>([]);
+	#errors = $state<{ owner: symbol; id: string }[]>([]);
+	#descriptionIds = $derived([...new Set(this.#descriptions.map(({ id }) => id))]);
+	#errorIds = $derived([...new Set(this.#errors.map(({ id }) => id))]);
 
-	/** Description elements, in document order. */
 	get descriptionIds() {
 		return this.#descriptionIds;
 	}
 
-	/** Error containers, in document order. */
 	get errorIds() {
 		return this.#errorIds;
 	}
 
 	addDescription(id: string) {
-		if (this.#descriptionIds.includes(id)) return;
-		this.#descriptionIds = [...this.#descriptionIds, id];
-	}
-
-	removeDescription(id: string) {
-		this.#descriptionIds = this.#descriptionIds.filter((existing) => existing !== id);
+		const owner = Symbol();
+		untrack(() => {
+			this.#descriptions = [...this.#descriptions, { owner, id }];
+		});
+		return () => {
+			untrack(() => {
+				this.#descriptions = this.#descriptions.filter((entry) => entry.owner !== owner);
+			});
+		};
 	}
 
 	addErrors(id: string) {
-		if (this.#errorIds.includes(id)) return;
-		this.#errorIds = [...this.#errorIds, id];
+		const owner = Symbol();
+		untrack(() => {
+			this.#errors = [...this.#errors, { owner, id }];
+		});
+		return () => {
+			untrack(() => {
+				this.#errors = this.#errors.filter((entry) => entry.owner !== owner);
+			});
+		};
 	}
+}
 
-	removeErrors(id: string) {
-		this.#errorIds = this.#errorIds.filter((existing) => existing !== id);
-	}
+type AssociationAttachment = Record<symbol, Attachment<HTMLElement>>;
+
+/** Only a node receiving the spread props can contribute an association or receive the ref. */
+function useAssociationRef(
+	props: WithRefProps,
+	register: (id: string) => () => void
+): AssociationAttachment {
+	let node = $state<HTMLElement | null>(null);
+	const attachment: AssociationAttachment = {
+		[createAttachmentKey()]: (element: HTMLElement) => {
+			node = element;
+			props.ref.current = element;
+			return () => {
+				node = null;
+				props.ref.current = null;
+			};
+		},
+	};
+
+	$effect(() => {
+		const id = props.id.current;
+		if (!id || !node || node.id !== id) return;
+		return register(id);
+	});
+
+	return attachment;
 }
 
 class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
@@ -106,6 +137,13 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	form: FsSuperForm<T>;
 
 	name = $derived.by(() => this.#name.current);
+	// Superforms constraints describe the array item schema, without bracketed indices.
+	#constraintsPath = $derived.by(() => {
+		const name = this.#name.current;
+		return Object.hasOwn(this.#formConstraints.current, name)
+			? name
+			: name.replace(/\[\d+\]/g, "");
+	});
 	errors = $derived.by(() =>
 		extractErrorArray(
 			getValueAtPath(this.#name.current, structuredClone(this.#formErrors.current))
@@ -113,7 +151,8 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	);
 	constraints = $derived.by(
 		() =>
-			getValueAtPath(this.#name.current, structuredClone(this.#formConstraints.current)) ?? {}
+			getValueAtPath(this.#constraintsPath, structuredClone(this.#formConstraints.current)) ??
+			{}
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
@@ -124,7 +163,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	/** Description elements and error containers currently rendered inside this field. */
 	associations = new AssociationIds();
 
-	/** The ids the control has to describe itself with, in document order. */
+	/** Distinct description ids in registration order. */
 	get descriptionIds() {
 		return this.associations.descriptionIds;
 	}
@@ -188,11 +227,17 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 		const [path] = splitArrayPath<T>(this.#name.current);
 		return path as U;
 	});
+	#constraintsPath = $derived.by(() => {
+		const name = this.#name.current;
+		return Object.hasOwn(this.#formConstraints.current, name)
+			? name
+			: name.replace(/\[\d+\]/g, "");
+	});
 	errors = $derived.by(() =>
 		extractErrorArray(getValueAtPath(this.#name.current, this.#formErrors.current))
 	);
 	constraints = $derived.by(
-		() => getValueAtPath(this.#name.current, this.#formConstraints.current) ?? {}
+		() => getValueAtPath(this.#constraintsPath, this.#formConstraints.current) ?? {}
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
@@ -253,28 +298,15 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 type FieldErrorsStateProps = WithRefProps;
 
 class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
-	#ref: FieldErrorsStateProps["ref"];
+	#attachment: AssociationAttachment;
 	#id: FieldErrorsStateProps["id"];
 	field: FieldState<T, U>;
 	#errorAttr = $derived.by(() => getDataFsError(this.field.errors));
 
 	constructor(props: FieldErrorsStateProps, field: FieldState<T, U>) {
-		this.#ref = props.ref;
+		this.#attachment = useAssociationRef(props, (id) => field.associations.addErrors(id));
 		this.#id = props.id;
 		this.field = field;
-
-		/** The id this container contributed, so unmounting withdraws only its own registration. */
-		let registeredId: string | undefined;
-
-		useRefById({
-			id: this.#id,
-			ref: this.#ref,
-			onRefChange: (node) => {
-				if (registeredId) this.field.associations.removeErrors(registeredId);
-				registeredId = node?.id || undefined;
-				if (registeredId) this.field.associations.addErrors(registeredId);
-			},
-		});
 	}
 
 	snippetProps = $derived.by(() => ({
@@ -286,6 +318,7 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 		() =>
 			({
 				id: this.#id.current,
+				...this.#attachment,
 				"data-fs-error": this.#errorAttr,
 				"data-fs-field-errors": "",
 				"aria-live": "assertive",
@@ -304,33 +337,21 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 type DescriptionStateProps = WithRefProps;
 
 class DescriptionState {
-	#ref: DescriptionStateProps["ref"];
+	#attachment: AssociationAttachment;
 	#id: DescriptionStateProps["id"];
 	field: FieldState<Record<string, unknown>, string>;
 
 	constructor(props: DescriptionStateProps, field: FieldState<Record<string, unknown>, string>) {
-		this.#ref = props.ref;
+		this.#attachment = useAssociationRef(props, (id) => field.associations.addDescription(id));
 		this.#id = props.id;
 		this.field = field;
-
-		/** The id this description contributed, so unmounting withdraws only its own registration. */
-		let registeredId: string | undefined;
-
-		useRefById({
-			id: this.#id,
-			ref: this.#ref,
-			onRefChange: (node) => {
-				if (registeredId) this.field.associations.removeDescription(registeredId);
-				registeredId = node?.id || undefined;
-				if (registeredId) this.field.associations.addDescription(registeredId);
-			},
-		});
 	}
 
 	props = $derived.by(
 		() =>
 			({
 				id: this.#id.current,
+				...this.#attachment,
 				"data-fs-error": getDataFsError(this.field.errors),
 				"data-fs-description": "",
 			}) satisfies DescriptionAttrs
@@ -344,8 +365,8 @@ type ControlStateProps = ReadableBoxedValues<{
 
 class ControlState {
 	#id: ControlStateProps["id"];
-	/** An id a headless consumer asked for; it wins until the consumer clears it. */
-	#override = $state<string | null>(null);
+	/** Owner-scoped headless getters, resolved synchronously with the control's props. */
+	#overrides = $state<{ owner: symbol; id: Getter<string | null | undefined> }[]>([]);
 	field: FieldState<Record<string, unknown>, string>;
 	/** Id used when the consumer spreads `labelProps` without rendering a `Label` to override it. */
 	labelId: ControlStateProps["id"];
@@ -356,7 +377,11 @@ class ControlState {
 	 * `useFormControl` overrides it.
 	 */
 	get id(): string {
-		return this.#override ?? this.#id.current;
+		for (let index = this.#overrides.length - 1; index >= 0; index--) {
+			const id = this.#overrides[index].id();
+			if (id != null) return id;
+		}
+		return this.#id.current;
 	}
 
 	constructor(props: ControlStateProps, field: FieldState<Record<string, unknown>, string>) {
@@ -365,9 +390,17 @@ class ControlState {
 		this.field = field;
 	}
 
-	/** Sets the id a headless consumer wants the control to use, or clears it to use the prop id. */
-	setId(id: string | null | undefined) {
-		this.#override = id ?? null;
+	/** The most recently registered non-null headless id wins until its owner releases it. */
+	addId(id: Getter<string | null | undefined>) {
+		const owner = Symbol();
+		untrack(() => {
+			this.#overrides = [...this.#overrides, { owner, id }];
+		});
+		return () => {
+			untrack(() => {
+				this.#overrides = this.#overrides.filter((entry) => entry.owner !== owner);
+			});
+		};
 	}
 
 	props = $derived.by(
@@ -522,33 +555,15 @@ export function useFormField<
 >(props: UseFormFieldProps) {
 	const fieldState = getContext<FieldState<T, U>>(FORM_FIELD_CTX);
 	const form = fieldState.form;
-	const errorsId = $derived(props.errorsId ? props.errorsId() : undefined);
-	const descriptionId = $derived(props.descriptionId ? props.descriptionId() : undefined);
+	$effect(() => {
+		const id = props.errorsId?.();
+		if (id) return fieldState.associations.addErrors(id);
+	});
 
-	/** What this hook contributed, so a change withdraws the previous id and a null releases it. */
-	let contributedErrors: string | undefined;
-	let contributedDescription: string | undefined;
-
-	useOnChange(
-		() => errorsId,
-		(v) => {
-			if (contributedErrors) fieldState.associations.removeErrors(contributedErrors);
-			contributedErrors = v ?? undefined;
-			if (contributedErrors) fieldState.associations.addErrors(contributedErrors);
-		}
-	);
-
-	useOnChange(
-		() => descriptionId,
-		(v) => {
-			if (contributedDescription) {
-				fieldState.associations.removeDescription(contributedDescription);
-			}
-			contributedDescription = v ?? undefined;
-			if (contributedDescription)
-				fieldState.associations.addDescription(contributedDescription);
-		}
-	);
+	$effect(() => {
+		const id = props.descriptionId?.();
+		if (id) return fieldState.associations.addDescription(id);
+	});
 
 	return {
 		form,
@@ -580,14 +595,7 @@ export type UseFormControlProps = {
 
 export function useFormControl(props: UseFormControlProps) {
 	const controlState = getContext<ControlState>(FORM_CONTROL_CTX);
-	const id = $derived(props.id ? props.id() : undefined);
-
-	useOnChange(
-		() => id,
-		(v) => {
-			controlState.setId(v);
-		}
-	);
+	if (props.id) onDestroy(controlState.addId(props.id));
 
 	return {
 		get id() {

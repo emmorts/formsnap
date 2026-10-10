@@ -7,7 +7,8 @@ export default defineConfig({
 		name: "unit",
 		include: ["src/**/*.{test,spec}.{js,ts}", "tests/**/*.ssr.test.ts"],
 		globalSetup: ["tests/dev-server.ts"],
-		// These request the fixture app over HTTP, so the first render includes Vite's transform.
-		testTimeout: 15000,
+		// HTTP rendering and real-app hydration include Vite's cold transforms.
+		testTimeout: 30000,
+		hookTimeout: 60000,
 	},
 });

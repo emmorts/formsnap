@@ -2,10 +2,10 @@
  * Parameters for the `getAriaDescribedBy` function.
  */
 type AriaDescribedByParams = {
-	/** The IDs of the error containers rendered inside the field, in document order. */
+	/** The IDs contributed by error containers, in registration order. */
 	errorIds?: string[];
 
-	/** The IDs of the description elements rendered inside the field, in document order. */
+	/** The IDs contributed by description elements, in registration order. */
 	descriptionIds?: string[];
 
 	/** The current validation errors for the field. */
@@ -25,7 +25,7 @@ export function getAriaDescribedBy({
 	errors,
 }: AriaDescribedByParams) {
 	const describedBy = errors.length ? [...descriptionIds, ...errorIds] : descriptionIds;
-	return describedBy.length ? describedBy.join(" ") : undefined;
+	return describedBy.length ? [...new Set(describedBy)].join(" ") : undefined;
 }
 
 /**

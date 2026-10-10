@@ -7,6 +7,7 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
 	plugins: [sveltekit()],
+	cacheDir: "node_modules/.vite-browser-tests",
 	test: {
 		name: "browser",
 		include: ["tests/**/*.browser.test.ts"],

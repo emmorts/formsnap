@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { HTMLAttributes, HTMLFieldsetAttributes, HTMLLabelAttributes } from "svelte/elements";
-import type { FormPath, FormPathLeaves, FormPathType, SuperForm } from "sveltekit-superforms";
+import type { FormPath, FormPathLeaves, SuperForm } from "sveltekit-superforms";
 import type { Snippet } from "svelte";
 import type { Expand, WithChild, Without } from "svelte-toolbelt";
 import type { ControlAttrs } from "$lib/attrs.types.js";
-import type { Primitive } from "$lib/internal/types.js";
+import type { FormPathValue, Primitive } from "$lib/internal/types.js";
 
 type PrimitiveFieldSetAttributes = Primitive<HTMLFieldsetAttributes>;
 type PrimitiveDivAttributes = Primitive<HTMLAttributes<HTMLDivElement>>;
@@ -54,7 +54,7 @@ export type FieldProps<T extends Record<string, unknown>, U extends FormPath<T>,
 	children?: Snippet<
 		[
 			{
-				value: FormPathType<T, U>;
+				value: FormPathValue<T, U>;
 				errors: string[];
 				tainted: boolean;
 				constraints: Record<string, unknown>;
@@ -91,7 +91,7 @@ export type ElementFieldProps<
 	children?: Snippet<
 		[
 			{
-				value: FormPathType<T, U>;
+				value: FormPathValue<T, U>;
 				errors: string[];
 				tainted: boolean;
 				constraints: Record<string, unknown>;
@@ -125,7 +125,7 @@ export type FieldsetPropsWithoutHTML<
 		name: U;
 	},
 	{
-		value: FormPathType<T, U>;
+		value: FormPathValue<T, U>;
 		errors: string[];
 		tainted: boolean;
 		constraints: Record<string, unknown>;

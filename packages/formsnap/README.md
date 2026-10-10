@@ -18,6 +18,9 @@ validation, submission and form state.
 | `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
 | schema library         | any Superforms adapter; the example uses zod   |
 
+Superforms 3.0.0 additionally requires Svelte `^5.56.4`. The Svelte 5.30.2 minimum applies
+to Formsnap with Superforms 2; also satisfy the selected Superforms version's own peer range.
+
 Under `sveltekit-superforms` 2.31 and later the zod adapter is typed against the zod v3 API at
 `zod/v3`, and it has to be the same zod version Superforms resolves. Import your schema from
 `zod/v3`, and keep a single zod version in your dependency tree (pnpm can install a second copy for
@@ -31,9 +34,9 @@ npm i @emmorts/formsnap sveltekit-superforms zod
 
 ## Usage
 
-Superforms sets the form up as usual: define a schema and return the validated form from your load
-function. The code below is the fixture app in this repository, which
-`pnpm --filter @emmorts/formsnap run check` type-checks, so it stays correct.
+Superforms owns the load and action. The following code matches the fixture app, apart from its
+internal `$lib` import and test-only hydration marker. The fixture is type-checked and exercised
+by the consumer tests.
 
 ### 1. Define a schema
 
@@ -49,10 +52,11 @@ export const settingsSchema = z.object({
 export type SettingsData = z.infer<typeof settingsSchema>;
 ```
 
-### 2. Return the form from your load function
+### 2. Load and validate submissions
 
 ```ts
 // +page.server.ts
+import { fail } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { zod } from "sveltekit-superforms/adapters";
 import { settingsSchema } from "./schema.js";
@@ -61,6 +65,14 @@ export const load = async () => {
 	return {
 		form: await superValidate(zod(settingsSchema)),
 	};
+};
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(settingsSchema));
+		if (!form.valid) return fail(400, { form });
+		return { form };
+	},
 };
 ```
 
@@ -104,6 +116,7 @@ export const load = async () => {
 		<Description>Tell us about yourself.</Description>
 		<FieldErrors />
 	</Field>
+	<button type="submit">Save settings</button>
 </form>
 ```
 
@@ -122,11 +135,34 @@ export const load = async () => {
 <SettingsForm validated={data.form} />
 ```
 
-The fixture app in this repository imports the library through its internal `$lib` alias; everywhere
-else the code above is exactly what it renders. `Field`, `ElementField`, `Control`, `Label`,
-`Description`, `FieldErrors`, `Fieldset` and `Legend` all accept an `id`; when you omit it the
-component generates one that is identical in the server-rendered HTML and after hydration, so the
-markup can be cached and the ids stayed stable in the example above.
+This example uses normal browser POSTs and works with JavaScript disabled. Superforms reads the
+action result from SvelteKit's page state, so rejected values and errors are rendered without a
+separate Formsnap submission API.
+
+The fixture app imports Formsnap through its internal `$lib` alias. `Control`, `Label`,
+`Description`, `FieldErrors`, `Fieldset` and `Legend` accept an optional `id`; generated IDs
+are stable between server rendering and hydration. `Field` and `ElementField` provide context
+and snippet values, not HTML elements, and do not accept an `id`.
+
+### Accessibility associations
+
+Labels and explicit control IDs are present in server-rendered HTML. Description and error
+associations are registered on the client when their elements mount and withdrawn on unmount.
+Rendering `Description` or `FieldErrors` after a control cannot add `aria-describedby` to HTML
+the server has already emitted. If the association must work without JavaScript, give the
+containers explicit IDs and set native `aria-describedby` on the input yourself, including the
+error ID only when the error container exists and has errors.
+
+Custom `Description`/`FieldErrors` child snippets must spread the supplied props onto their actual
+container; those props register the mounted element as well as its ID. The `useFormField`
+`descriptionId`/`errorsId` getters declare caller-owned containers: keep those elements rendered
+while their IDs are supplied, and return `null` or `undefined` when withdrawing them.
+
+`ElementField` uses repeated parent names for native primitive-array submissions (for example,
+every `urls[0]`/`urls[1]` control submits as `urls`). Nested object/array submissions require
+Superforms' `dataType: "json"`, its `enhance` action, and values bound to the form store; enhancement
+serializes that store, not the repeated HTML names. An explicit leaf `name` may also be needed for
+Superforms options that identify inputs by their full path, such as `customValidity`.
 
 ## Components
 

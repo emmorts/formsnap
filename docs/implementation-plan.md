@@ -1,8 +1,10 @@
 # Formsnap implementation plan
 
-Reviewed against the current `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
-Status: proposed; no implementation items have started. Creating this tracker does not approve
-new public APIs, breaking changes, or a release.
+Initial assessment: `@emmorts/formsnap` 2.1.1 source on 2026-10-10.
+Status: the P1/P2 review fixes are implemented and exercised. P1, P2.2, P2.3, and P2.4 are checked;
+P2.1 remains open for automatic SSR description/error associations. Checked items do not approve
+new public APIs, breaking changes, or a release. Historical evidence below refers to the initial
+assessment; outcome and review notes describe the implementation that replaced it.
 
 ## Scope and tracking rules
 
@@ -136,6 +138,23 @@ Outcome (2026-10-10):
   5.4.11 (the browser runner had pulled a second copy whose types collided in the Vitest config),
   and `typescript` resolving to 5.9.3 within the unchanged `^5.6.2` range.
 
+Review outcome (2026-10-10):
+
+- The harness now covers real-page hydration and native/enhanced action submissions as well as
+  isolated component lifecycle behavior. Its fixture port is dynamically reserved rather than
+  fixed; optimizer caches are separated between component tests and the fixture application.
+- Compatibility is not an unrestricted cross-product: Superforms 3.0.0 requires Svelte 5.56.4
+  even though Formsnap itself supports Svelte 5.30.2 with Superforms 2. CI now has both minimums
+  plus current Svelte 5/Superforms 3. The release workflow installs Chromium before running tests.
+- Locally exercised combinations: Svelte 5.30.2 / Superforms 2.19.0 / zod 3.25.76,
+  Svelte 5.56.4 / Superforms 3.0.0 / zod 4.6.5, and Svelte 5.57.2 / Superforms 3.0.0 /
+  zod 4.6.5. Each passes `pnpm --filter @emmorts/formsnap run check` (zero errors/warnings),
+  `test` (74 tests across six files), and `run package` (publint clean). Temporary matrix
+  manifest/lockfile changes are restored before the final development-baseline run.
+- The locked development baseline, Svelte 5.57.2 / Superforms 2.31.0 / zod 4.6.5, also
+  passes all 74 tests. The package README now documents a real native POST action,
+  matching the exercised root fixture; later integration recipes remain P3.1 work.
+
 Findings the harness produced:
 
 - Observed, was [INFERENCE]: unmounting a `Description` leaves the mounted control's
@@ -193,11 +212,9 @@ Outcome (2026-10-10):
 - Verified: `pnpm lint` and `svelte-check` (0 errors) pass; no unscoped package or `let:attrs`
   references remain in the READMEs or templates.
 
-Blocker, needs a maintainer action: the fork has no issue tracker. `emmorts/formsnap` reports
-`has_issues: false` and `has_discussions: false`, and the repository navigation has no Issues tab,
-so the fork link the READMEs and templates now point at cannot yet receive reports. Enabling Issues
-in the repository settings makes those links live; until then the fork-specific route is unusable,
-which also means P6.4's support-link acceptance cannot be met.
+Resolved (2026-10-10): Issues were enabled on `emmorts/formsnap` using the authenticated GitHub
+CLI. The fork-specific report route is live. Discussions remain upstream; the fork does not
+advertise a separate discussions channel.
 
 Phase gate: normal loading and the verification harness work; no core accessibility fix is
 considered complete merely because compilation succeeds. P1.3 can proceed while P1.1 is resolved.
@@ -208,7 +225,7 @@ Depends on P1.1 and P1.2. These fixes precede new presentation components.
 
 ### P2.1 Initial identity and SSR associations (original priority 2, first part)
 
-- [x] Make IDs and accessibility associations correct before client effects.
+- [ ] Make IDs and accessibility associations correct before client effects.
 
 Source: [ID generation](../packages/formsnap/src/lib/internal/utils/id.ts#L1) uses a
 module-global counter. [ControlState](../packages/formsnap/src/lib/formsnap.svelte.ts#L297)
@@ -258,6 +275,15 @@ Outcome (2026-10-10):
 - The fixture dependency `zod` is pinned to the exact version `sveltekit-superforms` resolves
   (4.6.5) rather than a caret range, because unequal copies make the adapter's types incompatible
   (P1.2). Update the pin together with `sveltekit-superforms`.
+
+Review correction (2026-10-10): identity and explicit control IDs were implemented, but the
+original automatic SSR description/error association criterion was not met. The earlier
+"revised acceptance" was an implementation tradeoff, not an agreed scope reduction, so this item
+remains unchecked for that criterion. Client registration cannot backpatch a control already
+rendered by Svelte's server renderer. Consumers can already provide stable `Description` and
+`FieldErrors` IDs and set native `aria-describedby` explicitly; automatic, optional-container
+discovery before rendering still needs a design decision. Do not invent container presence from
+validation data or duplicate-render consumer snippets.
 
 ### P2.2 Association ownership and inherited instructions (original priority 2, second part)
 
@@ -311,6 +337,21 @@ Outcome (2026-10-10):
 - Ordering is registration order, which equals document order for a static tree. A description that
   remounts re-registers at the end rather than being re-sorted by DOM position; the plan's
   "ordered" requirement is met without reading the DOM during state access.
+  Review outcome (2026-10-10):
+
+- Registry entries are now keyed by contributor, not by the contributed ID. Two owners may share
+  an ID; releasing either one preserves the other's entry, and final reference tokens are
+  deduplicated. This also applies when description and error contributors share one target.
+- `useFormField` and `useFormControl` release their contributions on component destruction.
+  Multiple control-ID overrides restore the last remaining owner, then the component's own ID.
+  Reactive IDs, null releases, destruction order, and inherited descriptions have consumer cases.
+- `Description` and `FieldErrors` use attachments on the actual rendered element instead of
+  finding nodes by ID. A custom child that spreads its props registers its actual ID; an omitted
+  or unmounted container cannot accidentally associate an unrelated element elsewhere in the
+  document. `ref` forwarding continues to report the mounted node and clears on withdrawal.
+- Ordering remains registration order, not general document order after remounts. Automatic
+  association registration still requires client mounting; this fixes lifecycle ownership, not
+  P2.1's unresolved automatic SSR association criterion.
 
 ### P2.3 Nested values, constraints, and public inference (original priority 3)
 
@@ -357,9 +398,18 @@ Outcome (2026-10-10):
   The associations suite adds the native submission contract — both array elements render
   `name="urls"` with distinct ids — and `tests/types.ts` pins the value inference for string,
   number, object and optional paths through the public props, including `Fieldset`.
-- Finding: Superforms does report constraints and errors for nested and array-element paths, and
-  `getValueAtPath` resolves them, so the doubt about whether constraint shapes mirror the data tree
-  is settled for the tested paths. Nested objects need `dataType: 'json'`, which the fixture sets.
+- Review correction: Superforms' constraint tree is schema-shaped, not index-shaped. An actual
+  `superValidate` probe returned `items.id.min`, not `items[0].id.min`; the old lookup dropped all
+  indexed constraints. Both field variants must remove bracket indices for constraint lookup
+  while preserving numeric object keys. Error and taint paths still retain their indices.
+- Review fix: public snippets use `FormPathValue<T, U>`, a Superforms path-value type augmented
+  with `undefined` when an optional or nullable ancestor prevents traversal. Runtime lookup
+  prioritizes an exact own top-level key before interpreting delimiters, preserving existing
+  fields such as `"contact.email"`. Constraint lookup also preserves an exact top-level schema
+  key before removing bracketed array indices; a literal `"contact[0]"` and a numeric object key
+  such as `codes.123` remain intact. The literal-bracket browser regression returned `{}` before
+  this correction and the actual `{ minlength: 3, required: true }` constraint afterward in both
+  field variants. Consumer runtime and type cases cover these distinctions and nested arrays.
 - Scope move, recorded rather than dropped: "insert/remove/reorder scenarios keep fields attached to
   their intended rows" and the POST round trip for native repeated-name and `dataType: 'json'`
   submissions need array-mutating fixtures and a server action, which P2.4 builds for its remaining
@@ -386,34 +436,56 @@ Outcome (2026-10-10):
   follows it and its checked state comes from the submitted value; a radio group renders inside the
   `fieldset` its `legend` names, one control per option, each with its own label and id, with the
   selected option taken from the data.
-- Array rows, same file: rows added, reordered and removed keep their own value, with no dangling
-  reference and no repeated id after every step.
+- The original array-row test only rendered outputs keyed by index. Its empty ID/reference
+  checks were vacuous; it established value-by-index updates, not keyed control identity.
 - Submissions, `tests/server-rendering.ssr.test.ts`: the fixture app has a POST action now, and a
   urlencoded submission that fails validation answers 400 with `aria-invalid="true"` and the rendered
   error text, while a valid one answers 200. One detail worth keeping: a `fetch` POST without
   `accept: text/html` receives Kit's serialized action result instead of the re-rendered page, so the
   no-JavaScript path has to ask for the document.
-- The array name contract is verified against Superforms itself (`tests/submissions.ssr.test.ts`): a
-  `FormData` carrying two `urls` entries validates into the array, which is what the single
-  `name="urls"` the components render is for.
-- The assertions are not vacuous: deliberately broken markup — a `for` and an `aria-describedby`
-  naming nothing, and a duplicated id — is reported by the shared helpers.
+- The original parser-only array submission check and direct helper self-tests were insufficient
+  integration evidence. Real browser form submissions and rendered consumer assertions replace
+  these during the review.
 - Consumer type cases run against both supported Superforms majors through the P1.2 CI matrix, which
   type-checks `tests/types.ts` on 2.19.0 and 3.0.0.
 
-Not verified, with the reason recorded rather than assumed:
+Review correction: the original JSON submission and hydration gaps were harness choices, not
+technical impossibilities. Superforms enhancement posts its serialized form store in
+`__superform_json` FormData; a browser can submit it to the same normal SvelteKit action.
+Hydration must be checked by loading a real server-rendered SvelteKit page, not by passing a
+client-compiled component to `svelte/server`. The review adds those real-page scenarios; do not
+use repeated server-render ID equality as a substitute for server-to-client parity.
 
-- The `dataType: 'json'` submission round trip. `dataType` is a `superForm` option, not a
-  `superValidate` one, so the JSON body the enhance path posts cannot be produced through the
-  fixture's action here; the JSON data type is exercised client-side by the paths fixture only.
-- SSR-to-hydration parity. Rendering the fixture inside the browser resolves the client build of
-  `sveltekit-superforms`, whose `superForm` calls `$effect`, which the server renderer rejects with
-  `effect_orphan`; hydrating a bare component over a fetched Kit document is not equivalent.
-  Hydration stability therefore rests on identical ids across server renders (asserted) plus the
-  documented `$props.id()` contract.
 - Screen-reader behaviour. The browser project asserts DOM and attribute behaviour; announcement
   mechanics and focus order still need manual testing with a real assistive technology, and no
   automated scan is treated as a substitute for that.
+
+Review outcome (2026-10-10):
+
+- `tests/consumer.ssr.test.ts` exercises real SvelteKit pages in Chromium. Freezing the initial
+  browser module request preserves a queryable SSR document; releasing it proves that hydration
+  reuses the same DOM nodes and IDs. Separate no-JavaScript contexts submit invalid and valid
+  repeated-name array data through the fixture action and inspect returned data and errors.
+- The `/json` fixture binds nested data with `dataType: "json"` and `use:enhance`. Consumer cases
+  verify the actual `__superform_json` payload, non-navigation action requests, indexed invalid
+  results, corrected submissions, and cleared invalid state after adding, reordering, and removing
+  rows. The manual browser smoke also reproduced and fixed row replacement losing keyboard focus:
+  row keys are now local stable IDs, not Superforms data-object identities. Sequential typing
+  retains the control's ID and complete edited value.
+- The first integrated run exposed a harness runtime collision: the component browser project and
+  the fixture application shared Vite's dependency optimizer cache, yielding `effect_orphan`.
+  `vitest.browser.config.ts` now uses `.vite-browser-tests`; `tests/dev-server.ts` uses
+  `.vite-consumer`. Real-page hydration and enhanced submission pass with isolated caches.
+- The fixture server reserves an available port, checks HTML warmup responses for all three
+  routes, closes on setup failure, and returns teardown cleanup. Component fixtures await
+  unmount before clearing the document. Public type cases include invalid-path rejection.
+- The isolated full suite passes all 74 tests across six files. Earlier direct helper self-tests
+  were removed in favor of consumer-visible association, value, and submission assertions.
+  Browser console warnings/errors and uncaught exceptions fail the real-page cases; only the
+  expected network diagnostic for deliberately rejected HTTP 400 submissions is allowed.
+- Automatic SSR `aria-describedby` remains outside the exercised contract and keeps P2.1
+  unchecked. Manual screen-reader announcement and focus-order checks remain explicitly
+  unverified. No new public API or release classification was approved by this review.
 
 Phase gate: the existing component contract works in ordinary consumers, including initial HTML
 and reactive transitions. Release-policy decisions are recorded for changed names/types/peers.
