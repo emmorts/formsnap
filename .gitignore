@@ -9,6 +9,9 @@ dist
 _site
 .docs-tools
 
+# Local working plan
+/docs/implementation-plan.md
+
 # Logs
 logs
 *.log

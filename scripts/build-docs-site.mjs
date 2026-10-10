@@ -18,8 +18,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 
 /**
- * The published pages, in navigation order. Only user-facing documentation is published: the
- * implementation plan is an internal record and the fixture routes cannot run without a server.
+ * The published pages, in navigation order. Only public documentation is published;
+ * the fixture routes cannot run without a server.
  */
 const PAGES = [
 	{
