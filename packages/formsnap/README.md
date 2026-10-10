@@ -5,10 +5,13 @@ Accessible, unstyled form components for [SvelteKit](https://svelte.dev/docs/kit
 label, description and error markup and wires up the ARIA relationships; Superforms keeps owning
 validation, submission and form state.
 
-`@emmorts/formsnap` is the maintained fork of
-[`formsnap`](https://github.com/svecosystem/formsnap) by
-[@huntabyte](https://github.com/huntabyte). Component documentation lives at
-[formsnap.dev](https://formsnap.dev) and describes the API this fork follows.
+`@emmorts/formsnap` is a fork of [svecosystem/formsnap](https://github.com/svecosystem/formsnap)
+by [@huntabyte](https://github.com/huntabyte), created because the original repository has not
+been maintained since April 2025. This fork adds Superforms 3 support and fixes field associations
+and nested paths. See the [fork changes](../../README.md#changes-in-this-fork) and
+[changelog](./CHANGELOG.md) for released and unreleased changes.
+
+[formsnap.dev](https://formsnap.dev) documents the original component API.
 
 ## Requirements
 
