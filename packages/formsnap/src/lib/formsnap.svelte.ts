@@ -25,7 +25,7 @@ import {
 	getErrorProps,
 	getFieldErrorsProps,
 } from "./internal/utils/attributes.js";
-import type { ControlAttrs, LabelAttrs } from "./attrs.types.js";
+import type { ControlAttrs, FieldErrorsLive, LabelAttrs } from "./attrs.types.js";
 import type { FsSuperForm } from "./components/types.js";
 
 /**
@@ -316,16 +316,18 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	);
 }
 
-type FieldErrorsStateProps = WithRefProps;
+type FieldErrorsStateProps = WithRefProps<{ live?: FieldErrorsLive }>;
 
 class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#attachment: AssociationAttachment;
 	#id: FieldErrorsStateProps["id"];
+	#live: FieldErrorsStateProps["live"];
 	field: FieldState<T, U>;
 
 	constructor(props: FieldErrorsStateProps, field: FieldState<T, U>) {
 		this.#attachment = useAssociationRef(props, (id) => field.associations.addErrors(id));
 		this.#id = props.id;
+		this.#live = props.live;
 		this.field = field;
 	}
 
@@ -335,7 +337,11 @@ class FieldErrorsState<T extends Record<string, unknown>, U extends AnyFormPath<
 	}));
 
 	fieldErrorsProps = $derived.by(() => ({
-		...getFieldErrorsProps(this.#id.current, this.field.errors),
+		...getFieldErrorsProps(
+			this.#id.current,
+			this.field.errors,
+			this.#live.current ?? "assertive"
+		),
 		...this.#attachment,
 	}));
 

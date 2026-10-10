@@ -30,6 +30,12 @@
 			description:
 				"The submitting store while the action runs, and a Superforms message after.",
 		},
+		{
+			path: "/recipes/announcements",
+			title: "Error announcements",
+			description:
+				"The announcement policy of an owned or standalone error region, and what each one costs.",
+		},
 	] as const;
 </script>
 

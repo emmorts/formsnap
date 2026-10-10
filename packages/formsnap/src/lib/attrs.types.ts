@@ -56,6 +56,18 @@ export type LabelAttrs = {
 };
 
 /**
+ * Announcement policy for a field error container, mirrored onto its `aria-live` attribute.
+ *
+ * - `"assertive"`: announce as soon as the errors change. The default.
+ * - `"polite"`: announce when the user pauses.
+ * - `"off"`: do not announce. Errors stay associated with the control, so a screen reader
+ *   still reaches them when the user moves to the control.
+ *
+ * @category FieldErrors
+ */
+export type FieldErrorsLive = "assertive" | "polite" | "off";
+
+/**
  * Attributes provided via the `child` snippet props to spread onto the field error
  * container element.
  */
@@ -72,8 +84,8 @@ export type FieldErrorsAttrs = {
 	 */
 	"data-fs-field-errors": string;
 
-	/** Notifies screen readers when a validation error occurs */
-	"aria-live": "assertive" | "polite";
+	/** Notifies screen readers when a validation error occurs. Defaults to `"assertive"`. */
+	"aria-live": FieldErrorsLive;
 
 	/** Any additional props provided to `<Form.Validation />` */
 	[key: string]: any;

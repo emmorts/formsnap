@@ -12,6 +12,7 @@
 		fieldErrors,
 		descriptionId,
 		fieldErrorsId,
+		fieldErrorsLive,
 		errors,
 	}: OwnedFieldContentProps & {
 		descriptionId: string;
@@ -28,7 +29,7 @@
 	</div>
 {/if}
 {#if fieldErrors}
-	<div {...getFieldErrorsProps(fieldErrorsId, errors)}>
+	<div {...getFieldErrorsProps(fieldErrorsId, errors, fieldErrorsLive)}>
 		{#if fieldErrors === true}
 			<ErrorContent {errors} {errorProps} />
 		{:else}

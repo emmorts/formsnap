@@ -48,6 +48,7 @@ export async function setup({ provide }: GlobalSetupContext) {
 			"recipes/constraints",
 			"recipes/composition",
 			"recipes/feedback",
+			"recipes/announcements",
 		]) {
 			const response = await fetch(new URL(route, url), {
 				signal: AbortSignal.timeout(30000),

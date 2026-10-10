@@ -21,6 +21,7 @@
 		fieldErrors,
 		descriptionId = useId(instanceId, "description"),
 		fieldErrorsId = useId(instanceId, "errors"),
+		fieldErrorsLive,
 	}: FieldProps<T, U> = $props();
 
 	const fieldState = useField({
@@ -54,5 +55,6 @@ A component that provides the necessary context for a form field.
 	{fieldErrors}
 	{descriptionId}
 	{fieldErrorsId}
+	{fieldErrorsLive}
 	errors={fieldState.errors}
 />
