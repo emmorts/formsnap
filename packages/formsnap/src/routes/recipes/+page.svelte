@@ -5,25 +5,25 @@
 	 */
 	const recipes = [
 		{
-			href: "/recipes/upload",
+			path: "/recipes/upload",
 			title: "File upload",
 			description:
 				"A file input inside a Field. The action reads a File from the multipart submission.",
 		},
 		{
-			href: "/recipes/constraints",
+			path: "/recipes/constraints",
 			title: "Native constraints",
 			description:
 				"HTML validation attributes, schema-derived aria-required, and the customValidity option.",
 		},
 		{
-			href: "/recipes/composition",
+			path: "/recipes/composition",
 			title: "Custom composition",
 			description:
 				"Child snippets, ref forwarding, and a control built on the headless hooks.",
 		},
 		{
-			href: "/recipes/feedback",
+			path: "/recipes/feedback",
 			title: "Pending and success feedback",
 			description:
 				"The submitting store while the action runs, and a Superforms message after.",
@@ -37,10 +37,10 @@
 	documentation and the code cannot drift apart silently.
 </p>
 <ul>
-	{#each recipes as recipe (recipe.href)}
+	{#each recipes as recipe (recipe.path)}
 		<li>
-			<a href={recipe.href}>{recipe.title}</a>
-			— {recipe.description}
+			<code>{recipe.path}</code>
+			— <strong>{recipe.title}</strong>: {recipe.description}
 		</li>
 	{/each}
 </ul>

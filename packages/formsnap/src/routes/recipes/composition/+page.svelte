@@ -72,10 +72,8 @@
 	-->
 	<Field {form} name="rating" fieldErrors>
 		<Control>
-			{#snippet children()}
-				<Label>Rating</Label>
-				<RatingControl bind:value={$formData.rating} bind:ref={ratingControl} />
-			{/snippet}
+			<Label>Rating</Label>
+			<RatingControl bind:value={$formData.rating} bind:ref={ratingControl} />
 		</Control>
 		{#snippet description()}One to five stars.{/snippet}
 	</Field>
