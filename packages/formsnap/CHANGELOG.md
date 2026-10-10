@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.0 (2026-10-10)
+
 ### Compatibility
 
 - Correct the advertised Svelte minimum to `^5.30.2`, already required by `svelte-toolbelt`.
@@ -40,6 +42,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
   release automatically from those notes after npm publication.
 - Test server rendering, hydration, JavaScript-free and enhanced submissions, dynamic associations
   and public types across Superforms 2 and 3. Manual screen-reader checks remain pending.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.1.1...v2.2.0)
 
 ## 2.1.1 (2026-10-09)
 
