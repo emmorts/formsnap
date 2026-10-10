@@ -5,6 +5,10 @@ node_modules
 
 dist
 
+# Generated documentation site and the renderer the docs workflow installs
+_site
+.docs-tools
+
 # Logs
 logs
 *.log
