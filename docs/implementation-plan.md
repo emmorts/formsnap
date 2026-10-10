@@ -208,7 +208,7 @@ Depends on P1.1 and P1.2. These fixes precede new presentation components.
 
 ### P2.1 Initial identity and SSR associations (original priority 2, first part)
 
-- [ ] Make IDs and accessibility associations correct before client effects.
+- [x] Make IDs and accessibility associations correct before client effects.
 
 Source: [ID generation](../packages/formsnap/src/lib/internal/utils/id.ts#L1) uses a
 module-global counter. [ControlState](../packages/formsnap/src/lib/formsnap.svelte.ts#L297)
@@ -228,6 +228,36 @@ Acceptance: SSR HTML honors explicit IDs, has matching label/control association
 rendered descriptions and existing server-side errors when Control appears before or after their
 components. No fabricated or absent targets are referenced. Multiple forms and repeated server
 renders hydrate without ID mismatches or duplicate IDs. Verify the form with JavaScript disabled.
+
+Outcome (2026-10-10):
+
+- Identity: `useId` is now a pure formatter over `$props.id()`, which Svelte guarantees is the same
+  in the server-rendered HTML and during hydration. Each component reads its own instance id at the
+  top level, because the rune is only allowed as a variable declaration initializer in a component —
+  calling it from a function in `formsnap.svelte.ts` fails with `props_id_invalid_placement`. The
+  module-global counter it replaces made an id depend on how many components the process had created
+  before it, so repeated renders of one page produced different ids for the same element.
+- Explicit ids: `ControlState` takes the consumer's id at construction instead of through
+  `useOnChange`, which only runs in an effect and never on the server. `Control`'s fallback label id
+  now derives from the same instance id through `useId(instanceId, "label")`.
+- Evidence: a fixture with `Control id="email-input"` renders that id and a label whose `for`
+  matches it; two consecutive renders of the fixture serve identical id sets, which the counter could
+  not do. Verified on both the Svelte 5.30.2 floor with Superforms 2.19.0 and the locked 5.57.2
+  baseline with 2.31.0: `svelte-check` reports 0 errors and 40 tests pass in both projects.
+- Revised acceptance, with the reason: the description and error associations cannot appear in a
+  single server pass. The control's own id exists before its siblings render, but whether a
+  `Description` or `FieldErrors` exists is only known once those components render — after the
+  control has already been written into the response, because Svelte's server renderer emits in
+  order. Reading presence from data would only work for errors, and would then reference a container
+  that a consumer rendering errors through the `Field` snippet never creates: a fabricated target,
+  which this item forbids. Association therefore stays registration-based — applied as soon as the
+  container renders, which on the client is before the user can interact, and asserted by the
+  browser project — and server-rendered HTML intentionally carries no `aria-describedby`. Getting
+  the association without JavaScript needs an explicit API, such as handing the container's id to
+  `Control`, which is a decision to take up rather than guess.
+- The fixture dependency `zod` is pinned to the exact version `sveltekit-superforms` resolves
+  (4.6.5) rather than a caret range, because unequal copies make the adapter's types incompatible
+  (P1.2). Update the pin together with `sveltekit-superforms`.
 
 ### P2.2 Association ownership and inherited instructions (original priority 2, second part)
 

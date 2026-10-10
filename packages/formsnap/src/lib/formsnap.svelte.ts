@@ -2,7 +2,6 @@ import {
 	type Getter,
 	type ReadableBoxedValues,
 	type WithRefProps,
-	box,
 	useOnChange,
 	useRefById,
 } from "svelte-toolbelt";
@@ -32,7 +31,6 @@ import type {
 	LabelAttrs,
 } from "./attrs.types.js";
 import type { FsSuperForm } from "./components/types.js";
-import { useId } from "./internal/utils/id.js";
 
 /**
  * superforms 3 declares `FormPath<T>` and `FormPathLeaves<T>` as separate conditional string
@@ -292,22 +290,31 @@ class DescriptionState {
 
 type ControlStateProps = ReadableBoxedValues<{
 	id: string;
+	labelId: string;
 }>;
 
 class ControlState {
 	#id: ControlStateProps["id"];
 	field: FieldState<Record<string, unknown>, string>;
-	labelId: ControlStateProps["id"] = box(useId());
-	id = $state(useId());
+	/** Id used when the consumer spreads `labelProps` without rendering a `Label` to override it. */
+	labelId: ControlStateProps["id"];
+	id = $state("");
 
 	constructor(props: ControlStateProps, field: FieldState<Record<string, unknown>, string>) {
 		this.#id = props.id;
+		this.labelId = props.labelId;
 		this.field = field;
+
+		// A supplied id has to be part of the first server-rendered markup, and `useOnChange` only
+		// runs in an effect, which never runs on the server.
+		this.id = props.id.current;
 
 		useOnChange(
 			() => this.#id.current,
 			(v) => {
-				this.id = v;
+				if (v) {
+					this.id = v;
+				}
 			}
 		);
 	}

@@ -4,10 +4,14 @@
 	import { useId } from "$lib/internal/utils/index.js";
 	import { useControl } from "$lib/formsnap.svelte.js";
 
-	let { id = useId(), children }: ControlProps = $props();
+	const instanceId = $props.id();
+	const labelId = useId(instanceId, "label");
+
+	let { id = useId(instanceId), children }: ControlProps = $props();
 
 	const controlState = useControl({
 		id: box.with(() => id),
+		labelId: box.with(() => labelId),
 	});
 </script>
 

@@ -29,6 +29,28 @@ describe("server-rendered consumer fixture", () => {
 		}
 	});
 
+	it("uses the id a consumer supplies instead of generating one", async () => {
+		const document = await renderFixture();
+
+		const control = document.querySelector('[name="email"]');
+		expect(control?.getAttribute("id")).toBe("email-input");
+		const label = [...document.querySelectorAll("label")].find(
+			(element) => element.textContent?.trim() === "Email"
+		);
+		expect(label?.getAttribute("for")).toBe("email-input");
+	});
+
+	it("generates the same ids on every render of the same page", async () => {
+		const idsOf = async () =>
+			[...(await renderFixture()).querySelectorAll("[id]")]
+				.map((element) => element.getAttribute("id"))
+				.sort();
+
+		const first = await idsOf();
+		expect(first.length).toBeGreaterThan(0);
+		expect(await idsOf()).toEqual(first);
+	});
+
 	it("marks the controls of required fields as required", async () => {
 		const document = await renderFixture();
 

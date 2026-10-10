@@ -84,7 +84,7 @@ export const load = async () => {
 
 <form method="POST">
 	<Field {form} name="email">
-		<Control>
+		<Control id="email-input">
 			{#snippet children({ props })}
 				<Label>Email</Label>
 				<input type="email" {...props} bind:value={$formData.email} />
@@ -123,7 +123,10 @@ export const load = async () => {
 ```
 
 The fixture app in this repository imports the library through its internal `$lib` alias; everywhere
-else the code above is exactly what it renders.
+else the code above is exactly what it renders. `Field`, `ElementField`, `Control`, `Label`,
+`Description`, `FieldErrors`, `Fieldset` and `Legend` all accept an `id`; when you omit it the
+component generates one that is identical in the server-rendered HTML and after hydration, so the
+markup can be cached and the ids stayed stable in the example above.
 
 ## Components
 

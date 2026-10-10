@@ -14,7 +14,7 @@
 
 <form method="POST">
 	<Field {form} name="email">
-		<Control>
+		<Control id="email-input">
 			{#snippet children({ props })}
 				<Label>Email</Label>
 				<input type="email" {...props} bind:value={$formData.email} />
