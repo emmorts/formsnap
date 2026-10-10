@@ -1,116 +1,145 @@
 # Formsnap
 
-The goal of this library is to make working with the already incredible [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms) even more pleasant, by wrapping it with accessible form components.
+Accessible, unstyled form components for [SvelteKit](https://svelte.dev/docs/kit), built on
+[sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms). Formsnap renders the
+label, description and error markup and wires up the ARIA relationships; Superforms keeps owning
+validation, submission and form state.
+
+`@emmorts/formsnap` is the maintained fork of
+[`formsnap`](https://github.com/svecosystem/formsnap) by
+[@huntabyte](https://github.com/huntabyte). Component documentation lives at
+[formsnap.dev](https://formsnap.dev) and describes the API this fork follows.
+
+## Requirements
+
+| Dependency             | Supported range                                |
+| ---------------------- | ---------------------------------------------- |
+| `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10 |
+| `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
+| schema library         | any Superforms adapter; the example uses zod   |
+
+Under `sveltekit-superforms` 2.31 and later the zod adapter is typed against the zod v3 API at
+`zod/v3`, and it has to be the same zod version Superforms resolves. Import your schema from
+`zod/v3`, and keep a single zod version in your dependency tree (pnpm can install a second copy for
+Superforms' own dependencies — check with `pnpm why zod`).
 
 ## Installation
 
 ```bash
-npm i formsnap sveltekit-superforms <your-schema-library>
+npm i @emmorts/formsnap sveltekit-superforms zod
 ```
 
 ## Usage
 
-You'll handle the initial Superforms setup just as you normally would, where you define a schema and return the form from your load function.
+Superforms sets the form up as usual: define a schema and return the validated form from your load
+function. The code below is the fixture app in this repository, which
+`pnpm --filter @emmorts/formsnap run check` type-checks, so it stays correct.
 
-#### 1. Define a Zod schema
+### 1. Define a schema
 
 ```ts
-// schemas.ts
-import { z } from "zod";
-export const settingsFormSchema = z.object({
+// schema.ts
+import { z } from "zod/v3";
+
+export const settingsSchema = z.object({
 	email: z.string().email(),
-	bio: z.string().max(250).optional(),
-	marketingEmails: z.boolean().default(true),
-	language: z.enum(["en", "es", "fr"]).default(["en"]),
-	theme: z.enum(["light", "dark"]).default(["light"]),
+	bio: z.string().max(250),
 });
+
+export type SettingsData = z.infer<typeof settingsSchema>;
 ```
 
-#### 2. Return the form from your load function
+### 2. Return the form from your load function
 
 ```ts
 // +page.server.ts
 import { superValidate } from "sveltekit-superforms";
 import { zod } from "sveltekit-superforms/adapters";
-import type { PageServerLoad } from "./$types";
-import { settingsFormSchema } from "./schemas";
+import { settingsSchema } from "./schema.js";
 
-export const load: PageServerLoad = async () => {
+export const load = async () => {
 	return {
-		form: await superValidate(zod(settingsFormSchema)),
+		form: await superValidate(zod(settingsSchema)),
 	};
 };
 ```
 
-#### 3. Construct the form in your page
+### 3. Render the fields
 
 ```svelte
+<!-- settings-form.svelte -->
 <script lang="ts">
-	import { Field, Label, FieldErrors, Control, Description, Fieldset, Legend } from "formsnap";
-	import { settingsFormSchema } from "./schemas";
+	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
+	import type { SuperValidated } from "sveltekit-superforms";
+	import { Control, Description, Field, FieldErrors, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
 
-	export let data;
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
 
-	const form = superForm(data.form, {
-		validators: zodClient(settingsFormSchema),
-	});
-
-	const { form: formData, enhance } = form;
+	// `superForm` reads the initial validation data once, so the read is deliberately untracked.
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
 </script>
 
-<form method="POST" use:enhance>
+<form method="POST">
 	<Field {form} name="email">
-		<Control let:attrs>
-			<Label>Email</Label>
-			<input type="email" {...attrs} bind:value={$formData.email} />
+		<Control>
+			{#snippet children({ props })}
+				<Label>Email</Label>
+				<input type="email" {...props} bind:value={$formData.email} />
+			{/snippet}
 		</Control>
-		<Description>We'll provide critical updates about your account via email.</Description>
+		<Description>We'll email you about your account.</Description>
 		<FieldErrors />
 	</Field>
 
 	<Field {form} name="bio">
-		<Control let:attrs>
-			<Label>Bio</Label>
-			<textarea bind:value={$formData.bio} {...attrs} />
+		<Control>
+			{#snippet children({ props })}
+				<Label>Bio</Label>
+				<textarea {...props} bind:value={$formData.bio}></textarea>
+			{/snippet}
 		</Control>
+		<Description>Tell us about yourself.</Description>
 		<FieldErrors />
 	</Field>
-
-	<Field {form} name="language">
-		<Control let:attrs>
-			<Label>Language</Label>
-			<select {...attrs} bind:value={$formData.language}>
-				<option value="en">English</option>
-				<option value="es">Spanish</option>
-				<option value="fr">French</option>
-			</select>
-		</Control>
-		<FieldErrors />
-	</Field>
-
-	<Field {form} name="marketingEmails">
-		<Control let:attrs>
-			<Label>Receive marketing emails from us</Label>
-			<input type="checkbox" {...attrs} bind:checked={$formData.marketingEmails} />
-		</Control>
-		<FieldErrors />
-	</Field>
-
-	<Fieldset {form} name="theme">
-		<Legend>Select your theme</Legend>
-		{#each ["light", "dark"] as theme}
-			<Control let:attrs>
-				<input {...attrs} type="radio" bind:group={$formData.theme} value={theme} />
-				<Label>{theme}</Label>
-			</Control>
-		{/each}
-		<FieldErrors />
-	</Fieldset>
-
-	<button type="submit">Submit</button>
 </form>
 ```
 
-Check out [Formsnap.dev](https://formsnap.dev) for more documentation.
+### 4. Pass the validated form to it
+
+```svelte
+<!-- +page.svelte -->
+<script lang="ts">
+	import type { SuperValidated } from "sveltekit-superforms";
+	import SettingsForm from "./settings-form.svelte";
+	import type { SettingsData } from "./schema.js";
+
+	let { data }: { data: { form: SuperValidated<SettingsData> } } = $props();
+</script>
+
+<SettingsForm validated={data.form} />
+```
+
+The fixture app in this repository imports the library through its internal `$lib` alias; everywhere
+else the code above is exactly what it renders.
+
+## Components
+
+`Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset` and `Legend`,
+plus the `useFormField`/`useFormControl` and `getFormField`/`getFormControl` hooks for custom
+widgets. Every component is unstyled and marks its elements with `data-fs-*` attributes for
+styling. See [formsnap.dev](https://formsnap.dev) for the full component API.
+
+## Support
+
+- Component API and guides: [formsnap.dev](https://formsnap.dev) (upstream documentation).
+- Problems specific to this fork — packaging, supported versions, releases: open an issue on
+  [emmorts/formsnap](https://github.com/emmorts/formsnap).
+- Behaviour of Superforms itself: [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).
+
+## License
+
+MIT. See [LICENSE](./LICENSE); upstream Formsnap is by
+[@huntabyte](https://github.com/huntabyte).
