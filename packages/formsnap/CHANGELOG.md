@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.2 (2026-10-11)
+
 ### Fixed
 
 - Forward `data-fs-error` to custom `Fieldset` child containers, matching the native container
@@ -24,6 +26,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
   activation, disabled controls and transport, server-rendered associations and submission errors.
 - Cover same-object metadata updates, nested and array path changes, metadata mutation isolation
   and missing-provider diagnostics during real SvelteKit server requests.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.1...v2.2.2)
 
 ## 2.2.1 (2026-10-10)
 
