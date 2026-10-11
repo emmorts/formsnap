@@ -57,6 +57,11 @@ const config = {
 	kit: {
 		adapter: adapter({ fallback: "404.html" }),
 		paths: { base },
+		alias: {
+			$multiStepRecipe: fileURLToPath(
+				new URL("../packages/formsnap/src/routes/recipes/multi-step", import.meta.url)
+			),
+		},
 		prerender: { handleHttpError: "warn" },
 	},
 };

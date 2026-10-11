@@ -26,4 +26,5 @@ export const secondaryButtonClass =
 	"border-line text-fg-muted hover:text-fg rounded-lg border px-3 py-2 text-sm transition-colors";
 
 // `docs-demo` also exempts the box's contents from the documentation's prose element rhythm.
-export const demoBoxClass = "docs-demo border-line bg-surface-raised rounded-xl border p-5 sm:p-6";
+export const demoBoxClass =
+	"docs-demo border-line bg-surface-raised flex flex-col gap-4 rounded-xl border p-5 sm:p-6";

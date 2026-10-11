@@ -5,9 +5,20 @@ description: Radio groups, multiple select and a Bits UI select with separate na
 
 <script>
 	import { Callout } from "$lib/markdown";
+	import LiveWidgetDemo from "$lib/demos/live-widget-demo.svelte";
 </script>
 
 The [complete widget recipe](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/widgets) renders two independent forms: native radios and multiple select, and a Bits UI select. Each has its own Superforms ID and named action.
+
+## Try the composite select
+
+This **client-only simulation** uses the real Bits UI select and Superforms SPA validation. Nothing is sent or saved, and it does not make native POSTs. The native radio and multiple-select alternatives below remain usable without JavaScript; the composite widget does not.
+
+<LiveWidgetDemo />
+
+Check an empty selection to see an associated error on the trigger. Use the keyboard to select a depot, skip the unavailable option, close with Escape, or try typeahead. Focus collection point targets the actual trigger; Reset selection closes the popup and restores the initial empty value.
+
+The headless control maps Formsnap's identity, naming, description and validation attributes to that trigger. An ID-free hidden input transports the selection; it and the widget disable together. Disabling does not reset the stored value or bypass schema validation. In this SPA demo validation reads the Superforms store; in the server recipe a disabled hidden input is omitted from the native request, and the server validates what it receives.
 
 ## Ownership
 

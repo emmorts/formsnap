@@ -5,9 +5,20 @@ description: Surface root-level validation errors in a polite live-region summar
 
 <script>
 	import { Callout } from "$lib/markdown";
+	import LiveErrorSummaryDemo from "$lib/demos/live-error-summary-demo.svelte";
 </script>
 
 Some errors belong to no single field — "the end date must be after the start date" is about the booking, not about either date input. Superforms collects every error in `$allErrors`, including root errors under `_errors`. Render them in one summary region with links to the controls that have a target, and readable text for those that do not.
+
+## Try it
+
+This **client-only simulation** validates through Superforms SPA mode. Nothing is sent or saved; the server action below is separate and supports native POSTs.
+
+<LiveErrorSummaryDemo />
+
+The initial dates produce a root error, while the empty conditional phone input produces a field error. Root errors remain text, not arbitrary links. Activate the phone link to open its disclosure and focus the actual input. Uncheck Include contact details after rejection: the error remains readable but no longer has a stale link to an unmounted input.
+
+The summary owns one persistent polite, atomic region; inline errors use `fieldErrorsLive="off"`. Repeating the same rejection changes the attempt number, so it updates the same region even when its messages are identical. Focus only moves when you activate a link, never automatically on rejection. These are DOM and focus behaviors, not a claim about speech in every screen reader.
 
 ## Produce a root error in the schema
 
@@ -86,16 +97,19 @@ The form component maps known paths to readable labels, explicit `Control` IDs a
 	let { validated }: { validated: SuperValidated<BookingData> } = $props();
 
 	const prefix = "booking-personal";
-	const form = superForm(untrack(() => validated), {
-		id: prefix,
-		resetForm: false,
-		// Clear through Superforms so an identical rejection restores fresh summary
-		// content inside the same live region.
-		clearOnSubmit: "errors",
-		// The summary is the sole announcement; links move focus only on request.
-		autoFocusOnError: false,
-		scrollToError: "off",
-	});
+	const form = superForm(
+		untrack(() => validated),
+		{
+			id: prefix,
+			resetForm: false,
+			// Clear through Superforms so an identical rejection restores fresh summary
+			// content inside the same live region.
+			clearOnSubmit: "errors",
+			// The summary is the sole announcement; links move focus only on request.
+			autoFocusOnError: false,
+			scrollToError: "off",
+		}
+	);
 	const { form: formData, errors, allErrors, enhance, message } = form;
 
 	let startInput = $state<HTMLInputElement>();

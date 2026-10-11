@@ -11,7 +11,8 @@ been maintained since April 2025. This fork adds Superforms 3 support and fixes 
 and nested paths. See the [fork changes](../../README.md#changes-in-this-fork) and
 [changelog](./CHANGELOG.md) for released and unreleased changes.
 
-[formsnap.dev](https://formsnap.dev) documents the original component API.
+The [fork documentation](https://emmorts.github.io/formsnap/docs) covers the current API and recipes.
+The original component API remains documented at [formsnap.dev](https://formsnap.dev).
 
 ## Requirements
 
@@ -645,6 +646,16 @@ returns unsaved bookings, so submitting one form successfully re-initializes the
 refreshed data, dropping that form's values and errors. Return the saved record from `load` to keep
 it, or set Superforms' `invalidateAll: false` on a form that must not refresh page data.
 
+### Conditional multi-step forms
+
+[`/recipes/multi-step`](./src/routes/recipes/multi-step/+page.svelte) keeps one Superforms owner
+across Contact, Details and Review. Next validates the current step, Back preserves values, and
+summary links reveal the relevant step and disclosure before focusing a control. Hidden-step
+inputs stay mounted and serialize in the final POST. Without JavaScript all fields are visible.
+The server validates the full request independently and clears inactive company data after acceptance.
+The [documentation demo](https://emmorts.github.io/formsnap/docs/recipes/multi-step) shares the UI
+and schema but validates locally; it does not save or submit anything.
+
 ### Keyboard and accessibility responsibilities
 
 Formsnap owns the labelling, description and error wiring, and marks its elements with `data-fs-*`
@@ -656,6 +667,8 @@ attributes for styling. It does not own interaction:
   `useFormField` and `useFormControl` expose the field's `errors`, `constraints`, `tainted`,
   `errorsId` and `descriptionId`, and the control's `id`, `labelProps` and `props`; the rest of the
   widget is yours.
+  `useFormField<T, U, M>` and `UseFormFieldResult<T, U, M>` preserve structured Superforms messages.
+  SDK methods remain optional for lightweight wrappers but retain their upstream signatures.
 - Group related controls separately from their individual labels. Prefer `Fieldset` with `Legend`;
   replacing that container means taking responsibility for the group's native/custom semantics.
 
@@ -664,11 +677,12 @@ attributes for styling. It does not own interaction:
 `Field`, `ElementField`, `Control`, `Label`, `Description`, `FieldErrors`, `Fieldset` and `Legend`,
 plus the `useFormField`/`useFormControl` and `getFormField`/`getFormControl` hooks for custom
 widgets. Every component is unstyled and marks its elements with `data-fs-*` attributes for
-styling. See [formsnap.dev](https://formsnap.dev) for the full component API.
+styling. See the [fork documentation](https://emmorts.github.io/formsnap/docs) for the component API
+and [headless-hook reference](https://emmorts.github.io/formsnap/docs/reference/headless-hooks).
 
 ## Support
 
-- Component API and guides: [formsnap.dev](https://formsnap.dev) (upstream documentation).
+- Component API, migration and guides: [fork documentation](https://emmorts.github.io/formsnap/docs).
 - Problems specific to this fork — packaging, supported versions, releases: open an issue on
   [emmorts/formsnap](https://github.com/emmorts/formsnap).
 - Behaviour of Superforms itself: [ciscoheat/sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms).

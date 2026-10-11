@@ -5,9 +5,20 @@ description: Add, reorder and remove rows of a flat string array while keeping n
 
 <script>
 	import { Callout } from "$lib/markdown";
+	import LiveArrayDemo from "$lib/demos/live-array-demo.svelte";
 </script>
 
 Primitive arrays submit as repeated flat input names, without JSON encoding. Stable row IDs keep DOM nodes with their values; after validation, the application must also move index-based errors and taint with those rows.
+
+## Try it
+
+This **client-only simulation** uses Superforms SPA validation. Nothing is sent or saved, and this demo does not make native POSTs. The server recipe below is the progressively enhanced alternative.
+
+<LiveArrayDemo />
+
+Enter a valid email in one row, leave the other invalid, then check the invites. Reverse or remove rows: values, submitted row errors and edited state follow their stable identities. Errors remain until the next check; structural changes discard collection-level errors and removed slots. Removing the focused row moves focus to the next surviving input, the previous input, or Add invite if none remain.
+
+Add focuses the new input. One persistent polite region reports structural changes, including repeated reversals. You can remove every row to try the collection error. The same demo appears in the `ElementField` and `Fieldset` references.
 
 ## Schema
 

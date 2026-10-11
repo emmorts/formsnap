@@ -23,6 +23,7 @@ export const navigation: NavSection[] = [
 			{ title: "Introduction", href: resolve("/docs") },
 			{ title: "Installation", href: resolve("/docs/installation") },
 			{ title: "Quickstart", href: resolve("/docs/quickstart") },
+			{ title: "Search", href: resolve("/docs/search") },
 		],
 	},
 	{
@@ -30,6 +31,7 @@ export const navigation: NavSection[] = [
 		items: [
 			{ title: "Progressive enhancement", href: resolve("/docs/guides/enhancement") },
 			{ title: "Accessibility", href: resolve("/docs/guides/accessibility") },
+			{ title: "Migration & troubleshooting", href: resolve("/docs/guides/migration") },
 		],
 	},
 	{
@@ -57,11 +59,15 @@ export const navigation: NavSection[] = [
 			{ title: "Multiple forms", href: resolve("/docs/recipes/multiple-forms") },
 			{ title: "Pending & success feedback", href: resolve("/docs/recipes/feedback") },
 			{ title: "Form-wide error summaries", href: resolve("/docs/recipes/error-summary") },
+			{ title: "Conditional multi-step forms", href: resolve("/docs/recipes/multi-step") },
 		],
 	},
 	{
 		title: "Reference",
-		items: [{ title: "Changelog", href: resolve("/changelog") }],
+		items: [
+			{ title: "Headless hooks", href: resolve("/docs/reference/headless-hooks") },
+			{ title: "Changelog", href: resolve("/changelog") },
+		],
 	},
 ];
 

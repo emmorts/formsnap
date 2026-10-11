@@ -10,7 +10,7 @@
 
 /* Live examples own their internal rhythm, so the element margins above must not reach into
    them. `docs-demo` is applied by $lib/demos/input-classes.ts. */
-.docs-prose .docs-demo :is(p, ul, ol, li) {
+.docs-prose .docs-demo :is(p, ul, ol, li, h2, h3, dl, dd) {
 	margin: 0;
 }
 

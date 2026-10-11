@@ -1,0 +1,147 @@
+---
+title: Headless hooks
+description: Read Formsnap context in reusable components while preserving field paths, structured messages and control associations.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+The hooks expose the same context the components use. They do not create a form, bind values, validate data, or implement a widget's keyboard behavior. Import them from `@emmorts/formsnap` and call them during component initialization, beneath their provider.
+
+## `useFormField`
+
+```ts
+import { useFormField } from "@emmorts/formsnap";
+
+const field = useFormField<Data, "email", SaveMessage>({});
+```
+
+| Generic | Meaning                                                                    |
+| ------- | -------------------------------------------------------------------------- |
+| `T`     | The form data type. Defaults to `Record<string, unknown>`.                 |
+| `U`     | The selected schema path. Defaults to `FormPath<T>`.                       |
+| `M`     | The Superforms message type. Supply it explicitly for structured messages. |
+
+Svelte context does not infer the enclosing component's generic parameters. Explicit generics describe the provider you actually render; they cannot validate a different provider at runtime.
+
+The provider must be a `Field`, `Fieldset`, or `ElementField`.
+
+| Returned member | Contract                                                                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `form`          | The owning `FsSuperForm<T, M>`. Data, validation, messages and submission remain Superforms-owned.                                       |
+| `name`          | The current path/name exposed by that scope. An `ElementField` uses its repeated parent name for native array transport.                 |
+| `errors`        | A field-local `string[]`; changing it does not change the error store.                                                                   |
+| `constraints`   | A copy of the selected constraint metadata, including nested objects. Change Superforms stores rather than mutating this copy.           |
+| `tainted`       | Whether the selected field or any descendant is marked true. Unrelated fields do not count.                                              |
+| `errorsId`      | The first associated error-container ID, or `undefined`.                                                                                 |
+| `descriptionId` | The first associated description ID, or `undefined`; array elements inherit their parent's description when they have none of their own. |
+
+The exported `UseFormFieldResult<T, U, M>` type names this return contract. `FsSuperForm` accepts lightweight wrappers, so `validate`, `validateForm`, `enhance`, `isTainted`, `reset`, `options`, and `restore` remain optional, but retain their upstream Superforms types. Check a method exists before calling it through a wrapper; an actual `superForm` result provides the SDK methods.
+
+Read the getters when rendering or deriving state. Destructuring `name`, `errors`, `constraints`, `tainted`, or association IDs captures the value at that moment rather than a reactive getter.
+
+### Structured messages
+
+```svelte title="save-feedback.svelte"
+<script lang="ts">
+	import { useFormField } from "@emmorts/formsnap";
+
+	type Profile = { email: string };
+	type SaveMessage = { kind: "saved"; recordId: string };
+	const field = useFormField<Profile, "email", SaveMessage>({});
+	const { message } = field.form;
+</script>
+
+{#if $message}
+	<p role="status">Saved record {$message.recordId}.</p>
+{/if}
+```
+
+Render this component below a field whose Superforms instance uses the same message type. Extracting a stable Superforms store such as `message` is different from snapshotting a getter: the store itself continues to emit updates.
+
+### Caller-owned association targets
+
+`UseFormFieldProps` accepts optional `descriptionId` and `errorsId` getter functions returning `string`, `null`, or `undefined`. These register additional association targets on the client and remove their own registrations when the getter changes or the component unmounts.
+
+```ts
+const field = useFormField<Profile, "email">({
+	descriptionId: () => (visible ? helpId : undefined),
+});
+```
+
+The hook does not render the target. Keep the supplied ID aligned with an actual element and its lifetime. An error target is included in control descriptions only while the field has errors.
+
+<Callout type="warning">
+
+Getter-based registrations are client-side. For associations in server HTML, prefer the owning field's `description` and `fieldErrors` slots. Freely positioned caller-owned server containers need explicit stable IDs and native `aria-describedby`; include an error ID only while its target exists and has errors.
+
+</Callout>
+
+## `useFormControl`
+
+```ts
+import { useFormControl } from "@emmorts/formsnap";
+
+const control = useFormControl({});
+```
+
+The provider must be `Control`. A `Field` alone does not provide control context.
+
+| Returned member | Contract                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`            | The resolved control ID.                                                                                                             |
+| `props`         | Emitted control attributes: identity, name, `aria-describedby`, invalid/required state and Formsnap data attributes.                 |
+| `labelProps`    | Headless label attributes. Its ID selects the most recently active `Label`, or a default headless naming ID when none is registered. |
+
+`UseFormControlProps.id` optionally takes a getter returning `string`, `null`, or `undefined`. An explicit component-level `Control` ID is usually simpler. These members are getters: use `control.props` at the spread site, not a destructured snapshot.
+
+### Native reusable input
+
+```svelte title="email-control.svelte"
+<script lang="ts">
+	import { useFormControl } from "@emmorts/formsnap";
+
+	let {
+		value = $bindable(""),
+		ref = $bindable<HTMLInputElement | null>(null),
+	}: { value?: string; ref?: HTMLInputElement | null } = $props();
+	const control = useFormControl({});
+</script>
+
+<input type="email" {...control.props} bind:value bind:this={ref} />
+```
+
+```svelte
+<Field {form} name="email" fieldErrors>
+	<Control>
+		<Label>Email</Label>
+		<EmailControl bind:value={$formData.email} bind:ref={emailInput} />
+	</Control>
+	{#snippet description()}Use your account address.{/snippet}
+</Field>
+```
+
+Declare the bound input ref in the parent. For a composite widget, apply the identity, naming and validation attributes to its actual focusable trigger; keep any hidden transport input ID-free. See the [runnable widget recipe](/docs/recipes/widgets).
+
+## Types for a design-system input
+
+`ControlAttrs` describes what Formsnap emits, not every attribute a general input may accept. A reusable native input's public props should be based on Svelte's `HTMLInputAttributes` from `svelte/elements`. This accepts normal HTML/ARIA values from other callers without falsely widening Formsnap's output contract.
+
+Value snippets reflect missing data: variable-length array paths can yield `undefined`, even when the array property itself is required. Optional or nullable ancestors can also yield `undefined`. Handle that value rather than calling string or number methods unconditionally.
+
+## Lifetime and errors
+
+- Hooks must run during component initialization, not inside an event handler or a later effect.
+- A missing provider throws an error naming the required field or control parent.
+- The form instance is fixed for the mounted scope. Updates and resets on that instance remain reactive; replacing it requires keying the whole field subtree, including hook consumers.
+- Each real control needs its own `Control`. Do not spread one generated identity onto multiple focusable elements.
+- A default headless naming ID is only useful if you render its naming element. Formsnap does not invent a label's text or a widget's ARIA pattern.
+
+`getFormField` and `getFormControl` are deprecated aliases. New integrations should use `useFormField` and `useFormControl`.
+
+## Related guides
+
+- [Custom controls](/docs/recipes/custom-controls) — `child` snippets and bound refs
+- [Accessibility](/docs/guides/accessibility) — owned versus standalone associations
+- [Migration and troubleshooting](/docs/guides/migration) — version and lifetime problems

@@ -21,7 +21,10 @@ A plain `<input {...props} />` covers most fields. When the widget is your own e
 
 	let { data } = $props();
 
-	const form = superForm(untrack(() => data.form), { resetForm: false });
+	const form = superForm(
+		untrack(() => data.form),
+		{ resetForm: false }
+	);
 	const { form: formData, enhance } = form;
 
 	let nicknameLabel = $state<HTMLElement | null>(null);
@@ -131,3 +134,5 @@ export type ProfileData = z.infer<typeof profileSchema>;
 Context is required: `useFormControl` needs an enclosing `Control`, and `useFormField` needs an enclosing `Field`, `Fieldset` or `ElementField`. A `Field` alone does not provide `Control` context — a missing provider throws an error naming the required parent. When you rely on the default headless ID for naming, you must render an element with that ID yourself.
 
 </Callout>
+
+The [headless-hook reference](/docs/reference/headless-hooks) documents returned getters, structured message types, provider lifetime and caller-owned association targets.

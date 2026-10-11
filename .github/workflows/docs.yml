@@ -41,6 +41,8 @@ jobs:
 
             - run: pnpm install --frozen-lockfile
             - run: pnpm --filter @emmorts/formsnap build
+            - run: pnpm --filter @formsnap/docs check
+            - run: pnpm --filter @formsnap/docs test
             - run: pnpm --filter @formsnap/docs build
               env:
                   GITHUB_ACTIONS: "true"

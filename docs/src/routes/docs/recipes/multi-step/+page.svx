@@ -1,0 +1,104 @@
+---
+title: Conditional and multi-step forms
+description: Keep one Superforms owner across contact, details and review, validate before advancing, and revalidate the full request on the server.
+---
+
+<script>
+	import LiveMultiStepDemo from "$lib/demos/live-multi-step-demo.svelte";
+</script>
+
+A multi-step form is presentation over one form, not a new Formsnap API. Superforms owns values, validation and submission; Formsnap associates each label and error with its control. The application owns the current step, conditional visibility and focus.
+
+## Try the workflow
+
+<LiveMultiStepDemo />
+
+This static documentation demo runs Superforms in `SPA` mode. **Nothing is sent or saved**, and a successful final check is only client validation. JavaScript is required for this demo. The complete SvelteKit recipe below also supports a native, no-JavaScript POST with full server validation.
+
+Try Next with empty contact fields, enter contact details, select Business, and leave Company name empty. Collapse Business details, go Back, then activate the company error link: it reveals Details, opens the disclosure and focuses the actual company input. Back retains every value. Complete the details to review, validate, and use Start again to reset the same form owner.
+
+## Complete source and local route
+
+Copy these four files together into a SvelteKit route, for example `src/routes/requests/`. They use Svelte 5, Formsnap, Superforms 2-compatible APIs and `zod/v3`; there is no wizard dependency:
+
+- [schema.ts](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/multi-step/schema.ts): shared final schema and initial values.
+- [multi-step-form.svelte](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/multi-step/multi-step-form.svelte): complete portable UI, step validation, summary links and reset.
+- [+page.server.ts](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/multi-step/+page.server.ts): initial validation and final POST action.
+- [+page.svelte](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/multi-step/+page.svelte): route composition.
+
+When copying to `/requests`, change the route owner's `restartHref` to `resolve("/requests")` in `+page.svelte`. The owner resolves the native restart URL once, including any configured base path; the reusable form does not depend on the application's route types.
+
+The repository's runnable route is `/recipes/multi-step`. From a checkout, install the workspace dependencies, build the Formsnap package, then serve the SvelteKit fixture:
+
+```bash
+pnpm install
+pnpm --filter @emmorts/formsnap run package
+pnpm --filter @emmorts/formsnap exec vite dev
+```
+
+Open the development server's `/recipes/multi-step` route, including with JavaScript disabled. The docs use the same UI and schema; only the docs wrapper enables `clientOnly` and supplies the shared demo classes.
+
+## One owner, three steps
+
+Create `superForm` once, outside step-specific markup. `resetForm: false` preserves the returned values after a server result; `invalidateAll: false` avoids reinitializing this example through a load invalidation. Explicit Start again calls `form.reset()`, clears completion state, returns to Contact and focuses its heading without creating a second owner.
+
+The UI uses Contact, Details and Review. Each step heading has `tabindex="-1"`; Next and Back update the step, await Svelte's `tick()`, then focus the newly visible heading. Summary links instead focus the named input after revealing its step and opening any disclosure. IDs are application-owned and are passed explicitly to `Control`; no mount-order or generated-ID guessing is involved.
+
+An Enter key submission on Contact or Details is cancelled by Superforms' `onSubmit` callback and routed through the same Next validation. Only Review submits the enhanced final request.
+
+## Validate before advancing
+
+The recipe runs the **shared final schema through Superforms**, then publishes only the current step's errors. Future required fields must not block Contact or be announced before Details is visited:
+
+```ts
+const result = await form.validateForm({ update: false, focusOnError: false });
+const currentErrors = Object.fromEntries(
+	Object.entries(result.errors).filter(([path]) => knownField(path) && fields[path].step === step)
+);
+errors.set(currentErrors, { force: true });
+if (Object.keys(currentErrors).length === 0) await goTo(step + 1);
+```
+
+The complete recipe maps every field in its flat schema to a step. If you add root-level or cross-step refinements, choose explicitly which step should block on them; do not silently discard those errors in a generalized version. Final submission always validates the whole schema, including errors outside the current step.
+
+The error summary is one mounted polite live region. Inline Formsnap errors use `fieldErrorsLive="off"`, so they remain associated descriptions without repeating the summary announcement. Superforms' automatic error scrolling and focus are disabled; the recipe owns focus transitions. See [error summaries](/docs/recipes/error-summary) for the underlying association pattern.
+
+## Conditional values: retain locally, clear at acceptance
+
+Business requires a company name. Personal does not. Switching Business → Personal **retains** the company value while editing, so switching back restores it. The inactive input is still mounted and transported, but the shared schema does not require it for Personal. Review excludes it for Personal, and the server clears `form.data.company` after successful validation before any application work.
+
+This is an explicit policy, not an incidental effect of unmounting. A summary link for an earlier company error can reveal the section without changing the user's request type; inactive data remains ignored. The next validation removes that obsolete conditional error. If company data is sensitive and your application must clear it immediately, change the choice handler and document that Back or toggling the choice will not restore it.
+
+## Hidden steps must still serialize
+
+Every named input stays mounted and enabled. The recipe uses the HTML `hidden` attribute for step and conditional presentation, **not** an `{#if}` block that removes controls and not `disabled` on hidden steps. Hidden inputs still participate in a native `FormData` POST, so the final request includes contact and detail values even when only Review is visible. There are no duplicate hidden transport inputs.
+
+Do not hide required fields with CSS and then rely on browser constraint validation to focus them. This recipe uses `novalidate`; Superforms validates enhanced submissions and the action validates every POST. Before hydration, no step is hidden: without JavaScript, the user sees all fields, chooses Personal or Business, and submits once. The explanatory text says that Company name is ignored for Personal.
+
+## The server is the final boundary
+
+No client step counter, “valid” flag or review state is trusted. A forged POST that skips steps, omits contact/details or chooses Business without a company is rejected by the complete schema:
+
+```ts title="src/routes/requests/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { multiStepSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(zod(multiStepSchema), { id: "multi-step" }),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(multiStepSchema), {
+			id: "multi-step",
+		});
+		if (!form.valid) return fail(400, { form });
+		if (form.data.kind === "personal") form.data.company = "";
+		return message(form, "Server validation passed. This example did not save your request.");
+	},
+};
+```
+
+Enhanced rejections keep the values and expose a summary; activating a link reveals the relevant step before focus. Native rejections render all fields again with the server errors. Success reports **server validation**, not database persistence, and offers an explicit reset. In a real application, authorization and persistence belong in the action after validation; only report a saved result after that operation succeeds.

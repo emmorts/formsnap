@@ -1,0 +1,125 @@
+---
+title: Migration and troubleshooting
+description: Move from upstream Formsnap, choose compatible dependencies, and diagnose association, value and form-owner problems.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+## Migrate from upstream
+
+Install the maintained fork and replace the package name in component, hook and type imports:
+
+```bash
+pnpm remove formsnap
+pnpm add @emmorts/formsnap
+```
+
+```diff
+-import { Field, Control, Label } from "formsnap";
++import { Field, Control, Label } from "@emmorts/formsnap";
+```
+
+Keep Superforms' load, actions, validation adapters and `enhance` action. Formsnap does not add another submission API. Check the [changelog](/changelog) when upgrading; source documentation may describe unreleased changes that are not in the package version you installed.
+
+Generated IDs are implementation-owned. If an application depends on a particular ID for external links or focus targets, give `Control` an explicit stable ID rather than copying a generated ID from the DOM.
+
+For new code, prefer `useFormField` and `useFormControl` over their deprecated `getFormField` and `getFormControl` aliases.
+
+## Choose compatible versions
+
+The supported ranges intersect; they are not an unrestricted cross-product.
+
+| Integration                    | Requirements                                      |
+| ------------------------------ | ------------------------------------------------- |
+| Formsnap with Superforms 2     | Svelte `^5.30.2`, Superforms `^2.19.0`            |
+| Formsnap with Superforms 3.0.0 | Svelte `^5.56.4`, Superforms `^3.0.0`             |
+| Another Superforms release     | Also satisfy that release's own peer dependencies |
+
+Inspect the actual dependency graph rather than only the ranges in your manifest:
+
+```bash
+pnpm list @emmorts/formsnap svelte sveltekit-superforms zod
+pnpm why zod
+```
+
+The examples use `zod/v3` with Superforms' `zod` adapter. For the documented Superforms 2.31+ setup, keep one resolved zod version so schema and adapter types agree. For another validator or zod API, use the matching Superforms adapter and its documentation; Formsnap does not interpret the schema directly.
+
+## Labels or descriptions are missing
+
+Check the rendered elements, not only the component nesting:
+
+1. Each real input or widget trigger must receive one `Control`'s attributes.
+2. A native `Label`'s `for` must match that control's actual `id`.
+3. A custom `child` must spread the supplied props onto the node it renders. Rendering the right text while ignoring props does not register that node.
+4. Every ID in `aria-describedby` must refer to an element currently in the document. Do not spread the control ID onto a hidden transport input as well as its visible trigger.
+
+Owned `description` and `fieldErrors` slots establish associations in server HTML. Standalone `Description` and `FieldErrors` discover their actual mounted elements on the client. This distinction is intentional, not a hydration failure.
+
+<Callout type="note">
+
+For a freely positioned description or error that must work without JavaScript, own stable IDs and `aria-describedby` yourself. Keep the error ID conditional on the target being present and having errors. Supplying `descriptionId` alone does not enable an owning field's description container.
+
+</Callout>
+
+## A field value is undefined
+
+A valid schema path is not a guarantee that its value currently exists. Optional or nullable parents and missing variable-length array elements return `undefined`. A mounted path such as `items[3].name` can become absent after a deletion.
+
+Handle the absent state in a snippet:
+
+```svelte
+<Field {form} name="items[0].name">
+	{#snippet children({ value })}
+		<output>{value === undefined ? "No first item" : value.toUpperCase()}</output>
+	{/snippet}
+</Field>
+```
+
+Do not key dynamic rows by a value or by Superforms' row object. Duplicate values collide, and row objects can change during taint updates. Use stable application-owned row IDs and move errors and taint alongside reordered values. See [primitive arrays](/docs/recipes/primitive-arrays).
+
+## A hook reports a missing parent
+
+Call hooks during component initialization under their provider:
+
+- `useFormField`: inside `Field`, `Fieldset`, or `ElementField`.
+- `useFormControl`: inside `Control`.
+
+A `Field` alone does not provide control context. Calling the hook in an event handler or moving the widget outside its provider does not create a new scope. See the [headless-hook reference](/docs/reference/headless-hooks).
+
+## Switching records shows the previous form
+
+Updates and resets on one Superforms instance remain reactive. Replacing the instance requires remounting the entire owning scope:
+
+```svelte
+{#key currentForm}
+	<Field form={currentForm} name="email" fieldErrors>
+		<!-- Controls and components using field/control hooks belong inside this boundary. -->
+	</Field>
+{/key}
+```
+
+Key the parent `Field` or `Fieldset`, not only a nested `ElementField`. Components that capture the selected stores or `enhance` action must remount at the same boundary. Initialize the Superforms instances once; do not call `superForm` reactively to replace them.
+
+When several forms share a route, give each Superforms instance a distinct form ID. A successful enhanced action can invalidate page data and reinitialize sibling forms from `load`. If that is unwanted, use Superforms' `invalidateAll: false`, or have `load` return the saved records. See [multiple forms](/docs/recipes/multiple-forms).
+
+## Errors announce twice or interrupt typing
+
+Choose one announcement owner. A summary and inline errors should not both announce the same messages. For the summary policy, use one persistent polite summary region and `fieldErrorsLive="off"` for inline regions. Associations remain intact even when announcements are off.
+
+For inline messages that change while typing, consider `"polite"` rather than `"assertive"`. DOM attributes express the intended policy; they do not prove what every screen-reader/browser combination speaks. See [accessibility](/docs/guides/accessibility) and the [runnable error summary](/docs/recipes/error-summary).
+
+## Validation succeeds but nothing is saved
+
+A client-only documentation demo validates data in your browser; it has no persistence or email operation. A real form needs a server action that validates the complete request, performs the authorized operation, and returns the result.
+
+Do not trust step-level or client validation as a substitute for final server validation. See [progressive enhancement](/docs/guides/enhancement) and [conditional multi-step forms](/docs/recipes/multi-step).
+
+## Where to report a problem
+
+- Formsnap associations, public types or fork packaging: [emmorts/formsnap](https://github.com/emmorts/formsnap/issues).
+- Validation adapters, submission or form-store behavior: [Superforms](https://github.com/ciscoheat/sveltekit-superforms/issues).
+- A composite widget's interaction or popup behavior: the widget library.
+
+Include the installed dependency versions, a minimal runnable reproduction, whether JavaScript is enabled, and the relevant rendered markup. For announcement problems, also include the browser and screen-reader versions and the expected versus observed speech.

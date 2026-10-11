@@ -54,6 +54,12 @@
 			description:
 				"Root validation, a single announcement policy, and caller-owned links to conditional controls.",
 		},
+		{
+			path: "/recipes/multi-step",
+			title: "Conditional multi-step form",
+			description:
+				"Step validation, retained drafts, accessible error navigation, and final server validation with a native fallback.",
+		},
 	] as const;
 </script>
 

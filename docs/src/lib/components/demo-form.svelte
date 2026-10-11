@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { defaults, superForm } from "sveltekit-superforms";
 	import { zod, zodClient } from "sveltekit-superforms/adapters";
 	import { z } from "zod/v3";
@@ -20,6 +21,8 @@
 	});
 
 	let submitted = $state(false);
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
 
 	const form = superForm(defaults(zod(schema)), {
 		SPA: true,
@@ -34,7 +37,7 @@
 
 <div class={demoBoxClass}>
 	{#if submitted}
-		<div class="flex flex-col items-center gap-3 py-10 text-center">
+		<div role="status" class="flex flex-col items-center gap-3 py-10 text-center">
 			<span
 				class="bg-mint-400/15 text-mint-400 flex size-11 items-center justify-center rounded-full"
 			>
@@ -51,9 +54,11 @@
 				</svg>
 			</span>
 			<p class="font-display text-fg text-lg font-semibold">
-				You're on the list, {$formData.name}.
+				Validation passed, {$formData.name}.
 			</p>
-			<p class="text-fg-muted text-sm">Confirmation sent to {$formData.email}.</p>
+			<p class="text-fg-muted text-sm">
+				This example runs in your browser. No data was saved and no email was sent.
+			</p>
 			<button
 				type="button"
 				onclick={() => {
@@ -104,7 +109,7 @@
 						{/snippet}
 					</Control>
 					{#snippet description()}
-						<p class={hintClass}>One email when we ship. No newsletter.</p>
+						<p class={hintClass}>Use an example address. No email is sent.</p>
 					{/snippet}
 					{#snippet fieldErrors({ errors, errorProps })}
 						{#each errors as error (error)}
@@ -114,8 +119,11 @@
 				</Field>
 			</div>
 
-			<button type="submit" disabled={$submitting} class={submitClass}>
-				{$submitting ? "Joining…" : "Get early access"}
+			<p class={hintClass}>
+				Client-only demo: no data is submitted or saved. JavaScript is required.
+			</p>
+			<button type="submit" disabled={!hydrated || $submitting} class={submitClass}>
+				{$submitting ? "Validating…" : "Validate example"}
 			</button>
 		</form>
 	{/if}
