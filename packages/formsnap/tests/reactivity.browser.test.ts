@@ -68,7 +68,7 @@ function expectView(id: string, errors: string[], tainted: boolean, required: bo
 	expect(state.errors).toEqual(errors);
 	expect(state.tainted).toBe(String(tainted));
 	expect(state.invalid).toBe(errors.length ? "true" : null);
-	expect(state.required).toBe(required === undefined ? null : String(required));
+	expect(state.required).toBe(required ? "true" : null);
 	return state;
 }
 

@@ -24,7 +24,7 @@ describe("required provider diagnostics for real SSR consumers", () => {
 		const validated = await validatedForm();
 		let failure: unknown;
 		try {
-			render(ContextMisuse, { props: { kind, validated } });
+			await render(ContextMisuse, { props: { kind, validated } });
 		} catch (error) {
 			failure = error;
 		}
@@ -43,7 +43,7 @@ describe("required provider diagnostics for real SSR consumers", () => {
 			const validated = await validatedForm();
 			let failure: unknown;
 			try {
-				render(ContextMisuse, { props: { kind, validated } });
+				await render(ContextMisuse, { props: { kind, validated } });
 			} catch (error) {
 				failure = error;
 			}
