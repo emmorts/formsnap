@@ -390,6 +390,16 @@ type ControlStateProps = ReadableBoxedValues<{
 	labelId: string;
 }>;
 
+/** Label attributes shared by a control's headless naming and its rendered `Label` elements. */
+function getLabelAttrs(control: ControlState, id: string): LabelAttrs {
+	return {
+		id,
+		"data-fs-label": "",
+		"data-fs-error": getDataFsError(control.field.errors),
+		for: control.id,
+	};
+}
+
 class ControlState {
 	#id: ControlStateProps["id"];
 	/** Owner-scoped headless getters, resolved synchronously with the control's props. */
@@ -473,12 +483,7 @@ class ControlState {
 	 * server-rendered HTML. Reading resolves the currently active owner in both runtimes.
 	 */
 	get labelProps(): LabelAttrs {
-		return {
-			id: this.labelId,
-			"data-fs-label": "",
-			"data-fs-error": getDataFsError(this.field.errors),
-			for: this.id,
-		};
+		return getLabelAttrs(this, this.labelId);
 	}
 }
 
@@ -523,11 +528,16 @@ class LabelState {
 		});
 	}
 
+	/**
+	 * Built from this label's own id through `getLabelAttrs`, not from `control.labelProps`. The
+	 * naming id belongs to the label registry, and the attachment below writes to that registry when
+	 * it mounts, so depending on it here re-applies the attachment in response to its own
+	 * registration — an update loop that older Svelte 5 releases reject outright.
+	 */
 	props = $derived.by(
 		() =>
 			({
-				...this.control.labelProps,
-				id: this.#id.current,
+				...getLabelAttrs(this.control, this.#id.current),
 				...this.#attachment,
 			}) satisfies LabelAttrs
 	);
