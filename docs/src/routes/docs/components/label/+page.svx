@@ -1,0 +1,82 @@
+---
+title: Label
+description: Renders a label element bound to its Control's input, with for, id and error-state attributes wired automatically.
+---
+
+`Label` renders a `<label>` whose `for` attribute points at the input created by the enclosing [Control](/docs/components/control). You write the text; Formsnap resolves the association, the label's own `id`, and the `data-fs-*` styling hooks.
+
+## Minimal example
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<Field {form} name="bio" fieldErrors>
+	<Control>
+		{#snippet children({ props })}
+			<Label>Bio</Label>
+			<textarea {...props} bind:value={$formData.bio}></textarea>
+		{/snippet}
+	</Control>
+</Field>
+```
+
+## Replacing the rendered element
+
+Use the `child` snippet to render your own element or component instead of a `<label>`. Spread the supplied `props` onto whatever you render — they carry the `for` association and the label registration.
+
+```svelte title="src/routes/settings/styled-label.svelte"
+<script lang="ts">
+	import { Control, Label } from "@emmorts/formsnap";
+	import { form, formData } from "./form.svelte.js";
+</script>
+
+<Control>
+	{#snippet children({ props })}
+		<Label>
+			{#snippet child({ props: labelProps })}
+				<span {...labelProps} class="field-label">Display name</span>
+			{/snippet}
+		</Label>
+		<input {...props} bind:value={$formData.name} />
+	{/snippet}
+</Control>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `id` | `string` | generated | The label's ID. Generated with Svelte's `$props.id()` when omitted, stable between server rendering and hydration. |
+| `ref` | `HTMLLabelElement \| null` | `null` | Bindable reference to the rendered element. |
+| `children` | `Snippet` | — | The label content. |
+| `child` | `Snippet<[{ props }]`> | — | Replaces the `<label>` element entirely; spread the supplied `props` onto your own element. |
+| `...rest` | `HTMLLabelAttributes` | — | Any other attribute (`class`, `style`, event handlers) is merged onto the label. |
+
+The merged label attributes are `for` (the control's ID), `id`, `data-fs-label`, and `data-fs-error` when the field has errors. Attributes you pass win over nothing critical — `for` and the data attributes always come from Formsnap's side of the merge.
+
+## Behavior notes
+
+- **Requires a Control.** `Label` reads the enclosing [Control](/docs/components/control) from context; outside one it throws.
+- **Naming participation.** The label registers itself with its control, and the most recently mounted label wins the control's headless naming ID (`useFormControl().labelProps.id`). A label rendered but not mounted does not contribute naming.
+- **SSR-stable.** Because the label registers synchronously, the `for`/`id` pair is present in server-rendered HTML; no hydration flash in the association.
+- **Error styling.** `data-fs-error` appears on the label while the field has errors, so you can tint the label without extra state.
+
+## When to use the hooks instead
+
+If your component library supplies its own label element, call `useFormControl` inside your component and spread `control.labelProps` onto it, or render your own visible label with `control.labelProps.id` as its ID. See [Custom controls](/docs/recipes/custom-controls).
+
+## See also
+
+- [Control](/docs/components/control) — the pairing partner that resolves the label's `for` target.
+- [Description](/docs/components/description) — supplementary text, associated via `aria-describedby` rather than `for`.
+- [Accessibility](/docs/guides/accessibility) — the full wiring model.

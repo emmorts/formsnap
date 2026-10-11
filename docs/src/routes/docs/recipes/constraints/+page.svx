@@ -1,0 +1,130 @@
+---
+title: Native constraints and custom validity
+description: Combine HTML constraint attributes with server-side schema rules and mirror server errors into the browser's native validity bubble.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Browsers check `required`, `minlength` and friends before a form ever submits — instant, free feedback. But a request can arrive without a browser, so the schema must repeat every rule, plus the ones HTML cannot express. Superforms' `customValidity` option then copies server errors back onto the control's native validity message, so the browser's own bubble agrees with the rendered errors.
+
+## Schema
+
+The handle is constrained twice on purpose: HTML attributes cover the browser, the schema repeats those rules and adds the reserved-name check no attribute can express.
+
+```ts title="src/routes/handle/schema.ts"
+import { z } from "zod/v3";
+
+export const constraintsSchema = z.object({
+	handle: z
+		.string()
+		.min(3, "Use at least three characters.")
+		.max(12, "Use at most twelve characters.")
+		.regex(/^[a-z0-9_]+$/, "Use lowercase letters, digits and underscores.")
+		.refine((value) => value !== "admin", "This handle is reserved."),
+	invite: z.string().regex(/^INV-\d{3}$/, "Enter an invite code such as INV-123."),
+});
+
+export type ConstraintsData = z.infer<typeof constraintsSchema>;
+```
+
+## Server
+
+```ts title="src/routes/handle/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { constraintsSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(zod(constraintsSchema)),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(constraintsSchema));
+
+		if (!form.valid) return fail(400, { form });
+
+		return message(form, `Saved the handle ${form.data.handle}.`);
+	},
+};
+```
+
+## Form
+
+`customValidity: true` is what mirrors each field's server errors onto its control's native validity message. The `invite` field opts out with `data-no-custom-validity`.
+
+```svelte title="src/routes/handle/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { ConstraintsData } from "./schema.js";
+
+	let { data }: { data: { form: SuperValidated<ConstraintsData> } } = $props();
+
+	const form = superForm(
+		untrack(() => data.form),
+		{ customValidity: true, resetForm: false }
+	);
+	const { form: formData, enhance, message } = form;
+</script>
+
+<form method="POST" use:enhance>
+	<Field {form} name="handle" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Handle</Label>
+				<input
+					{...props}
+					required
+					minlength={3}
+					maxlength={12}
+					pattern="[a-z0-9_]+"
+					bind:value={$formData.handle}
+				/>
+			{/snippet}
+		</Control>
+		{#snippet description()}
+			Lowercase letters, digits and underscores, 3–12 characters.
+		{/snippet}
+	</Field>
+
+	<Field {form} name="invite" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Invite code</Label>
+				<input {...props} required data-no-custom-validity bind:value={$formData.invite} />
+			{/snippet}
+		</Control>
+		{#snippet description()}An INV-123 shaped code, enforced on the server.{/snippet}
+	</Field>
+
+	<button type="submit">Save handle</button>
+</form>
+
+{#if $message}
+	<output>{$message}</output>
+{/if}
+```
+
+## How it works
+
+- HTML attributes (`required`, `minlength`, `maxlength`, `pattern`) are checked by the browser before submission; the schema repeats them because client-side checks are bypassable, and adds the reserved-name `refine` that no attribute can express.
+- `Control` derives `aria-required` from the schema's constraints, so the state announced to assistive technology matches the browser's required state.
+- With `customValidity: true`, a server error on `handle` (for example the reserved-name message) appears both in the rendered field errors and in the browser's native validation bubble.
+- `data-no-custom-validity` on the `invite` input skips that mirroring: its server errors still render through `fieldErrors`, `aria-invalid` still reflects them, and the built-in `required` check still applies — only the native message assignment is skipped.
+
+<Callout type="warning">
+
+Do not call `setCustomValidity` yourself on a control that Superforms manages. Processing field changes can clear a caller-set message, so your custom text is not guaranteed to survive. Use `data-no-custom-validity` to opt a control out instead of fighting the assignment.
+
+</Callout>
+
+<Callout type="note">
+
+Native constraint bubbles are a browser UI — they are not announced the way `FieldErrors` live regions are, and they only appear on submit attempts. Keep `fieldErrors` enabled so every user gets the same messages; see [Accessibility](/docs/guides/accessibility).
+
+</Callout>

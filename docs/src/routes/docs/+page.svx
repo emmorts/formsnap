@@ -1,0 +1,56 @@
+---
+title: Introduction
+description: Formsnap wires Superforms data into accessible form markup — labels, controls, descriptions and errors that connect themselves.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Formsnap is a Svelte 5 component library that sits between [Superforms](https://superforms.rocks) and your markup. Superforms validates and owns your form data; Formsnap turns that data into correctly associated labels, inputs, descriptions and error messages.
+
+```svelte title="settings-form.svelte"
+<script lang="ts">
+	import { Control, Field, Label } from "@emmorts/formsnap";
+
+	let { form, formData } = $props();
+</script>
+
+<Field {form} name="email" fieldErrors>
+	<Control>
+		{#snippet children({ props })}
+			<Label>Email</Label>
+			<input type="email" {...props} bind:value={$formData.email} />
+		{/snippet}
+	</Control>
+	{#snippet description()}We'll email you about your account.{/snippet}
+</Field>
+```
+
+## Why Formsnap
+
+- **Accessible by default.** Every control gets `id`/`name`, its label is associated, and descriptions plus errors are referenced through `aria-describedby` — only while they exist.
+- **Type-safe paths.** Field names are checked against your schema's type, so a renamed property is a compile error, not a silent runtime miss.
+- **Server-rendering safe.** Generated IDs are stable between SSR and hydration; nothing backpatches the DOM after the fact.
+- **Unstyled and composable.** You own every element and class. Render props hand you the wiring, never the markup.
+
+## Requirements
+
+| Dependency             | Supported range                              |
+| ---------------------- | -------------------------------------------- |
+| `svelte`               | `^5.30.2`                                    |
+| `sveltekit-superforms` | `^2.19.0` or `^3.0.0`                        |
+| schema library         | any Superforms adapter; the docs use zod v3  |
+
+<Callout type="note">
+
+Superforms 3 additionally requires Svelte `^5.56.4`. With Superforms 2.31+, import zod from `zod/v3` so the adapter types line up, and keep a single zod copy in your dependency tree (`pnpm why zod` to check).
+
+</Callout>
+
+## Where to next
+
+- [Installation](/docs/installation) — add Formsnap to your project
+- [Quickstart](/docs/quickstart) — a complete working form in four steps
+- [Components](/docs/components/field) — the API surface, prop by prop
+- [Recipes](/docs/recipes/nested-data) — nested data, arrays, files, groups and more

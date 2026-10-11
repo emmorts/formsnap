@@ -1,0 +1,111 @@
+---
+title: Multiple forms
+description: Render several independent `superForm` instances on one page by giving each its own ID.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+One page, two forms, same schema — each must track its own values, errors and submission state. The rule is simple: every `superForm` call gets its own `id`, and each `Field` is passed the form instance it belongs to.
+
+## Two instances from one validated form
+
+The server validates once; the component creates two independent `superForm` instances from the same data:
+
+```ts title="src/routes/accounts/+page.server.ts"
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { profileSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(zod(profileSchema)),
+});
+```
+
+```svelte title="src/routes/accounts/profile-forms.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { ProfileData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<ProfileData> } = $props();
+
+	const primaryForm = superForm(untrack(() => validated), {
+		id: "profile-primary",
+		resetForm: false,
+	});
+	const secondaryForm = superForm(untrack(() => validated), { id: "profile-secondary" });
+
+	const { form: primaryData, enhance: enhancePrimary } = primaryForm;
+	const { form: secondaryData, enhance: enhanceSecondary } = secondaryForm;
+</script>
+
+<form method="POST" use:enhancePrimary>
+	<Field form={primaryForm} name="email" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Primary email</Label>
+				<input {...props} bind:value={$primaryData.email} />
+			{/snippet}
+		</Control>
+		{#snippet description()}Used for account recovery.{/snippet}
+	</Field>
+	<button type="submit">Save primary</button>
+</form>
+
+<form method="POST" use:enhanceSecondary>
+	<Field form={secondaryForm} name="email" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Secondary email</Label>
+				<input {...props} bind:value={$secondaryData.email} />
+			{/snippet}
+		</Control>
+		{#snippet description()}Used for notifications.{/snippet}
+	</Field>
+	<button type="submit">Save secondary</button>
+</form>
+```
+
+## Separate actions per form
+
+When each form posts to its own named action, validate with the matching `id` on the server too, so Superforms routes the result back to the right instance:
+
+```ts title="src/routes/accounts/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { profileSchema } from "./schema.js";
+
+export const load = async () => ({
+	primary: await superValidate(zod(profileSchema), { id: "profile-primary" }),
+	secondary: await superValidate(zod(profileSchema), { id: "profile-secondary" }),
+});
+
+async function save(request: Request, id: string) {
+	const form = await superValidate(request, zod(profileSchema), { id });
+	if (!form.valid) return fail(400, { form });
+	return { form };
+}
+
+export const actions = {
+	primary: ({ request }) => save(request, "profile-primary"),
+	secondary: ({ request }) => save(request, "profile-secondary"),
+};
+```
+
+Each form then posts with `action="?/primary"` or `action="?/secondary"`.
+
+## How it works
+
+- The `id` option is what keeps instances apart. Without one, Superforms warns about duplicate form IDs and the forms begin to share page state.
+- Field IDs belong to the component instance, so two forms never generate the same target — labels and descriptions never cross over.
+- Each instance keeps its own `form`, `errors`, `message` and `submitting` stores; clearing one form's errors leaves the other untouched.
+
+<Callout type="warning">
+
+A successful submission re-runs the route's `load`, and every form whose ID appears in the refreshed data rebinds to it — dropping that form's unsaved values and errors. Return the saved record from `load` to keep it, or set Superforms' `invalidateAll: false` on a form that must not refresh page data.
+
+</Callout>

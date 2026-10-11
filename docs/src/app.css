@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
+@import "./lib/markdown/prose.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+	--font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+
+	/* Cool neutral ramp, shared across themes. */
+	--color-ink-50: #f7f7f8;
+	--color-ink-100: #eeeef0;
+	--color-ink-200: #d9d9de;
+	--color-ink-300: #b8b8c1;
+	--color-ink-400: #91919d;
+	--color-ink-500: #70707c;
+	--color-ink-600: #5a5a64;
+	--color-ink-700: #4a4a52;
+	--color-ink-800: #28282e;
+	--color-ink-900: #17171b;
+	--color-ink-950: #0e0e11;
+
+	/* Iris accent — a blue-violet distinct from warm brand palettes. */
+	--color-iris-300: #b3abfc;
+	--color-iris-400: #9489f8;
+	--color-iris-500: #7a68f2;
+	--color-iris-600: #644ee0;
+	--color-iris-700: #533dc4;
+
+	--color-mint-400: #4ade80;
+	--color-amber-400: #fbbf24;
+	--color-rose-400: #fb7185;
+
+	/* Semantic surface/foreground tokens, swapped per theme below. */
+	--color-surface: var(--color-ink-950);
+	--color-surface-raised: var(--color-ink-900);
+	--color-surface-overlay: var(--color-ink-800);
+	--color-fg: var(--color-ink-100);
+	--color-fg-muted: var(--color-ink-400);
+	--color-fg-subtle: var(--color-ink-500);
+	--color-line: color-mix(in oklab, var(--color-ink-100) 10%, transparent);
+	--color-line-strong: color-mix(in oklab, var(--color-ink-100) 18%, transparent);
+	--color-accent: var(--color-iris-400);
+	--color-accent-strong: var(--color-iris-300);
+	--color-accent-contrast: #ffffff;
+	--color-accent-soft: color-mix(in oklab, var(--color-iris-400) 14%, transparent);
+}
+
+:root:not(.dark) {
+	--color-surface: #fbfbfd;
+	--color-surface-raised: #ffffff;
+	--color-surface-overlay: var(--color-ink-100);
+	--color-fg: var(--color-ink-900);
+	--color-fg-muted: var(--color-ink-600);
+	--color-fg-subtle: var(--color-ink-500);
+	--color-line: color-mix(in oklab, var(--color-ink-900) 9%, transparent);
+	--color-line-strong: color-mix(in oklab, var(--color-ink-900) 16%, transparent);
+	--color-accent: var(--color-iris-600);
+	--color-accent-strong: var(--color-iris-700);
+	--color-accent-soft: color-mix(in oklab, var(--color-iris-600) 9%, transparent);
+}
+
+html {
+	scroll-behavior: smooth;
+	scroll-padding-top: 5.5rem;
+}
+
+body {
+	background-color: var(--color-surface);
+	color: var(--color-fg);
+	font-family: var(--font-sans);
+	font-feature-settings: "cv11", "ss01";
+	-webkit-font-smoothing: antialiased;
+}
+
+::selection {
+	background-color: var(--color-accent-soft);
+}
+
+/* Shiki dual themes: each token carries both colors; CSS picks per theme. */
+.shiki,
+.shiki span {
+	color: var(--shiki-dark);
+	background-color: var(--shiki-dark-bg);
+	font-style: var(--shiki-dark-font-style);
+	font-weight: var(--shiki-dark-font-weight);
+}
+
+:root:not(.dark) .shiki,
+:root:not(.dark) .shiki span {
+	color: var(--shiki-light);
+	background-color: var(--shiki-light-bg);
+}
+
+/* Thin, theme-aware scrollbars for nav columns and code blocks. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+}

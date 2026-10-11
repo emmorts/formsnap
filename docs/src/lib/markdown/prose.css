@@ -1,0 +1,257 @@
+/* Styles for mdsvex-rendered documentation content. Global by design: slotted markdown
+   nodes do not carry the layout component's scope attribute. */
+
+.docs-prose {
+	max-width: 46rem;
+	font-size: 0.9375rem;
+	line-height: 1.75;
+	color: var(--color-fg-muted);
+}
+
+.docs-prose-header {
+	margin-bottom: 2rem;
+	padding-bottom: 1.5rem;
+	border-bottom: 1px solid var(--color-line);
+}
+
+.docs-prose-header h1,
+.docs-prose > h1 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 2.25rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+	color: var(--color-fg);
+}
+
+.docs-prose > h1 {
+	margin-bottom: 1.5rem;
+}
+
+.docs-prose-lede {
+	margin: 0.75rem 0 0;
+	font-size: 1.0625rem;
+	line-height: 1.65;
+}
+
+.docs-prose h2 {
+	margin: 2.5rem 0 0.875rem;
+	font-family: var(--font-display);
+	font-size: 1.5rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--color-fg);
+}
+
+.docs-prose h3 {
+	margin: 2rem 0 0.75rem;
+	font-size: 1.125rem;
+	font-weight: 600;
+	color: var(--color-fg);
+}
+
+.docs-prose h2 > a,
+.docs-prose h3 > a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.docs-prose p {
+	margin: 0.875rem 0;
+}
+
+.docs-prose a {
+	color: var(--color-accent);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in oklab, var(--color-accent) 40%, transparent);
+	text-underline-offset: 3px;
+}
+
+.docs-prose a:hover {
+	text-decoration-color: var(--color-accent);
+}
+
+.docs-prose strong {
+	font-weight: 600;
+	color: var(--color-fg);
+}
+
+.docs-prose :not(pre) > code {
+	border: 1px solid var(--color-line);
+	border-radius: 0.375rem;
+	background-color: var(--color-surface-raised);
+	padding: 0.125rem 0.375rem;
+	font-family: var(--font-mono);
+	font-size: 0.8125em;
+	color: var(--color-fg);
+}
+
+.docs-prose ul,
+.docs-prose ol {
+	margin: 0.875rem 0;
+	padding-left: 1.375rem;
+}
+
+.docs-prose ul {
+	list-style: disc;
+}
+
+.docs-prose ol {
+	list-style: decimal;
+}
+
+.docs-prose li {
+	margin: 0.375rem 0;
+	padding-left: 0.25rem;
+}
+
+.docs-prose li::marker {
+	color: var(--color-fg-subtle);
+}
+
+.docs-prose hr {
+	margin: 2.5rem 0;
+	border: none;
+	border-top: 1px solid var(--color-line);
+}
+
+.docs-prose blockquote {
+	margin: 1.25rem 0;
+	border-left: 3px solid var(--color-line-strong);
+	padding-left: 1rem;
+	font-style: italic;
+}
+
+.docs-prose table {
+	width: 100%;
+	margin: 1.25rem 0;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+}
+
+/* Tables are wrapped by the rehypeTableScroll plugin so wide ones scroll, not widen the page. */
+.docs-prose .table-scroll {
+	margin: 1.25rem 0;
+	overflow-x: auto;
+	border: 1px solid var(--color-line);
+	border-radius: 0.625rem;
+}
+
+.docs-prose .table-scroll table {
+	margin: 0;
+	border-collapse: separate;
+	border-spacing: 0;
+}
+
+.docs-prose .table-scroll th,
+.docs-prose .table-scroll td {
+	padding: 0.5rem 0.75rem;
+}
+
+/* Preformatted output that does not come from the site highlighter (the changelog's marked
+   output). The site highlighter's blocks carry .code-block and their own rules. */
+.docs-prose pre:not(.shiki) {
+	margin: 1.25rem 0;
+	overflow-x: auto;
+	border: 1px solid var(--color-line);
+	border-radius: 0.625rem;
+	background-color: var(--color-surface-raised);
+	padding: 0.875rem 1rem;
+	font-family: var(--font-mono);
+	font-size: 0.8125rem;
+	line-height: 1.7;
+}
+
+.docs-prose pre:not(.shiki) code {
+	border: 0;
+	background: none;
+	padding: 0;
+	font-size: inherit;
+}
+
+.docs-prose th {
+	border-bottom: 1px solid var(--color-line-strong);
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+	font-weight: 600;
+	color: var(--color-fg);
+}
+
+.docs-prose td {
+	border-bottom: 1px solid var(--color-line);
+	padding: 0.5rem 0.75rem;
+	vertical-align: top;
+}
+
+/* Code blocks rendered by the shiki highlighter in svelte.config.js. */
+.docs-prose .code-block,
+.code-block {
+	position: relative;
+	margin: 1.25rem 0;
+	overflow: hidden;
+	border: 1px solid var(--color-line);
+	border-radius: 0.625rem;
+	background-color: var(--color-surface-raised);
+}
+
+.code-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border-bottom: 1px solid var(--color-line);
+	padding: 0.5rem 0.875rem;
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	color: var(--color-fg-subtle);
+}
+
+.code-block pre {
+	margin: 0;
+	overflow-x: auto;
+	padding: 0.875rem 1rem;
+	font-family: var(--font-mono);
+	font-size: 0.8125rem;
+	line-height: 1.7;
+	background: transparent !important;
+}
+
+.code-copy {
+	flex-shrink: 0;
+	border: 1px solid var(--color-line);
+	border-radius: 0.375rem;
+	padding: 0.25rem 0.625rem;
+	font-family: var(--font-sans);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	color: var(--color-fg-muted);
+	background: transparent;
+	cursor: pointer;
+	transition:
+		color 120ms,
+		border-color 120ms;
+}
+
+.code-copy:hover {
+	border-color: var(--color-line-strong);
+	color: var(--color-fg);
+}
+
+.code-copy--done {
+	border-color: var(--color-mint-400);
+	color: var(--color-mint-400);
+}
+
+.code-copy--floating {
+	position: absolute;
+	top: 0.625rem;
+	right: 0.625rem;
+	opacity: 0;
+	background-color: var(--color-surface);
+}
+
+.code-block:hover .code-copy--floating,
+.code-copy--floating:focus-visible {
+	opacity: 1;
+}

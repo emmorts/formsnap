@@ -1,0 +1,90 @@
+---
+title: FieldErrors
+description: Renders the validation-error container for a field — a live region whose ID is added to the control's aria-describedby while errors exist.
+---
+
+`FieldErrors` renders a `<div>` listing the current field's validation errors. It is an ARIA live region, so errors that appear after page load are announced by screen readers, and its ID enters the input's `aria-describedby` (via the enclosing [Control](/docs/components/control)) only while errors exist.
+
+For one error region per field, the [owned `fieldErrors` slot on Field](/docs/components/field) is usually simpler and SSR-safe. Use standalone `FieldErrors` when the errors must live elsewhere in the layout, or to set a per-container announcement policy with `live`.
+
+## Minimal example
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, FieldErrors, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<Field {form} name="email">
+	<Control>
+		{#snippet children({ props })}
+			<Label>Email</Label>
+			<input type="email" {...props} bind:value={$formData.email} />
+		{/snippet}
+	</Control>
+	<FieldErrors />
+</Field>
+```
+
+With no `children` or `child` snippet, each error renders as a `<div>` with `data-fs-field-error` and, while errors exist, `data-fs-error`.
+
+## Custom error content
+
+The `children` snippet receives the error list and an `errorProps` object to spread onto each error item, preserving the styling hooks:
+
+```svelte title="src/routes/settings/styled-errors.svelte"
+<Field {form} name="email">
+	<Control>
+		{#snippet children({ props })}
+			<Label>Email</Label>
+			<input type="email" {...props} bind:value={$formData.email} />
+		{/snippet}
+	</Control>
+	<FieldErrors>
+		{#snippet children({ errors, errorProps })}
+			{#each errors as error, index (index)}
+				<p {...errorProps} class="error">{error}</p>
+			{/each}
+		{/snippet}
+	</FieldErrors>
+</Field>
+```
+
+The `child` snippet goes further and replaces the outer container itself; it receives `props` (the container attributes), `errors` and `errorProps`. Spread `props` onto your container — those attributes register the mounted element and its ID with the field.
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `id` | `string` | generated | The container's ID. Generated with Svelte's `$props.id()` when omitted, stable between server rendering and hydration. |
+| `ref` | `HTMLElement \| null` | `null` | Bindable reference to the rendered container. |
+| `live` | `"assertive" \| "polite" \| "off"` | `"assertive"` | Announcement policy mirrored onto `aria-live`. Takes precedence over an `aria-live` attribute passed with the other props. |
+| `children` | `Snippet<[{ errors, errorProps }]`> | — | Custom error content inside the default container. |
+| `child` | `Snippet<[{ props, errors, errorProps }]`> | — | Replaces the container entirely; spread `props` onto your own element. |
+| `...rest` | `HTMLAttributes<HTMLDivElement>` | — | Additional attributes merged onto the container. |
+
+The merged container attributes are `id`, `aria-live`, `data-fs-field-errors`, and `data-fs-error` while errors exist.
+
+## Behavior notes
+
+- **Requires a field scope.** `FieldErrors` reads context from an enclosing [Field](/docs/components/field), [Fieldset](/docs/components/fieldset) or [ElementField](/docs/components/element-field); outside one it throws.
+- **Live-region precedence.** Highest first: the `live` prop, then an `aria-live` attribute passed in `...rest`, then `"assertive"`. A spread `aria-live` is resolved before generated attributes merge, so it is never silently discarded — but `live` is the supported switch. `"off"` renders `aria-live="off"`, suppressing announcements while keeping the error association intact.
+- **Association timing.** The container ID is included in the control's `aria-describedby` only while the field has errors. Like [Description](/docs/components/description), the standalone component registers on mount, so its association is not in server-rendered HTML — use the owned `fieldErrors` slot on the field scope for that.
+- **Always mounted.** The container stays in the DOM while empty so the live region can announce errors as they appear.
+
+## When to use the hooks instead
+
+A custom control component can read `errors` and `errorsId` from `useFormField` and render its own error UI, declaring the container with the `errorsId` getter. Return `null` or `undefined` from the getter to withdraw the association. See [Error summary](/docs/recipes/error-summary) for collecting errors across fields, and [Custom controls](/docs/recipes/custom-controls) for the hook pattern.
+
+## See also
+
+- [Field](/docs/components/field) — its owned `fieldErrors` slot renders the same content with SSR-safe associations.
+- [Description](/docs/components/description) — the non-error text also wired through `aria-describedby`.
+- [Accessibility](/docs/guides/accessibility) — announcement policies and the association model.

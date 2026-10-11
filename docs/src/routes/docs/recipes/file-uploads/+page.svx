@@ -1,0 +1,121 @@
+---
+title: File uploads
+description: Validate an uploaded file with a File-typed schema field, multipart encoding and Superforms' fail on the server.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+A file input does not expose a text value — it hands the browser a `File` object. Superforms parses that `File` out of the multipart submission, so the schema can validate its presence and size directly.
+
+## Schema
+
+```ts title="src/routes/upload/schema.ts"
+import { z } from "zod/v3";
+
+export const uploadSchema = z.object({
+	title: z.string().min(1, "Enter a title."),
+	attachment: z
+		.instanceof(File, { message: "Choose a file." })
+		.refine((file) => file.size > 0, "Choose a file.")
+		.refine((file) => file.size <= 64_000, "Keep the file at or under 64 kB."),
+});
+
+export type UploadData = z.infer<typeof uploadSchema>;
+```
+
+## Server
+
+Use `fail` from `sveltekit-superforms` — not SvelteKit's — because SvelteKit's devalue-based serialization cannot encode a `File`. Report the received file with `message` instead of returning it.
+
+```ts title="src/routes/upload/+page.server.ts"
+import { fail, message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { uploadSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(zod(uploadSchema)),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(uploadSchema));
+
+		if (!form.valid) return fail(400, { form });
+
+		// File values never reach the client — Superforms strips them from the returned form,
+		// because a file input cannot be repopulated. Report what arrived instead.
+		const { name, size } = form.data.attachment;
+		return message(form, `Received ${name} (${size} bytes).`);
+	},
+};
+```
+
+## Form
+
+`enctype="multipart/form-data"` makes the file submit without JavaScript; `use:enhance` posts the same `FormData` through fetch, so one form serves both paths. The file input itself stays unbound.
+
+```svelte title="src/routes/upload/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { UploadData } from "./schema.js";
+
+	let { data }: { data: { form: SuperValidated<UploadData> } } = $props();
+
+	const form = superForm(
+		untrack(() => data.form),
+		{ resetForm: false }
+	);
+	const { form: formData, enhance, message } = form;
+</script>
+
+<form method="POST" enctype="multipart/form-data" use:enhance>
+	<Field {form} name="title" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Title</Label>
+				<input {...props} bind:value={$formData.title} />
+			{/snippet}
+		</Control>
+	</Field>
+
+	<Field {form} name="attachment" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Attachment</Label>
+				<input {...props} type="file" accept=".txt,.md" />
+			{/snippet}
+		</Control>
+		{#snippet description()}
+			A non-empty file, at most 64 kB. The picker suggests text or Markdown.
+		{/snippet}
+	</Field>
+
+	<button type="submit">Upload</button>
+</form>
+
+{#if $message}
+	<output>{$message}</output>
+{/if}
+```
+
+## How it works
+
+- `z.instanceof(File)` rejects a missing file; the `refine` calls reject empty and oversized ones. All three messages render through the field's `fieldErrors`.
+- Superforms strips `File` values from the form it returns to the client, because a file input cannot be repopulated for security reasons. The user's other fields survive a failed submission; the file does not.
+- The unbound file input is deliberate: HTML forbids setting a file input's `value`, so there is nothing to `bind:` to.
+
+<Callout type="warning">
+
+Return Superforms' `fail` from `sveltekit-superforms`, not `fail` from `@sveltejs/kit`. The SvelteKit version serializes the action result with devalue, which throws on a `File` — a rejected upload would produce a 500 instead of the validation errors.
+
+</Callout>
+
+<Callout type="note">
+
+`accept=".txt,.md"` is only a file-picker hint. It does not validate anything server-side: the schema above accepts any non-empty `File` up to 64,000 bytes regardless of extension, MIME type or contents. Enforce type rules with your own `refine` if you need them.
+
+</Callout>

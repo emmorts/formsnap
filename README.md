@@ -66,9 +66,13 @@ See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 
 ## Documentation
 
-- [Fork documentation](https://emmorts.github.io/formsnap/): setup, APIs added by this fork and recipes.
+- [Documentation site](https://emmorts.github.io/formsnap/): guides, component reference, recipes
+  and the changelog. Built from [`docs/`](./docs), a SvelteKit app deployed to GitHub Pages.
 - [Upstream API reference](https://formsnap.dev): the original component API.
 - [Recipe source](./packages/formsnap/src/routes): complete SvelteKit examples exercised by browser tests.
+
+Build the site locally with `pnpm docs:dev` (it builds `@emmorts/formsnap` first, then serves the
+docs app on Vite). `pnpm docs:build` writes the static site to `docs/build`.
 
 ## Support
 
@@ -86,8 +90,10 @@ pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
 pnpm lint
 node --test scripts/release.test.mjs
 pnpm --filter @emmorts/formsnap run check
+pnpm --filter @formsnap/docs run check
 pnpm test:package
 pnpm --filter @emmorts/formsnap run package
+pnpm docs:build
 ```
 
 ### Releases (maintainers)

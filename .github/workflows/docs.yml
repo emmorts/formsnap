@@ -1,25 +1,22 @@
 name: Documentation
 
-# Publishes the repository's markdown as a static site on GitHub Pages. The renderer is installed
-# into a temporary prefix instead of the workspace, so neither the published package nor the
-# lockfile gains a dependency for documentation. A pull request builds and uploads the same
-# artifact without deploying it, which is what makes the build verifiable before it is published.
+# Publishes the docs app in docs/ as a static site on GitHub Pages. A pull request builds and
+# uploads the same artifact without deploying it, which is what makes the build verifiable before
+# it is published.
 on:
     push:
         branches:
             - main
         paths:
-            - README.md
-            - packages/formsnap/README.md
-            - packages/formsnap/CHANGELOG.md
-            - scripts/build-docs-site.mjs
+            - docs/**
+            - packages/formsnap/**
+            - pnpm-lock.yaml
             - .github/workflows/docs.yml
     pull_request:
         paths:
-            - README.md
-            - packages/formsnap/README.md
-            - packages/formsnap/CHANGELOG.md
-            - scripts/build-docs-site.mjs
+            - docs/**
+            - packages/formsnap/**
+            - pnpm-lock.yaml
             - .github/workflows/docs.yml
     workflow_dispatch:
 
@@ -36,25 +33,22 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v7
               with:
                   node-version: 24
+                  cache: pnpm
 
-            - name: Install the pinned markdown renderer
-              run: npm install --no-save --prefix "$RUNNER_TEMP/docs-tools" marked@18.1.0
-
-            - name: Build the site
-              run: >-
-                  node scripts/build-docs-site.mjs
-                  --renderer "$RUNNER_TEMP/docs-tools"
-                  --base "/${{ github.event.repository.name }}/"
-                  --repo-url "${{ github.server_url }}/${{ github.repository }}"
-                  --ref "${{ github.event.repository.default_branch }}"
-                  --out _site
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm --filter @emmorts/formsnap build
+            - run: pnpm --filter @formsnap/docs build
+              env:
+                  GITHUB_ACTIONS: "true"
+                  GITHUB_REPOSITORY: ${{ github.repository }}
 
             - uses: actions/upload-pages-artifact@v5
               with:
-                  path: _site
+                  path: docs/build
 
     deploy:
         name: Deploy

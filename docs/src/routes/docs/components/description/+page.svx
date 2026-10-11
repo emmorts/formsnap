@@ -1,0 +1,86 @@
+---
+title: Description
+description: Renders supplementary help text for a field and associates it with the control via aria-describedby.
+---
+
+`Description` renders a `<div>` with hint text for the current field. The enclosing [Control](/docs/components/control) automatically adds the description's ID to the input's `aria-describedby`, so screen readers announce the hint when the control receives focus.
+
+For the common case — one description per field — prefer the [owned `description` snippet on Field](/docs/components/field), which puts the association in server-rendered HTML. Use standalone `Description` when the layout needs the hint somewhere the owned slot can't reach, or when a control should have several descriptions.
+
+## Minimal example
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Description, Field, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<Field {form} name="bio" fieldErrors>
+	<Control>
+		{#snippet children({ props })}
+			<Label>Bio</Label>
+			<textarea {...props} bind:value={$formData.bio}></textarea>
+		{/snippet}
+	</Control>
+	<Description>Shown on your public profile. 250 characters max.</Description>
+</Field>
+```
+
+## Replacing the rendered element
+
+The `child` snippet swaps the `<div>` for your own element. Spread the supplied `props` — they carry the `id` and register the mounted element with the field, so a child that ignores them produces no association.
+
+```svelte title="src/routes/settings/inline-description.svelte"
+<script lang="ts">
+	import { Control, Description, Label } from "@emmorts/formsnap";
+	import { form, formData } from "./form.svelte.js";
+</script>
+
+<Control>
+	{#snippet children({ props })}
+		<Label>Username</Label>
+		<input {...props} bind:value={$formData.username} />
+	{/snippet}
+</Control>
+<Description>
+	{#snippet child({ props })}
+		<small {...props} class="hint">Letters, numbers and underscores only.</small>
+	{/snippet}
+</Description>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `id` | `string` | generated | The description's ID. Generated with Svelte's `$props.id()` when omitted, stable between server rendering and hydration. |
+| `ref` | `HTMLElement \| null` | `null` | Bindable reference to the rendered element. |
+| `children` | `Snippet` | — | The description content. |
+| `child` | `Snippet<[{ props }]`> | — | Replaces the `<div>`; spread the supplied `props` onto your own container. |
+| `...rest` | `HTMLAttributes<HTMLDivElement>` | — | Additional attributes (`class`, `style`, event handlers) merged onto the container. |
+
+The merged attributes are `id`, `data-fs-description`, and `data-fs-error` while the field has errors.
+
+## Behavior notes
+
+- **Requires a field scope.** `Description` reads context from an enclosing [Field](/docs/components/field), [Fieldset](/docs/components/fieldset) or [ElementField](/docs/components/element-field); outside one it throws.
+- **Association registers on mount.** The standalone component discovers its target when the element mounts and withdraws it on unmount. That means the association is absent from server-rendered HTML — if you need `aria-describedby` with JavaScript disabled, use the owned `description` snippet on the field scope instead.
+- **Several descriptions coexist.** Multiple descriptions (standalone or owned) for one field are merged and deduplicated into a single space-separated `aria-describedby`, with the owned ID first.
+- **Error styling.** `data-fs-error` lets you restyle the hint when validation fails.
+
+## When to use the hooks instead
+
+A custom control component can declare its own description container with the `descriptionId` getter on `useFormField`. Keep the element rendered while its ID is supplied; return `null` or `undefined` from the getter to withdraw it. See [Custom controls](/docs/recipes/custom-controls).
+
+## See also
+
+- [Field](/docs/components/field) — its owned `description` snippet is the SSR-safe alternative.
+- [FieldErrors](/docs/components/field-errors) — the error counterpart, also associated through `aria-describedby`.
+- [Accessibility](/docs/guides/accessibility) — how the association model works end to end.

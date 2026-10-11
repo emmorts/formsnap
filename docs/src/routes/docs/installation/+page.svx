@@ -1,0 +1,59 @@
+---
+title: Installation
+description: Add Formsnap and its peer dependencies, then satisfy the version ranges Superforms and zod impose.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Formsnap is a component library, not a form runtime. You install it alongside Superforms, which owns loading, validation and submission, and a schema library for the validator adapter.
+
+## Install
+
+```bash
+pnpm add @emmorts/formsnap sveltekit-superforms zod
+```
+
+```bash
+npm install @emmorts/formsnap sveltekit-superforms zod
+```
+
+```bash
+yarn add @emmorts/formsnap sveltekit-superforms zod
+```
+
+```bash
+bun add @emmorts/formsnap sveltekit-superforms zod
+```
+
+## Requirements
+
+| Dependency             | Supported range                                     |
+| ---------------------- | --------------------------------------------------- |
+| `svelte`               | `^5.30.2`                                           |
+| `sveltekit-superforms` | `^2.19.0` or `^3.0.0`                               |
+| schema library         | any Superforms adapter; these docs use zod          |
+
+Superforms 3 additionally requires Svelte `^5.56.4`; the Svelte 5.30.2 minimum applies to Formsnap with Superforms 2.
+
+<Callout type="warning">
+
+Under `sveltekit-superforms` 2.31 and later, the zod adapter is typed against the zod v3 API exposed at `zod/v3`. Import your schema from `zod/v3`, and keep exactly one zod version in your dependency tree — pnpm can install a second copy for Superforms' own dependencies. Check with `pnpm why zod`.
+
+</Callout>
+
+## Import
+
+Components and hooks come from the package root:
+
+```ts title="src/routes/settings/settings-form.svelte"
+import { Control, Description, Field, FieldErrors, Fieldset, Label, Legend, ElementField } from "@emmorts/formsnap";
+import { useFormControl, useFormField } from "@emmorts/formsnap";
+```
+
+## Next steps
+
+- [Quickstart](/docs/quickstart) — a complete form in four steps
+- [Introduction](/docs) — what Formsnap does and does not own
+- [Accessibility](/docs/guides/accessibility) — the association contract, in detail

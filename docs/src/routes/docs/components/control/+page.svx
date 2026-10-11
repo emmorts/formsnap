@@ -1,0 +1,72 @@
+---
+title: Control
+description: Associates a Label with a form control and hands the input a spreadable props object with every required id, name and ARIA attribute already set.
+---
+
+`Control` sits between a [Field](/docs/components/field) and the actual input element. It resolves the control's `id`, looks up the field's name, errors and constraints from context, and exposes a `props` object that you spread onto the form control. That spread is the whole contract: it carries labelling, description and error wiring so you never hand-write `aria-*` attributes.
+
+It renders no element of its own.
+
+## Minimal example
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<Field {form} name="email" fieldErrors>
+	<Control id="email-input">
+		{#snippet children({ props })}
+			<Label>Email</Label>
+			<input type="email" {...props} bind:value={$formData.email} />
+		{/snippet}
+	</Control>
+	{#snippet description()}We'll email you about your account.{/snippet}
+</Field>
+```
+
+The `props` object reacts to field state. When validation produces errors, `aria-invalid`, `aria-describedby` and `data-fs-error` appear on the input automatically.
+
+## The props object
+
+| Attribute | Value |
+| --------- | ----- |
+| `name` | The field's path, used for form submission. |
+| `id` | The control ID, used for label association. |
+| `aria-describedby` | Space-separated IDs of the description and error containers; present only when description or validation exists. |
+| `aria-invalid` | `"true"` when the field has errors, otherwise absent. |
+| `aria-required` | `"true"` when the field's constraints mark it required, otherwise absent. |
+| `data-fs-error` | Present when a validation error exists on the field. |
+| `data-fs-control` | Always present; a styling hook. |
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `id` | `string` | generated | The control's ID. Generated with Svelte's `$props.id()` when omitted, so it is stable between server rendering and hydration. |
+| `children` | `Snippet<[{ props: ControlAttrs }]>` | — | Receives the spreadable `props` object described above. |
+
+## Behavior notes
+
+- **Requires a field scope.** `Control` reads context from an enclosing [Field](/docs/components/field), [Fieldset](/docs/components/fieldset) or [ElementField](/docs/components/element-field); outside one it throws.
+- **Exactly one control per snippet.** Spread `props` onto the single element the label should point at. If you render several inputs, only one can carry the association.
+- **Label pairing.** A [Label](/docs/components/label) rendered inside the same `Control` automatically gets `for` set to the resolved control ID — including an `id` you supplied yourself, which becomes part of the first server-rendered markup.
+- **Style with data attributes.** `data-fs-control` and `data-fs-error` are stable selectors; see [Accessibility](/docs/guides/accessibility) for what Formsnap wires versus what stays your responsibility.
+
+## When to use the hooks instead
+
+Use `useFormControl` inside a custom control component to get the same `id`, `labelProps` and `props` without rendering the `Control` wrapper — for example when a third-party input library needs the attributes passed as props rather than spread onto a DOM element. It requires an enclosing `Control`. See [Custom controls](/docs/recipes/custom-controls).
+
+## See also
+
+- [Field](/docs/components/field) — the context `Control` reads from.
+- [Label](/docs/components/label) — the label side of the association.
+- [FieldErrors](/docs/components/field-errors) — the error container that `aria-describedby` points at.

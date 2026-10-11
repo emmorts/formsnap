@@ -1,0 +1,117 @@
+---
+title: ElementField
+description: Provides field context for a single element of an array — one row of a repeated group, with per-item errors and constraints.
+---
+
+`ElementField` is the array counterpart of [Field](/docs/components/field). It scopes context to one indexed path such as `urls[0]` or `contacts[2].email`, so the [Control](/docs/components/control) inside it gets that element's errors, constraints and value. Like `Field`, it renders no element of its own.
+
+It must be nested inside an enclosing `Field` or [Fieldset](/docs/components/fieldset), which supplies the parent context.
+
+## Primitive arrays
+
+For a primitive array (`string[]`, `number[]`), the control's `name` attribute renders as the repeated parent name — every `urls[0]`, `urls[1]` control submits as `urls` — so a native, JavaScript-free POST works. Key rows by your own stable ID list, not by array objects:
+
+```svelte title="src/routes/links/links-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, ElementField, Fieldset, Label, Legend } from "@emmorts/formsnap";
+	import type { LinksData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<LinksData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+	const rowIds = $state($formData.urls.map((_, index) => index));
+</script>
+
+<form method="POST">
+	<Fieldset {form} name="urls" fieldErrors>
+		<Legend>Website URLs</Legend>
+		{#each $formData.urls as _, index (rowIds[index])}
+			<ElementField {form} name={`urls[${index}]` as `urls[${number}]`}>
+				<Control>
+					{#snippet children({ props })}
+						<Label>URL {index + 1}</Label>
+						<input {...props} bind:value={$formData.urls[index]} />
+					{/snippet}
+				</Control>
+			</ElementField>
+		{/each}
+	</Fieldset>
+	<button type="submit">Save</button>
+</form>
+```
+
+The `` as `urls[${number}]` `` cast keeps the path within the `FormPathLeaves<T>` type that Superforms generates for the schema.
+
+## Object arrays
+
+Nested object paths need Superforms' `dataType: "json"` and its `enhance` action, because a native POST cannot express a nested path through repeated HTML names:
+
+```svelte title="src/routes/contacts/contacts-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, ElementField, Fieldset, Label, Legend } from "@emmorts/formsnap";
+	import type { ContactsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<ContactsData> } = $props();
+
+	const form = superForm(untrack(() => validated), { dataType: "json" });
+	const { form: formData, enhance } = form;
+</script>
+
+<form method="POST" use:enhance>
+	<Fieldset {form} name="contacts" fieldErrors>
+		<Legend>Contacts</Legend>
+		{#each $formData.contacts as _, index (index)}
+			<ElementField
+				{form}
+				name={`contacts[${index}].email` as `contacts[${number}].email`}
+				fieldErrors
+			>
+				<Control>
+					{#snippet children({ props })}
+						<Label>Contact {index + 1}</Label>
+						<input {...props} bind:value={$formData.contacts[index].email} />
+					{/snippet}
+				</Control>
+				{#snippet description()}Used for order updates.{/snippet}
+			</ElementField>
+		{/each}
+	</Fieldset>
+</form>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `form` | `FsSuperForm<T, M>` | — (required) | The form object returned from `superForm`. Fixed for the mounted scope's lifetime. |
+| `name` | `FormPathLeaves<T>` | — (required) | The indexed path to the element, e.g. `"urls[0]"` or `"contacts[2].email"`. |
+| `children` | `Snippet<[{ value, errors, tainted, constraints }]`> | — | Element content; receives the element's field state. |
+| `description` | `Snippet` | — | Owned description content rendered after the children. |
+| `fieldErrors` | `boolean \| Snippet<[{ errors, errorProps }]>` | — | Owned error region; `true` renders default content, a snippet renders custom content. |
+| `descriptionId` | `string` | generated | Override for the owned description ID; ignored without `description`. |
+| `fieldErrorsId` | `string` | generated | Override for the owned error region ID; ignored without `fieldErrors`. |
+| `fieldErrorsLive` | `"assertive" \| "polite" \| "off"` | `"assertive"` | Announcement policy for the owned error region. |
+
+## Behavior notes
+
+- **Requires a parent scope.** `ElementField` reads the enclosing `Field` or `Fieldset` context; outside one it throws. To replace the `form` instance, key the whole enclosing subtree — parent included — not just the element field.
+- **Description and error inheritance.** When the element renders no description or error region of its own, it inherits the parent's associations — including an owned parent description — so one fieldset-level description can describe every row. A local owned or standalone container overrides the inherited one.
+- **Constraints without indices.** Superforms constraints describe the array item schema, so bracketed indices are stripped when looking up `constraints`; the snippet receives the item's constraint object.
+- **SSR-stable IDs.** Owned `descriptionId` and `fieldErrorsId` default to `$props.id()`-generated values, stable between server rendering and hydration, and unique per component instance — repeated rows never share targets.
+- **Submission shape.** Primitive arrays submit as repeated parent names natively. Nested object/array submissions require `dataType: "json"`, `use:enhance`, and values bound to the form store; enhancement serializes that store. Some Superforms options that identify inputs by full path (such as `customValidity`) may also need an explicit leaf `name`.
+
+## When to use the hooks instead
+
+Inside a custom row component, `useFormField` reads the element's `errors`, `constraints`, `tainted`, `errorsId` and `descriptionId` from the `ElementField` context without rendering children inline. See [Custom controls](/docs/recipes/custom-controls).
+
+## See also
+
+- [Fieldset](/docs/components/fieldset) — the usual parent scope for repeated rows.
+- [Field](/docs/components/field) — the non-indexed counterpart.
+- [Primitive arrays](/docs/recipes/primitive-arrays) — stable row identity and add/remove/reorder.
+- [Nested data](/docs/recipes/nested-data) — object arrays with JSON enhancement.

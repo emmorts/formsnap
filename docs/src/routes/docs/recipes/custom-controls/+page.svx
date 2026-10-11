@@ -1,0 +1,133 @@
+---
+title: Custom controls
+description: Replace the elements Formsnap renders with `child` snippets, or build a fully custom widget with the headless hooks.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+A plain `<input {...props} />` covers most fields. When the widget is your own element — a star rating, a styled error list, a small instead of a paragraph — Formsnap gives you two escape hatches: `child` snippets that replace the element a component renders, and the `useFormControl`/`useFormField` hooks for widgets that live in their own component.
+
+## Replace elements with `child` snippets
+
+`Label`, `Description` and `FieldErrors` all accept a `child` snippet. The snippet receives `props`; spreading them onto your element is what carries the ID, the label's `for`, and the registration of the mounted node. `bind:ref` hands the actual node back to you.
+
+```svelte title="src/routes/profile/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
+	import { Control, Description, Field, FieldErrors, Label } from "@emmorts/formsnap";
+
+	let { data } = $props();
+
+	const form = superForm(untrack(() => data.form), { resetForm: false });
+	const { form: formData, enhance } = form;
+
+	let nicknameLabel = $state<HTMLElement | null>(null);
+	let nicknameDescription = $state<HTMLElement | null>(null);
+</script>
+
+{#snippet customLabel({ props }: { props: Record<string, unknown> })}
+	<label {...props} data-custom="label">Nickname</label>
+{/snippet}
+
+{#snippet customDescription({ props }: { props: Record<string, unknown> })}
+	<small {...props} data-custom="description">Two characters minimum.</small>
+{/snippet}
+
+{#snippet customErrors({
+	props,
+	errors,
+	errorProps,
+}: {
+	props: Record<string, unknown>;
+	errors: string[];
+	errorProps: Record<string, unknown>;
+})}
+	<ul {...props} data-custom="errors">
+		{#each errors as error, index (index)}
+			<li {...errorProps}>{error}</li>
+		{/each}
+	</ul>
+{/snippet}
+
+<form method="POST" use:enhance>
+	<Field {form} name="nickname">
+		<Control>
+			{#snippet children({ props })}
+				<Label child={customLabel} bind:ref={nicknameLabel} />
+				<input {...props} bind:value={$formData.nickname} />
+			{/snippet}
+		</Control>
+		<Description child={customDescription} bind:ref={nicknameDescription} />
+		<FieldErrors child={customErrors} />
+	</Field>
+
+	<button type="submit">Save profile</button>
+</form>
+```
+
+A snippet declared at the top level and passed as a prop needs an explicit parameter type, because it is not an inline child of the component.
+
+## Build a widget with the hooks
+
+When the control is its own component, it cannot receive snippet `props` as an argument. `useFormControl` reads the enclosing `Control`'s context and returns the same `id`, `name` and ARIA props:
+
+```svelte title="src/routes/profile/rating-control.svelte"
+<script lang="ts">
+	import { useFormControl } from "@emmorts/formsnap";
+
+	let {
+		value = $bindable(4),
+		ref = $bindable<HTMLInputElement | null>(null),
+	}: { value?: number; ref?: HTMLInputElement | null } = $props();
+
+	const control = useFormControl({});
+</script>
+
+<input type="range" min="1" max="5" step="1" {...control.props} bind:value bind:this={ref} />
+```
+
+Render it under a `Control` like any other input:
+
+```svelte title="src/routes/profile/+page.svelte"
+<Field {form} name="rating" fieldErrors>
+	<Control>
+		<Label>Rating</Label>
+		<RatingControl bind:value={$formData.rating} bind:ref={ratingControl} />
+	</Control>
+	{#snippet description()}One to five stars.{/snippet}
+</Field>
+```
+
+A range input submits a string, so the schema coerces it back to a number:
+
+```ts title="src/routes/profile/schema.ts"
+import { z } from "zod/v3";
+
+export const profileSchema = z.object({
+	nickname: z.string().min(2, "Use at least two characters."),
+	rating: z.coerce
+		.number()
+		.int("Pick a whole number of stars.")
+		.min(1, "Pick at least one star.")
+		.max(5, "Five stars is the maximum.")
+		.default(4),
+});
+
+export type ProfileData = z.infer<typeof profileSchema>;
+```
+
+## How it works
+
+- `child` replaces the element, not the behaviour. A snippet that renders an element but ignores the supplied `props` produces no association.
+- `useFormControl` returns `id`, `labelProps` and `props`. Spreading `props` matches what a Control's `children` snippet would give you.
+- `useFormField` works one level up and exposes the field's `form`, `name`, `errors`, `constraints`, `tainted`, `errorsId` and `descriptionId`. Both hooks must be called during component initialization, inside a component rendered under their provider.
+- Multiple `Label` components under one `Control` keep their own IDs and refs, and all target that control. `useFormControl({}).labelProps.id` selects the most recently registered active label for headless naming; removing it restores a surviving label, or the default headless ID when none remain.
+
+<Callout type="warning">
+
+Context is required: `useFormControl` needs an enclosing `Control`, and `useFormField` needs an enclosing `Field`, `Fieldset` or `ElementField`. A `Field` alone does not provide `Control` context — a missing provider throws an error naming the required parent. When you rely on the default headless ID for naming, you must render an element with that ID yourself.
+
+</Callout>

@@ -1,0 +1,123 @@
+---
+title: Quickstart
+description: Go from an empty route to a validated, accessible form in four steps — schema, server, fields, page.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+This walkthrough builds a settings form end to end. Every step is complete and runnable; together they are the smallest working Formsnap setup.
+
+<Callout type="note">
+
+Formsnap owns the markup and accessibility wiring. [Superforms](https://superforms.rocks) owns the data: loading, validation and submission stay exactly as Superforms documents them.
+
+</Callout>
+
+## 1. Define a schema
+
+Any Superforms adapter works; this guide uses zod. Under Superforms 2.31+, import from `zod/v3` so the adapter's types match.
+
+```ts title="src/routes/settings/schema.ts"
+import { z } from "zod/v3";
+
+export const settingsSchema = z.object({
+	email: z.string().email("Enter a valid email address"),
+	bio: z.string().max(250, "Keep it under 250 characters"),
+});
+
+export type SettingsData = z.infer<typeof settingsSchema>;
+```
+
+## 2. Load and validate on the server
+
+`superValidate` creates the form in `load` and re-validates it in the action. Nothing here is Formsnap-specific.
+
+```ts title="src/routes/settings/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { settingsSchema } from "./schema.js";
+
+export const load = async () => {
+	return { form: await superValidate(zod(settingsSchema)) };
+};
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(settingsSchema));
+		if (!form.valid) return fail(400, { form });
+		return { form };
+	},
+};
+```
+
+## 3. Render the fields
+
+This is where Formsnap takes over. A `Field` connects one schema path; its `Control` hands you props with the correct `id`, `name`, `aria-invalid` and `aria-describedby` already set.
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	// superForm reads the initial data once; the read is deliberately untracked.
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<form method="POST">
+	<Field {form} name="email" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Email</Label>
+				<input type="email" {...props} bind:value={$formData.email} />
+			{/snippet}
+		</Control>
+		{#snippet description()}We'll email you about your account.{/snippet}
+	</Field>
+
+	<Field {form} name="bio" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Bio</Label>
+				<textarea {...props} bind:value={$formData.bio}></textarea>
+			{/snippet}
+		</Control>
+		{#snippet description()}Tell us about yourself.{/snippet}
+	</Field>
+
+	<button type="submit">Save settings</button>
+</form>
+```
+
+What you get without writing a line of wiring:
+
+- `Label` is associated with the input via `for`/`id`.
+- The `description` snippet renders a container the input references through `aria-describedby`.
+- `fieldErrors` renders an error list that appears — and is announced — only when validation fails.
+
+## 4. Pass the validated form to it
+
+```svelte title="src/routes/settings/+page.svelte"
+<script lang="ts">
+	import SettingsForm from "./settings-form.svelte";
+
+	let { data } = $props();
+</script>
+
+<SettingsForm validated={data.form} />
+```
+
+Submit the form empty and the schema messages render next to their fields — no JavaScript required. Add `use:enhance` from Superforms when you want SPA-style submission; see [Progressive enhancement](/docs/guides/enhancement).
+
+<Callout type="tip">
+
+The snippets are optional. Omit `description` and no container is rendered; set `fieldErrors={false}` to place `<FieldErrors>` yourself anywhere inside the field.
+
+</Callout>

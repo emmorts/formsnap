@@ -1,0 +1,141 @@
+---
+title: Nested data and object arrays
+description: Submit a nested object with an editable array of objects using JSON submission, Fieldset and indexed ElementField names.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+A native HTML form can only send flat, repeated input names — it cannot express `contacts[0].email`. Superforms solves this with `dataType: "json"`, which serializes the `$formData` store instead of the DOM, so any nesting your schema defines round-trips exactly.
+
+## Schema
+
+```ts title="src/routes/contacts/schema.ts"
+import { z } from "zod/v3";
+
+export const contactsSchema = z.object({
+	profile: z.object({ name: z.string().min(2, "Enter at least two characters.") }),
+	contacts: z
+		.array(z.object({ email: z.string().email("Enter a valid email address.") }))
+		.min(1),
+});
+
+export type ContactsData = z.infer<typeof contactsSchema>;
+```
+
+## Server
+
+```ts title="src/routes/contacts/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { contactsSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(
+		{
+			profile: { name: "Ada" },
+			contacts: [{ email: "a@example.com" }, { email: "b@example.com" }],
+		},
+		zod(contactsSchema)
+	),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(contactsSchema));
+		return form.valid ? { form } : fail(400, { form });
+	},
+};
+```
+
+## Form
+
+`Field` points at the nested scalar `profile.name`. The `contacts` array gets a `Fieldset`, and each row's scalar gets an `ElementField` whose name is the indexed path. The `as` cast on the name keeps Superforms' template-literal path types happy while `index` stays a plain `number` at runtime.
+
+```svelte title="src/routes/contacts/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, ElementField, Field, Fieldset, Label, Legend } from "@emmorts/formsnap";
+	import type { ContactsData } from "./schema.js";
+
+	let { data }: { data: { form: SuperValidated<ContactsData> } } = $props();
+
+	const form = superForm(
+		untrack(() => data.form),
+		{ dataType: "json", resetForm: false }
+	);
+	const { form: formData, enhance } = form;
+
+	// Superforms can replace row objects during taint updates, so object identity is not a
+	// stable key. Keep a separate list of ids, initialized once from the initial row count.
+	const initialRowCount = untrack(() => data.form.data.contacts.length);
+	let rowIds = $state(Array.from({ length: initialRowCount }, (_, index) => index));
+	let nextRowId = initialRowCount;
+
+	function addRow() {
+		rowIds = [...rowIds, nextRowId++];
+		$formData.contacts = [...$formData.contacts, { email: "" }];
+	}
+
+	function removeRow() {
+		rowIds = rowIds.slice(0, -1);
+		$formData.contacts = $formData.contacts.slice(0, -1);
+	}
+</script>
+
+<form method="POST" use:enhance>
+	<Field {form} name="profile.name" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Profile name</Label>
+				<input {...props} bind:value={$formData.profile.name} />
+			{/snippet}
+		</Control>
+	</Field>
+
+	<Fieldset {form} name="contacts" fieldErrors>
+		<Legend>Contacts</Legend>
+		{#each $formData.contacts as _, index (rowIds[index])}
+			<ElementField
+				{form}
+				name={`contacts[${index}].email` as `contacts[${number}].email`}
+				fieldErrors
+			>
+				<Control>
+					{#snippet children({ props })}
+						<Label>Contact {index + 1}</Label>
+						<input {...props} bind:value={$formData.contacts[index].email} />
+					{/snippet}
+				</Control>
+			</ElementField>
+		{/each}
+	</Fieldset>
+
+	<button type="button" onclick={addRow}>Add row</button>
+	<button type="button" onclick={removeRow}>Remove row</button>
+	<button type="submit">Save contacts</button>
+</form>
+```
+
+## How it works
+
+- `dataType: "json"` makes `use:enhance` submit the serialized `$formData` store, so the server receives the nested structure exactly as the schema declares it.
+- Every control binds to `$formData` (not a local variable), keeping the store the single source of truth that gets serialized.
+- `Fieldset` groups the array and provides the parent context each `ElementField` requires — an `ElementField` must sit inside a `Field` or `Fieldset`.
+- The indexed name `contacts[N].email` resolves errors per row, so `fieldErrors` on each `ElementField` renders only that row's messages, while `fieldErrors` on the `Fieldset` surfaces array-level errors like the `min(1)` violation.
+- Row keys come from `rowIds`, a list you own; mutate it together with `$formData.contacts` on every add, remove or reorder so the `{#each}` block keeps DOM nodes matched to rows.
+
+<Callout type="warning">
+
+JSON submission requires JavaScript — `use:enhance` is not optional here. A native POST without it sends repeated flat names that cannot express the nested paths. If the form must work unenhanced, use [primitive arrays](/docs/recipes/primitive-arrays) with a flat schema instead.
+
+</Callout>
+
+<Callout type="note">
+
+Keep the `nextRowId` counter separate from array indexes. Reusing an index as a key after a removal collides with a surviving row's key and Svelte reuses the wrong DOM node, scrambling bindings and focus.
+
+</Callout>

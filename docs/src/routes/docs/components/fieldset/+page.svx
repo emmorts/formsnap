@@ -1,0 +1,117 @@
+---
+title: Fieldset & Legend
+description: Groups related controls under an accessible title — Fieldset is the Field variant that renders a fieldset element, and Legend names the group.
+---
+
+`Fieldset` does everything [Field](/docs/components/field) does — form context, snippet state, owned description and error slots — and additionally renders a native `<fieldset>` element around the group. Pair it with `Legend`, which renders the `<legend>` that gives the group its accessible title. Screen readers announce the legend when focus moves into the group, which is what makes grouped controls (address blocks, contact lists, radio groups) understandable.
+
+Per the [W3C grouping guidance](https://www.w3.org/WAI/tutorials/forms/grouping/), a fieldset should always have a legend.
+
+## Minimal example
+
+```svelte title="src/routes/contacts/contacts-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, ElementField, Fieldset, Label, Legend } from "@emmorts/formsnap";
+	import type { ContactsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<ContactsData> } = $props();
+
+	const form = superForm(untrack(() => validated), { dataType: "json" });
+	const { form: formData, enhance } = form;
+</script>
+
+<form method="POST" use:enhance>
+	<Fieldset {form} name="contacts" fieldErrors>
+		<Legend>Contacts</Legend>
+		{#each $formData.contacts as _, index (index)}
+			<ElementField {form} name={`contacts[${index}].email` as `contacts[${number}].email`}>
+				<Control>
+					{#snippet children({ props })}
+						<Label>Contact {index + 1}</Label>
+						<input {...props} bind:value={$formData.contacts[index].email} />
+					{/snippet}
+				</Control>
+			</ElementField>
+		{/each}
+	</Fieldset>
+	<button type="submit">Save</button>
+</form>
+```
+
+## Custom error content and element replacement
+
+The owned `fieldErrors` slot works exactly as on `Field`, and the `child` snippet replaces the `<fieldset>` element itself — spread the supplied `props` to keep `data-fs-fieldset` and the error-state attribute:
+
+```svelte title="src/routes/contacts/grouped-fieldset.svelte"
+<Fieldset {form} name="address">
+	<Legend>Address</Legend>
+	{#snippet children({ value, errors })}
+		<Control>
+			{#snippet children({ props })}
+				<Label>Street</Label>
+				<input {...props} bind:value={$formData.address.street} />
+			{/snippet}
+		</Control>
+		{#if errors.length}
+			<p class="group-error">Check the address fields.</p>
+		{/if}
+	{/snippet}
+	{#snippet fieldErrors({ errors, errorProps })}
+		{#each errors as error, index (index)}
+			<p {...errorProps}>{error}</p>
+		{/each}
+	{/snippet}
+</Fieldset>
+```
+
+## Fieldset props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `form` | `FsSuperForm<T, M>` | — (required) | The form object returned from `superForm`. Fixed for the mounted fieldset's lifetime. |
+| `name` | `FormPath<T>` | — (required) | The path to the group in the schema, e.g. `"contacts"` or `"address"`. |
+| `id` | `string` | generated | The fieldset's ID, stable between server rendering and hydration. |
+| `ref` | `HTMLFieldSetElement \| null` | `null` | Bindable reference to the rendered element. |
+| `children` | `Snippet<[{ value, errors, tainted, constraints }]`> | — | Group content; receives the group's field state. |
+| `child` | `Snippet<[{ props, value, errors, tainted, constraints }]`> | — | Replaces the `<fieldset>`; spread `props` onto your own container. |
+| `description` | `Snippet` | — | Owned description content rendered after the children, inside the fieldset. |
+| `fieldErrors` | `boolean \| Snippet<[{ errors, errorProps }]>` | — | Owned error region; `true` renders default content, a snippet renders custom content. |
+| `descriptionId` | `string` | generated | Override for the owned description ID; ignored without `description`. |
+| `fieldErrorsId` | `string` | generated | Override for the owned error region ID; ignored without `fieldErrors`. |
+| `fieldErrorsLive` | `"assertive" \| "polite" \| "off"` | `"assertive"` | Announcement policy for the owned error region. |
+| `...rest` | `HTMLFieldsetAttributes` | — | Additional attributes (`class`, `disabled`, event handlers) merged onto the fieldset. |
+
+The fieldset element always carries `data-fs-fieldset`, plus `data-fs-error` while the group has errors.
+
+## Legend props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `id` | `string` | generated | The legend's ID, stable between server rendering and hydration. |
+| `ref` | `HTMLLegendElement \| null` | `null` | Bindable reference to the rendered element. |
+| `children` | `Snippet` | — | The legend content — the group's accessible title. |
+| `child` | `Snippet<[{ props }]`> | — | Replaces the `<legend>`; spread the supplied `props` onto your own element. |
+| `...rest` | `HTMLAttributes<HTMLLegendElement>` | — | Additional attributes merged onto the legend. |
+
+The legend element always carries `data-fs-legend`, plus `data-fs-error` while the group has errors.
+
+## Behavior notes
+
+- **Field semantics.** `Fieldset` uses the same field state as `Field`: `errors` covers the whole subtree, `tainted` is true when any descendant is tainted, and the `form` instance is fixed for the scope's lifetime — key the subtree by a new form instance to replace it.
+- **Owned content lives inside the fieldset.** Description and error containers render after the children but within the `<fieldset>`, and their IDs are known before rendering, so associations appear in server-rendered HTML.
+- **`child` excludes owned content.** A full-container `child` snippet cannot be combined with `description` or `fieldErrors`; `Fieldset` throws if you pass both. Either use the native container with owned slots, or take responsibility for the custom container's associations yourself.
+- **Legend needs a field scope.** `Legend` reads the enclosing field context; use it inside `Fieldset` (or a `Field`), not standalone.
+- **SSR-stable IDs.** All generated IDs use Svelte's `$props.id()` and are stable between server rendering and hydration.
+
+## When to use the hooks instead
+
+For a group that isn't a native `<fieldset>` — tabs, accordions, collapsible sections — build the container yourself and read group state with `useFormField` inside the scope. [Groups](/docs/recipes/groups) compares the native and custom approaches.
+
+## See also
+
+- [Field](/docs/components/field) — the non-grouping variant with identical state semantics.
+- [ElementField](/docs/components/element-field) — the per-item scope you'll usually nest inside a fieldset.
+- [Nested data](/docs/recipes/nested-data) — object arrays with fieldsets.
+- [Groups](/docs/recipes/groups) — native vs. custom grouping.

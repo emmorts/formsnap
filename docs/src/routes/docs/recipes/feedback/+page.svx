@@ -1,0 +1,102 @@
+---
+title: Pending and success feedback
+description: Drive pending indicators and confirmation messages from Superforms' own stores — Formsnap renders the fields, Superforms owns the submission state.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Users need to know the form is sending, and whether it worked. Both come from the `superForm` instance: `$submitting` is true while an enhanced submission is in flight, and `$message` renders whatever the action passed to `message(form, …)`. No Formsnap-specific subscription is involved.
+
+## Set the message in the action
+
+```ts title="src/routes/feedback/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { feedbackSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(zod(feedbackSchema)),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(feedbackSchema));
+
+		if (!form.valid) return fail(400, { form });
+
+		return message(form, "Answer received.");
+	},
+};
+```
+
+## Render pending and success state
+
+Destructure the stores you need from the form instance and reference them with the `$` prefix. `$submitting` disables the button and swaps its label while the request runs; `$message` appears when the action returns one:
+
+```svelte title="src/routes/feedback/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+
+	let { data } = $props();
+
+	const form = superForm(untrack(() => data.form), { resetForm: false });
+	// `submitting` is Superforms' own store for an in-flight enhanced submission.
+	const { form: formData, enhance, message, submitting, delayed, timeout } = form;
+</script>
+
+<form method="POST" use:enhance>
+	<Field {form} name="answer" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Answer</Label>
+				<input {...props} bind:value={$formData.answer} />
+			{/snippet}
+		</Control>
+		{#snippet description()}Pending state and confirmation both come from Superforms.{/snippet}
+	</Field>
+
+	<button type="submit" disabled={$submitting}>
+		{#if $timeout}
+			Still sending…
+		{:else if $delayed}
+			Sending…
+		{:else}
+			Send answer
+		{/if}
+	</button>
+</form>
+
+{#if $message}
+	<output>{$message}</output>
+{/if}
+```
+
+For work that runs after a result is applied — counting updates, resetting local UI — use Superforms' `onUpdated` option:
+
+```ts title="src/routes/feedback/+page.svelte"
+const form = superForm(untrack(() => data.form), {
+	resetForm: false,
+	onUpdated({ form: updated }) {
+		if (updated.valid) {
+			// The action result has been applied to the stores.
+		}
+	},
+});
+```
+
+## How it works
+
+- `$submitting` flips for the duration of an enhanced (`use:enhance`) submission. `$delayed` flips after a grace period (500 ms by default) so quick submissions never flash a spinner, and `$timeout` flips after a longer threshold (8 seconds by default) for "still working" messaging. Tune both with Superforms' `delayMs` and `timeoutMs` options.
+- `$message` holds whatever the action returned via `message(form, …)` — text, or an object if you pass one.
+- `onUpdated` runs after a form action result has been applied to the stores, valid or not.
+
+<Callout type="warning">
+
+All three pending stores only move for enhanced submissions. Without `use:enhance` the browser performs a full-page POST and there is no client-side pending state to render — keep the markup correct for the native path too.
+
+</Callout>

@@ -1,0 +1,130 @@
+---
+title: Primitive arrays with stable row identity
+description: Add, reorder and remove rows of a flat string array while keeping native, JavaScript-free submission working.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+An array of primitives (`string[]`, `number[]`) submits fine as repeated flat input names — no JSON encoding needed — but adding, reordering and removing rows breaks naive `{#each}` keys. The fix is a separate list of row ids that you mutate in lockstep with the data.
+
+## Schema
+
+```ts title="src/routes/urls/schema.ts"
+import { z } from "zod/v3";
+
+export const urlsSchema = z.object({
+	urls: z.array(z.string().url("Enter a valid URL.")).min(1),
+});
+
+export type UrlsData = z.infer<typeof urlsSchema>;
+```
+
+## Server
+
+Nothing special: the repeated `urls[0]`, `urls[1]`, … input names parse into the array directly.
+
+```ts title="src/routes/urls/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { urlsSchema } from "./schema.js";
+
+export const load = async () => ({
+	form: await superValidate(
+		{ urls: ["https://a.example", "https://b.example"] },
+		zod(urlsSchema)
+	),
+});
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(urlsSchema));
+		return form.valid ? { form } : fail(400, { form });
+	},
+};
+```
+
+## Form
+
+`ElementField` with the indexed name `urls[N]` renders the repeated parent name for native submission. The `{#each}` key is `rowIds[index]`, never the row value or object identity.
+
+```svelte title="src/routes/urls/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, ElementField, Fieldset, Label, Legend } from "@emmorts/formsnap";
+	import type { UrlsData } from "./schema.js";
+
+	let { data }: { data: { form: SuperValidated<UrlsData> } } = $props();
+
+	const form = superForm(
+		untrack(() => data.form),
+		{ resetForm: false }
+	);
+	const { form: formData } = form;
+
+	// Superforms replaces row objects when taint changes, so object identity is not a stable
+	// key. Initialize row ids once from the initial row count.
+	const initialRowCount = untrack(() => data.form.data.urls.length);
+	let rowIds = $state(Array.from({ length: initialRowCount }, (_, index) => index));
+	let nextRowId = initialRowCount;
+
+	function addRow() {
+		rowIds = [...rowIds, nextRowId++];
+		$formData.urls = [...$formData.urls, ""];
+	}
+
+	function reorderRows() {
+		rowIds = [...rowIds].reverse();
+		$formData.urls = [...$formData.urls].reverse();
+	}
+
+	function removeRow() {
+		rowIds = rowIds.slice(0, -1);
+		$formData.urls = $formData.urls.slice(0, -1);
+	}
+</script>
+
+<form method="POST">
+	<Fieldset {form} name="urls" fieldErrors>
+		<Legend>Website URLs</Legend>
+		{#snippet description()}Enter one URL per row.{/snippet}
+		{#each $formData.urls as _, index (rowIds[index])}
+			<ElementField {form} name={`urls[${index}]` as `urls[${number}]`} fieldErrors>
+				<Control>
+					{#snippet children({ props })}
+						<Label>URL {index + 1}</Label>
+						<input {...props} bind:value={$formData.urls[index]} />
+					{/snippet}
+				</Control>
+			</ElementField>
+		{/each}
+	</Fieldset>
+
+	<button type="button" onclick={addRow}>Add row</button>
+	<button type="button" onclick={reorderRows}>Reorder rows</button>
+	<button type="button" onclick={removeRow}>Remove row</button>
+	<button type="submit">Save URLs</button>
+</form>
+```
+
+## How it works
+
+- The form has no `use:enhance` and no `dataType: "json"`: the browser posts the repeated `urls[N]` names natively, and Superforms parses them back into the array. Row management buttons need JavaScript, but submission does not.
+- `rowIds[index]` keys the `{#each}` block, so add, reorder and remove move the correct DOM nodes instead of re-binding every input.
+- Both arrays are updated together in every mutation — `rowIds` and `$formData.urls` always stay the same length in the same order.
+- `fieldErrors` on each `ElementField` renders per-row messages (an invalid URL), while `fieldErrors` on the `Fieldset` surfaces the array-level `min(1)` error.
+
+<Callout type="warning">
+
+Do not key rows by their value or by the row object. Duplicate values collide as keys, and Superforms swaps row objects during taint updates — both make Svelte reuse the wrong DOM node, scrambling input bindings and focus.
+
+</Callout>
+
+<Callout type="note">
+
+This recipe is the JavaScript-free alternative to [nested data](/docs/recipes/nested-data). The moment rows become objects (`urls[N].label`), flat names can no longer express the shape and you need JSON submission.
+
+</Callout>

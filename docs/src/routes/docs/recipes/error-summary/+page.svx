@@ -1,0 +1,174 @@
+---
+title: Form-wide errors and linked summaries
+description: Surface root-level validation errors in a polite live-region summary whose links move focus to the offending control only on explicit activation.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Some errors belong to no single field — "the end date must be after the start date" is about the booking, not about either date input. Superforms collects every error in `$allErrors`, including root errors under `_errors`. Render them in one summary region with links to the controls that have a target, and readable text for those that do not.
+
+## Produce a root error in the schema
+
+A `superRefine` issue without a `path` lands in `$errors._errors`:
+
+```ts title="src/routes/bookings/schema.ts"
+import { z } from "zod/v3";
+
+export const bookingSchema = z
+	.object({
+		start: z.string().min(1, "Choose a start date."),
+		end: z.string().min(1, "Choose an end date."),
+		contactNeeded: z.boolean().default(false),
+		phone: z.string().default(""),
+	})
+	.superRefine((booking, context) => {
+		if (booking.contactNeeded && !booking.phone.trim()) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["phone"],
+				message: "Enter a contact phone number.",
+			});
+		}
+		const start = Date.parse(booking.start);
+		const end = Date.parse(booking.end);
+		if (!Number.isNaN(start) && !Number.isNaN(end) && end <= start) {
+			// No field path: Superforms puts this cross-field issue in errors._errors.
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "The end date must be after the start date.",
+			});
+		}
+	});
+
+export type BookingData = z.infer<typeof bookingSchema>;
+```
+
+The worked example validates real calendar dates before comparing year, month and day components; impossible dates become field errors on `start` or `end`.
+
+## Give each form its own ID and action
+
+```ts title="src/routes/bookings/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { bookingSchema } from "./schema.js";
+
+export const load = async () => ({
+	personal: await superValidate(zod(bookingSchema), { id: "booking-personal" }),
+	work: await superValidate(zod(bookingSchema), { id: "booking-work" }),
+});
+
+async function save(request: Request, id: string) {
+	const form = await superValidate(request, zod(bookingSchema), { id });
+	if (!form.valid) return fail(400, { form });
+	return message(form, "Booking saved.");
+}
+
+export const actions = {
+	personal: ({ request }) => save(request, "booking-personal"),
+	work: ({ request }) => save(request, "booking-work"),
+};
+```
+
+## Render the summary
+
+The form component maps known paths to readable labels, explicit `Control` IDs and bound input refs. Root and unmapped errors stay readable text — never link them to an arbitrary control. The summary region stays mounted, even while empty:
+
+```svelte title="src/routes/bookings/booking-form.svelte"
+<script lang="ts">
+	import { tick, untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { BookingData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<BookingData> } = $props();
+
+	const prefix = "booking-personal";
+	const form = superForm(untrack(() => validated), {
+		id: prefix,
+		resetForm: false,
+		// Clear through Superforms so an identical rejection restores fresh summary
+		// content inside the same live region.
+		clearOnSubmit: "errors",
+		// The summary is the sole announcement; links move focus only on request.
+		autoFocusOnError: false,
+		scrollToError: "off",
+	});
+	const { form: formData, errors, allErrors, enhance, message } = form;
+
+	let startInput = $state<HTMLInputElement>();
+
+	const labels: Record<string, string> = { start: "Start date" };
+	const targets = $derived({ start: { id: `${prefix}-start`, element: startInput } });
+
+	function targetFor(path: string) {
+		return path === "start" ? targets[path] : undefined;
+	}
+
+	async function focusTarget(event: MouseEvent, path: string) {
+		event.preventDefault();
+		await tick();
+		targetFor(path)?.element?.focus();
+	}
+</script>
+
+<form method="POST" action="?/personal" use:enhance novalidate>
+	<!-- Keep one polite, atomic live region mounted, including while empty. -->
+	<div aria-live="polite" aria-atomic="true">
+		{#if $allErrors.length}
+			<section aria-labelledby={`${prefix}-summary-title`}>
+				<h3 id={`${prefix}-summary-title`}>Check this booking</h3>
+				<ul>
+					{#each $allErrors as error (error.path)}
+						{@const target = targetFor(error.path)}
+						{#each error.messages as errorMessage, index (index)}
+							<li>
+								{#if target}
+									<a
+										href={`#${target.id}`}
+										onclick={(event) => focusTarget(event, error.path)}
+										>{labels[error.path]}: {errorMessage}</a
+									>
+								{:else}
+									{labels[error.path] ?? "Booking"}: {errorMessage}
+								{/if}
+							</li>
+						{/each}
+					{/each}
+				</ul>
+			</section>
+		{/if}
+	</div>
+
+	<!-- novalidate makes the server schema responsible for native POSTs too. -->
+	<Field {form} name="start" fieldErrors fieldErrorsLive="off">
+		<Control id={`${prefix}-start`}>
+			{#snippet children({ props })}
+				<Label>{labels.start}</Label>
+				<input {...props} type="date" bind:value={$formData.start} bind:this={startInput} />
+			{/snippet}
+		</Control>
+	</Field>
+
+	<button type="submit">Save booking</button>
+	<!-- Clearing uses Superforms' error store, without changing values or focus. -->
+	<button type="button" onclick={() => errors.set({}, { force: true })}>Clear errors</button>
+	{#if $message}<p>{$message}</p>{/if}
+</form>
+```
+
+## How it works
+
+- `fieldErrorsLive="off"` keeps each field's error association without repeating the announcement — the summary is the only live region.
+- Caller-owned IDs are supplied to `Control` and used directly in `href`s. Never derive target IDs from field paths or from Formsnap-generated IDs.
+- `clearOnSubmit: "errors"` clears the previous summary through Superforms while the request is pending; values and any other form's errors are unchanged.
+- `autoFocusOnError: false` and `scrollToError: "off"` stop Superforms from competing with your links for focus on rejection. This is a per-form policy, not a Formsnap default.
+- If a link's target can disappear (a conditional section, for example), re-read the mapping after `tick()` before focusing so a removed section cannot leave a stale reference — and keep the readable error text as the fallback.
+
+<Callout type="warning">
+
+A successful submission re-runs the route's `load`, and every form whose ID appears in the refreshed data rebinds to it, dropping that form's values and errors. With two booking forms on one page, submitting one can re-initialize the other — return the saved record from `load`, or set Superforms' `invalidateAll: false` on the form that must not refresh.
+
+</Callout>

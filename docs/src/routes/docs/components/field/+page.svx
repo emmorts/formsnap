@@ -1,0 +1,90 @@
+---
+title: Field
+description: Provides the form-state context for one schema path — values, errors, constraints and ARIA associations — without rendering any markup of its own.
+---
+
+`Field` is the root of every form control subtree. It takes a Superforms form object and a schema path, reads that path's value, errors, tainted state and constraints from the Superforms stores, and exposes all of it to descendant `Control`, `Label`, `Description` and `FieldErrors` components through context.
+
+It renders no element and accepts no `id`. Everything visual is composed inside it.
+
+## Minimal example
+
+```svelte title="src/routes/settings/settings-form.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm, type SuperValidated } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import type { SettingsData } from "./schema.js";
+
+	let { validated }: { validated: SuperValidated<SettingsData> } = $props();
+
+	const form = superForm(untrack(() => validated));
+	const { form: formData } = form;
+</script>
+
+<form method="POST">
+	<Field {form} name="email" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Email</Label>
+				<input type="email" {...props} bind:value={$formData.email} />
+			{/snippet}
+		</Control>
+		{#snippet description()}We'll email you about your account.{/snippet}
+	</Field>
+	<button type="submit">Save</button>
+</form>
+```
+
+## Reading field state
+
+The `children` snippet receives the field's current state. Use it when you need the value, errors or constraints without reaching into the Superforms stores yourself.
+
+```svelte title="src/routes/settings/char-count.svelte"
+<Field {form} name="bio">
+	{#snippet children({ value, errors, tainted, constraints })}
+		<Control>
+			{#snippet children({ props })}
+				<Label>Bio</Label>
+				<textarea {...props} maxlength={constraints.maxlength} bind:value={$formData.bio}></textarea>
+			{/snippet}
+		</Control>
+		{#if tainted && errors.length === 0}
+			<p>{constraints.maxlength - value.length} characters left</p>
+		{/if}
+	{/snippet}
+</Field>
+```
+
+`errors` and `constraints` are field-local copies of the Superforms stores, including nested constraint objects. Mutating the copies does not update Superforms; change metadata through the Superforms stores. `tainted` is true when the field or any descendant is marked true in the Superforms taint tree.
+
+## Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `form` | `FsSuperForm<T, M>` | — (required) | The form object returned from `superForm`. Fixed for the mounted field's lifetime. |
+| `name` | `FormPath<T>` | — (required) | The path to the field in the schema, e.g. `"email"` or `"profile.name"`. |
+| `children` | `Snippet<[{ value, errors, tainted, constraints }]>` | — | Field content; receives the field state shown above. |
+| `description` | `Snippet` | — | Owned description content. When present, a container is rendered after the children and associated with the control via `aria-describedby`. |
+| `fieldErrors` | `boolean \| Snippet<[{ errors, errorProps }]>` | — | `true` renders the default error content; a snippet renders custom error content. Omitted or `false` renders no error container. |
+| `descriptionId` | `string` | generated | Override for the owned description ID. Ignored when `description` is absent — an ID alone does not render or associate a container. |
+| `fieldErrorsId` | `string` | generated | Override for the owned error region ID. Ignored when `fieldErrors` is absent or `false`. |
+| `fieldErrorsLive` | `"assertive" \| "polite" \| "off"` | `"assertive"` | Announcement policy (`aria-live`) for the owned error region. |
+
+## Behavior notes
+
+- **No root element.** `Field` is a pure context provider; styling a wrapper means rendering your own element inside it.
+- **Owned content renders after children.** The description and error containers always follow the control in DOM order, and `Field` knows their IDs before rendering any children — so the associations are present in server-rendered HTML, including with JavaScript disabled.
+- **SSR-stable generated IDs.** `descriptionId` and `fieldErrorsId` default to IDs generated with Svelte's `$props.id()`, which are stable between server rendering and hydration. Generated IDs belong to the component instance, not the field path, so repeated fields and multiple forms never collide.
+- **Error region mounting.** An enabled error container stays mounted while empty; its ID enters the control's `aria-describedby` only while the field has errors.
+- **Form owner lifetime.** The `form` instance is captured once at mount. Updates, validation and resets within that instance stay reactive; to replace the instance entirely, key the whole field subtree by the new form so the context remounts.
+
+## When to use the hooks instead
+
+Reach for `useFormField` when you build a custom control component that needs the field's `name`, `errors`, `constraints`, `tainted`, `errorsId` or `descriptionId` without rendering `Field` children inline. It requires an enclosing `Field`, `Fieldset` or `ElementField`. See [Custom controls](/docs/recipes/custom-controls).
+
+## See also
+
+- [Control](/docs/components/control) — hands the input its attributes inside a field.
+- [Fieldset](/docs/components/fieldset) — the grouping variant of `Field` that renders a `<fieldset>`.
+- [ElementField](/docs/components/element-field) — a field for one element of an array.

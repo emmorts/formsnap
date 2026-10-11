@@ -1,0 +1,115 @@
+---
+title: Progressive enhancement
+description: Attach Superforms' enhance action and drive pending states, success messages and failure handling from its stores.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Enhancement is Superforms', not Formsnap's. The `Field` and `Control` markup does not change: attach `use:enhance` to the form and read the outcome from Superforms' stores.
+
+## Attach enhance
+
+```svelte title="src/routes/recipes/feedback/+page.svelte"
+<script lang="ts">
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
+	import { Control, Field, Label } from "@emmorts/formsnap";
+
+	let { data } = $props();
+
+	const form = superForm(untrack(() => data.form), { resetForm: false });
+	const { form: formData, enhance, message, submitting } = form;
+</script>
+
+<form method="POST" use:enhance>
+	<Field {form} name="answer" fieldErrors>
+		<Control>
+			{#snippet children({ props })}
+				<Label>Answer</Label>
+				<textarea {...props} bind:value={$formData.answer}></textarea>
+			{/snippet}
+		</Control>
+	</Field>
+
+	<button type="submit" disabled={$submitting}>
+		{#if $submitting}Sending…{:else}Send answer{/if}
+	</button>
+</form>
+
+{#if $message}
+	<output>{$message}</output>
+{/if}
+```
+
+The action picks the outcome: `fail(400, { form })` returns the posted values with the errors, and `message(form, "Answer received.")` reports success. Both are read from SvelteKit's page state, so no submission API is added on top of Superforms.
+
+```ts title="src/routes/recipes/feedback/+page.server.ts"
+import { fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { answerSchema } from "./schema.js";
+
+export const actions = {
+	default: async ({ request }) => {
+		const form = await superValidate(request, zod(answerSchema));
+		if (!form.valid) return fail(400, { form });
+		return message(form, "Answer received.");
+	},
+};
+```
+
+## Failure versus status
+
+When one action serves both the enhanced and the native path, the two differ in transport:
+
+| Path                  | Result                                                    |
+| --------------------- | --------------------------------------------------------- |
+| enhanced submission   | HTTP 200 with a failure `ActionResult` in the JSON body    |
+| native POST (no JS)   | HTTP 400                                                   |
+
+Assert the result's `type` and `status`; use SvelteKit's `deserialize` on the response body when you need the action's returned values.
+
+<Callout type="warning">
+
+Return **Superforms'** `fail`, not SvelteKit's, when the form can carry `File` values. Superforms' `fail` strips files from the result, which SvelteKit's serialization cannot encode — SvelteKit's own `fail` throws on them. See [File uploads](/docs/recipes/file-uploads).
+
+</Callout>
+
+## Pending and success feedback
+
+`$submitting`, `$delayed`, `$timeout` and `$message` come from the same `superForm` instance. `$submitting` flips for the whole request; `$delayed` waits for Superforms' `delayMs` before turning true, which keeps fast requests from flashing a spinner.
+
+```svelte
+const { form: formData, enhance, submitting, delayed, timeout, message } = form;
+```
+
+```svelte
+<button type="submit" disabled={$submitting}>
+	{#if $delayed}Sending…{:else}Send answer{/if}
+</button>
+{#if $timeout}<p>Still working — the request is taking longer than expected.</p>{/if}
+{#if $message}<output>{$message}</output>{/if}
+```
+
+## Form owner lifetime
+
+The `form` instance passed to `Field`, `Fieldset` and `ElementField` is fixed for the mounted scope's lifetime. Updates, validation and resets on that instance stay reactive; replacing the instance requires remounting the whole scope, including nested fields and headless hooks.
+
+```svelte
+{#key currentForm}
+	<Field form={currentForm} name="email">
+		{#snippet children({ value })}
+			<output>{value}</output>
+		{/snippet}
+	</Field>
+{/key}
+```
+
+Key the parent `Field` or `Fieldset`, not just an `ElementField` inside it. Initialize the Superforms instances once — never call `superForm` reactively to replace them.
+
+## Next
+
+- [Pending and success feedback](/docs/recipes/feedback) — the complete recipe
+- [Multiple forms](/docs/recipes/multiple-forms) — several instances on one page
