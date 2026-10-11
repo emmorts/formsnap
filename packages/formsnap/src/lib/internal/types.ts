@@ -2,9 +2,18 @@ import type { ReadableBox, WritableBox } from "svelte-toolbelt";
 import type { FormPathType } from "sveltekit-superforms";
 
 /**
- * Superforms resolves leaf types, but removes nullability while traversing ancestors.
- * A missing optional ancestor makes Formsnap's runtime lookup return `undefined`.
+ * Superforms resolves leaf types, but strips nullable ancestors and treats every
+ * array index as present. Formsnap's lookup has no fallback for a missing item.
+ * Literal keys win over traversal; known tuple positions retain their own type.
  */
+type ArrayItem<T extends readonly unknown[], Index extends string> = Index extends keyof T
+	? T[Index]
+	: number extends T["length"]
+		? T[number] | undefined
+		: `${number}` extends Index
+			? T[number] | undefined
+			: undefined;
+
 type MissingAncestor<T, P extends string> = P extends keyof T
 	? never
 	: undefined extends T
@@ -13,9 +22,9 @@ type MissingAncestor<T, P extends string> = P extends keyof T
 			? undefined
 			: P extends `.${infer Rest}`
 				? MissingAncestor<T, Rest>
-				: P extends `${number}]${infer Rest}`
-					? T extends (infer Element)[]
-						? MissingAncestor<Element, Rest>
+				: P extends `${infer Index extends number}]${infer Rest}`
+					? T extends readonly unknown[]
+						? MissingAncestor<ArrayItem<T, `${Index}`>, Rest>
 						: never
 					: P extends `${infer Key}[${infer Rest}`
 						? Key extends keyof T
@@ -27,7 +36,25 @@ type MissingAncestor<T, P extends string> = P extends keyof T
 								: never
 							: never;
 
-export type FormPathValue<T, P extends string> = FormPathType<T, P> | MissingAncestor<T, P>;
+type PathValue<T, P extends string> = P extends keyof T
+	? T[P]
+	: P extends `.${infer Rest}`
+		? PathValue<NonNullable<T>, Rest>
+		: P extends `${infer Index extends number}]${infer Rest}`
+			? NonNullable<T> extends readonly unknown[]
+				? FormPathValue<ArrayItem<NonNullable<T>, `${Index}`>, Rest>
+				: FormPathType<T, P>
+			: P extends `${infer Key}[${infer Rest}`
+				? Key extends keyof NonNullable<T>
+					? FormPathValue<NonNullable<T>[Key], Rest>
+					: FormPathValue<T, Rest>
+				: P extends `${infer Key}.${infer Rest}`
+					? Key extends keyof NonNullable<T>
+						? FormPathValue<NonNullable<T>[Key], Rest>
+						: FormPathType<T, P>
+					: FormPathType<T, P>;
+
+export type FormPathValue<T, P extends string> = PathValue<T, P> | MissingAncestor<T, P>;
 
 export type Box<T> = ReadableBox<T> | WritableBox<T>;
 

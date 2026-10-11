@@ -77,6 +77,58 @@ describe("values delivered at a path", () => {
 		expect(received("profile.name").tainted).toBe("true");
 	});
 
+	it("delivers undefined after array deletion and recovers without remounting consumers", async () => {
+		await mountPaths(sample);
+		const paths = [
+			"urls[0]",
+			"items[0].id",
+			"matrix[0][1]",
+			"element.urls[0]",
+			"element.items[0].id",
+			"element.matrix[0][1]",
+		];
+		const outputs = paths.map((path) => document.querySelector(`output[data-path="${path}"]`));
+		const remove = document.querySelector<HTMLButtonElement>(
+			'[data-action="remove-array-items"]'
+		);
+		const restore = document.querySelector<HTMLButtonElement>(
+			'[data-action="restore-array-items"]'
+		);
+		const removeCell = document.querySelector<HTMLButtonElement>(
+			'[data-action="remove-matrix-cell"]'
+		);
+		expect(remove).not.toBeNull();
+		expect(restore).not.toBeNull();
+		expect(removeCell).not.toBeNull();
+
+		remove!.click();
+		flushSync();
+		for (const [index, path] of paths.entries()) {
+			expect(received(path).value).toBe("<missing>");
+			expect(document.querySelector(`output[data-path="${path}"]`)).toBe(outputs[index]);
+		}
+
+		restore!.click();
+		flushSync();
+		for (const prefix of ["", "element."]) {
+			expect(received(`${prefix}urls[0]`).value).toBe('"https://recovered.example.com"');
+			expect(received(`${prefix}items[0].id`).value).toBe("11");
+			expect(received(`${prefix}matrix[0][1]`).value).toBe('"y"');
+		}
+		for (const [index, path] of paths.entries()) {
+			expect(document.querySelector(`output[data-path="${path}"]`)).toBe(outputs[index]);
+		}
+
+		removeCell!.click();
+		flushSync();
+		expect(received("matrix[0][1]").value).toBe("<missing>");
+		expect(received("element.matrix[0][1]").value).toBe("<missing>");
+		restore!.click();
+		flushSync();
+		expect(received("matrix[0][1]").value).toBe('"y"');
+		expect(received("element.matrix[0][1]").value).toBe('"y"');
+	});
+
 	it("delivers the constraints Superforms reports for the path", async () => {
 		await mountPaths(sample);
 

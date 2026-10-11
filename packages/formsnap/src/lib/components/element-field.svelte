@@ -2,9 +2,14 @@
 	import type { FormPathLeaves as _FormPathLeaves } from "sveltekit-superforms";
 	type T = unknown;
 	type U = unknown;
+	type M = unknown;
 </script>
 
-<script lang="ts" generics="T extends Record<string, unknown>, U extends _FormPathLeaves<T>">
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
+<script
+	lang="ts"
+	generics="T extends Record<string, unknown>, U extends _FormPathLeaves<T>, M = any"
+>
 	import { box } from "svelte-toolbelt";
 	import type { ElementFieldProps } from "./types.js";
 	import { useElementField } from "$lib/formsnap.svelte.js";
@@ -22,7 +27,7 @@
 		descriptionId = useId(instanceId, "description"),
 		fieldErrorsId = useId(instanceId, "errors"),
 		fieldErrorsLive,
-	}: ElementFieldProps<T, U> = $props();
+	}: ElementFieldProps<T, U, M> = $props();
 
 	const elementFieldState = useElementField({
 		form: box.with(() => form),

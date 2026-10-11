@@ -11,18 +11,21 @@ type PrimitiveDivAttributes = Primitive<HTMLAttributes<HTMLDivElement>>;
 type PrimitiveLabelAttributes = Primitive<HTMLLabelAttributes>;
 type PrimitiveLegendAttributes = Primitive<HTMLAttributes<HTMLLegendElement>>;
 
+/** Presentation wrappers may omit SDK methods, but supplied members keep SDK types. */
+type OptionalSuperFormMembers =
+	| "validate"
+	| "validateForm"
+	| "enhance"
+	| "isTainted"
+	| "reset"
+	| "options"
+	| "restore";
+
 export type FsSuperForm<T extends Record<string, unknown>, M = any> = Omit<
 	SuperForm<T, M>,
-	"validate" | "validateForm" | "enhance" | "isTainted" | "reset" | "options" | "restore"
-> & {
-	validate?: any;
-	validateForm?: any;
-	enhance?: any;
-	isTainted?: any;
-	reset?: any;
-	options?: any;
-	restore?: any;
-};
+	OptionalSuperFormMembers
+> &
+	Partial<Pick<SuperForm<T, M>, OptionalSuperFormMembers>>;
 
 /** Content rendered inside containers owned by a field scope. */
 export type OwnedFieldContentProps = {

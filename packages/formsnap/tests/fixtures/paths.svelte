@@ -18,6 +18,25 @@
 	const shown = (value: unknown) => (value === undefined ? "<missing>" : JSON.stringify(value));
 
 	let which = $state<"profile.name" | "items[0].id">("profile.name");
+
+	function removeArrayItems() {
+		formData.update((data) => {
+			// Same-root emissions must still update the mounted path consumers.
+			data.urls.splice(0);
+			data.items.splice(0);
+			data.matrix.splice(0);
+			return data;
+		});
+	}
+
+	function restoreArrayItems() {
+		formData.update((data) => ({
+			...data,
+			urls: ["https://recovered.example.com"],
+			items: [{ id: 11 }],
+			matrix: [["x", "y"]],
+		}));
+	}
 </script>
 
 <Field {form} name="profile.name">
@@ -175,4 +194,21 @@
 	onclick={() => (which = which === "profile.name" ? "items[0].id" : "profile.name")}
 >
 	switch path
+</button>
+<button type="button" data-action="remove-array-items" onclick={removeArrayItems}>
+	Remove array items
+</button>
+<button type="button" data-action="restore-array-items" onclick={restoreArrayItems}>
+	Restore array items
+</button>
+<button
+	type="button"
+	data-action="remove-matrix-cell"
+	onclick={() =>
+		formData.update((data) => {
+			data.matrix[0]?.splice(1);
+			return data;
+		})}
+>
+	Remove matrix cell
 </button>

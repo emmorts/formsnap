@@ -2,9 +2,11 @@
 	import type { FormPath as _FormPath } from "sveltekit-superforms";
 	type T = unknown;
 	type U = unknown;
+	type M = unknown;
 </script>
 
-<script lang="ts" generics="T extends Record<string, unknown>, U extends _FormPath<T>">
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
+<script lang="ts" generics="T extends Record<string, unknown>, U extends _FormPath<T>, M = any">
 	import { box, mergeProps, useRefById } from "svelte-toolbelt";
 	import type { FieldsetProps } from "./types.js";
 	import { useField } from "$lib/formsnap.svelte.js";
@@ -27,7 +29,7 @@
 		fieldErrorsId = useId(instanceId, "errors"),
 		fieldErrorsLive,
 		...restProps
-	}: FieldsetProps<T, U> = $props();
+	}: FieldsetProps<T, U, M> = $props();
 
 	const fieldState = useField({
 		form: box.with(() => form),

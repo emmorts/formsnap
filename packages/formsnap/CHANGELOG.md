@@ -6,6 +6,15 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Changed
+
+- Include `undefined` in snippet values selected through variable-length arrays, including
+  object descendants and nested arrays. Required tuple positions and exact literal keys retain
+  their precise types. Consumers must handle absent items before accessing their values.
+- Preserve structured Superforms message types through `useFormField<T, U, M>` and its exported
+  `UseFormFieldResult<T, U, M>` contract. Optional SDK methods on lightweight form wrappers now
+  retain their upstream signatures rather than accepting arbitrary values.
+
 ### Docs and tests
 
 - Let the mobile navigation panel scroll independently of the page, so every link is reachable
@@ -15,6 +24,20 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
   the surrounding form separates one field from the next.
 - Hide an empty `## Unreleased` section on the changelog page and its "on this page" rail,
   using the same emptiness rule as the release tooling.
+- Add a static, section-level documentation search with keyboard navigation and shareable queries,
+  a dedicated headless-hook reference, and a migration/troubleshooting guide.
+- Add runnable client-only array, linked-error-summary and Bits UI select examples. Each explicitly
+  distinguishes local validation from server submission and persistence.
+- Add a conditional Contact → Details → Review recipe with step validation, retained drafts,
+  accessible error links, hidden-step transport, final server validation and a native POST fallback.
+- Replace the mobile navigation overlay with a native modal menu supporting Escape, contained
+  keyboard focus and trigger focus restoration; retain navigation without JavaScript.
+- Report client validation rather than nonexistent signup/email delivery in the landing demo.
+
+### Contributor tooling
+
+- Align the checkout on Node.js 24 and pnpm 9.14.4. Remove conflicting package-local pnpm
+  declarations without changing the published library's Node.js requirement.
 
 ## 2.2.5 (2026-10-11)
 

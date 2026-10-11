@@ -5,12 +5,7 @@ import {
 	useRefById,
 } from "svelte-toolbelt";
 import { fromStore } from "svelte/store";
-import type {
-	FormPath,
-	FormPathLeaves,
-	FormPathType,
-	InputConstraints,
-} from "sveltekit-superforms";
+import type { FormPath, FormPathLeaves, InputConstraints } from "sveltekit-superforms";
 import type { FormPathArrays, TaintedFields, ValidationErrors } from "sveltekit-superforms/client";
 import { createAttachmentKey, type Attachment } from "svelte/attachments";
 import { onDestroy, setContext, untrack } from "svelte";
@@ -28,6 +23,7 @@ import {
 } from "./internal/utils/attributes.js";
 import type { ControlAttrs, FieldErrorsLive, LabelAttrs } from "./attrs.types.js";
 import type { FsSuperForm } from "./components/types.js";
+import type { FormPathValue } from "./internal/types.js";
 
 /**
  * superforms 3 declares `FormPath<T>` and `FormPathLeaves<T>` as separate conditional string
@@ -41,9 +37,12 @@ type SvelteBox<T> = {
 	current: T;
 };
 
-type FieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> =
-	| FormFieldState<T, U>
-	| ElementFieldState<T, U>;
+type FieldState<
+	T extends Record<string, unknown>,
+	U extends AnyFormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+> = FormFieldState<T, U, M> | ElementFieldState<T, U, M>;
 
 type FormFieldStateProps<
 	T extends Record<string, unknown>,
@@ -167,13 +166,18 @@ function isSubtreeTainted(value: unknown): boolean {
 	return false;
 }
 
-class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
-	#name: FormFieldStateProps<T, U>["name"];
+class FormFieldState<
+	T extends Record<string, unknown>,
+	U extends AnyFormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+> {
+	#name: FormFieldStateProps<T, U, M>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
 	#formConstraints: SvelteBox<InputConstraints<T>>;
 	#formTainted: SvelteBox<TaintedFields<T> | undefined>;
 	#formData: SvelteBox<T>;
-	form: FsSuperForm<T>;
+	form: FsSuperForm<T, M>;
 
 	name = $derived.by(() => this.#name.current);
 	// Superforms constraints describe the array item schema, without bracketed indices.
@@ -216,7 +220,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 		return this.errorIds[0];
 	}
 
-	constructor(props: FormFieldStateProps<T, U>) {
+	constructor(props: FormFieldStateProps<T, U, M>) {
 		this.associations = new AssociationIds(props);
 		this.#name = props.name;
 		this.form = props.form.current;
@@ -229,7 +233,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	snippetProps = $derived.by(
 		() =>
 			({
-				value: getValueAtPath(this.#name.current, this.#formData.current) as FormPathType<
+				value: getValueAtPath(this.#name.current, this.#formData.current) as FormPathValue<
 					T,
 					U
 				>,
@@ -252,14 +256,19 @@ type ElementFieldStateProps<
 	fieldErrorsId?: string;
 }>;
 
-class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
-	#name: ElementFieldStateProps<T, U>["name"];
+class ElementFieldState<
+	T extends Record<string, unknown>,
+	U extends AnyFormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+> {
+	#name: ElementFieldStateProps<T, U, M>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
 	#formConstraints: SvelteBox<InputConstraints<T>>;
 	#formTainted: SvelteBox<TaintedFields<T> | undefined>;
 	#formData: SvelteBox<T>;
-	#field: FieldState<T, U>;
-	form: FsSuperForm<T>;
+	#field: FieldState<T, U, M>;
+	form: FsSuperForm<T, M>;
 	name = $derived.by(() => {
 		const [path] = splitArrayPath<T>(this.#name.current);
 		return path as U;
@@ -284,7 +293,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	/** Owned declarations and additional mounted contributors for this element. */
 	associations: AssociationIds;
 	value = $derived.by(() => {
-		return getValueAtPath(this.#name.current, this.#formData.current) as FormPathType<T, U>;
+		return getValueAtPath(this.#name.current, this.#formData.current) as FormPathValue<T, U>;
 	});
 
 	/**
@@ -311,7 +320,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 		return this.errorIds[0];
 	}
 
-	constructor(props: ElementFieldStateProps<T, U>, field: FieldState<T, U>) {
+	constructor(props: ElementFieldStateProps<T, U, M>, field: FieldState<T, U, M>) {
 		this.associations = new AssociationIds(props);
 		this.#name = props.name;
 		this.form = props.form.current;
@@ -563,24 +572,35 @@ class LegendState {
 const FORM_FIELD_CTX = Symbol.for("formsnap.form-field");
 const FORM_CONTROL_CTX = Symbol.for("formsnap.form-control");
 
-export function useField<T extends Record<string, unknown>, U extends AnyFormPath<T>>(
-	props: FormFieldStateProps<T, U>
-) {
+export function useField<
+	T extends Record<string, unknown>,
+	U extends AnyFormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+>(props: FormFieldStateProps<T, U, M>) {
 	return setContext(FORM_FIELD_CTX, new FormFieldState(props));
 }
 
-export function useElementField<T extends Record<string, unknown>, U extends AnyFormPath<T>>(
-	props: ElementFieldStateProps<T, U>
-) {
-	const formField = getField<T, U>();
+export function useElementField<
+	T extends Record<string, unknown>,
+	U extends AnyFormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+>(props: ElementFieldStateProps<T, U, M>) {
+	const formField = getField<T, U, M>();
 	return setContext(FORM_FIELD_CTX, new ElementFieldState(props, formField));
 }
 
 export function getField<
 	T extends Record<string, unknown> = Record<string, unknown>,
 	U extends AnyFormPath<T> = FormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
 >() {
-	return getRequiredContext<FieldState<T, U>>(FORM_FIELD_CTX, "Field, Fieldset or ElementField");
+	return getRequiredContext<FieldState<T, U, M>>(
+		FORM_FIELD_CTX,
+		"Field, Fieldset or ElementField"
+	);
 }
 
 export function useFieldErrors<
@@ -624,11 +644,29 @@ export type UseFormFieldProps = {
 	descriptionId?: Getter<string | undefined | null>;
 };
 
+/** Headless field state. The form and its message remain owned by Superforms. */
+export type UseFormFieldResult<
+	T extends Record<string, unknown> = Record<string, unknown>,
+	U extends AnyFormPath<T> = FormPath<T>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+> = {
+	form: FsSuperForm<T, M>;
+	readonly name: U;
+	readonly errors: string[];
+	readonly constraints: Record<string, unknown>;
+	readonly tainted: boolean;
+	readonly errorsId: string | undefined;
+	readonly descriptionId: string | undefined;
+};
+
 export function useFormField<
 	T extends Record<string, unknown> = Record<string, unknown>,
 	U extends AnyFormPath<T> = FormPath<T>,
->(props: UseFormFieldProps) {
-	const fieldState = getField<T, U>();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	M = any,
+>(props: UseFormFieldProps): UseFormFieldResult<T, U, M> {
+	const fieldState = getField<T, U, M>();
 	const form = fieldState.form;
 	$effect(() => {
 		const id = props.errorsId?.();
