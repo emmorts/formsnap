@@ -88,7 +88,7 @@ CI uses Node.js 24 and pnpm 9.14.4. From the repository root:
 pnpm install --frozen-lockfile
 pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
 pnpm lint
-node --test scripts/release.test.mjs
+node --test scripts/release.test.mjs scripts/publish-release.test.mjs
 pnpm --filter @emmorts/formsnap run check
 pnpm --filter @formsnap/docs run check
 pnpm test:package
@@ -104,6 +104,22 @@ pnpm docs:build
    an annotated tag.
 3. GitHub Actions verifies and publishes `@emmorts/formsnap` through npm trusted publishing with
    provenance, then creates the GitHub release from the generated changelog section.
+
+If npm publication succeeds but GitHub release creation fails, rerun the failed Release workflow
+for the same tag. It packs the built package once, compares an existing npm tarball's actual
+SHA-512 hash to that output, and skips publication only when the artifacts match. A matching
+public GitHub release is left unchanged; a missing one is created from the changelog notes.
+
+Lookup/authentication failures are not treated as absence. Different npm bytes or incompatible
+GitHub release metadata stop recovery before mutation; investigate rather than overwrite them.
+The workflow publishes the exact packed file with provenance and removes its temporary pack.
+Local recovery tests use loopback registry/GitHub fixtures and never publish remotely.
+
+This checkout's `gh` defaults can resolve to upstream. Always pass the fork explicitly, for example:
+
+```bash
+gh run list --repo emmorts/formsnap --workflow release.yml
+```
 
 ## License and credits
 

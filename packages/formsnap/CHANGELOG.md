@@ -6,6 +6,21 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Docs and tests
+
+- Improve primitive-array editing after validation: preserve row error/taint identity during
+  mutations, remove stale targets, recover keyboard focus and report changes in one polite region.
+  Keep native submissions and validate enhanced corrections through Superforms.
+- Add native radio/multiple-select and Bits UI composite-select recipes, covering server
+  associations, keyboard behavior, disabled transport, reset and native/enhanced submissions.
+  The widget dependency is dev-only and preserves the supported Svelte minimum.
+
+### Release tooling
+
+- Recover partial publication by verifying existing npm tarball bytes before skipping publication
+  and completing the missing GitHub release. Matching completed reruns are read-only; artifact,
+  release-metadata and lookup failures stop without overwriting published content.
+
 ## 2.2.4 (2026-10-11)
 
 ### Docs and tests

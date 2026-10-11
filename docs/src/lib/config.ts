@@ -53,6 +53,7 @@ export const navigation: NavSection[] = [
 			{ title: "Constraints & custom validity", href: resolve("/docs/recipes/constraints") },
 			{ title: "Custom controls", href: resolve("/docs/recipes/custom-controls") },
 			{ title: "Groups", href: resolve("/docs/recipes/groups") },
+			{ title: "Native & composite widgets", href: resolve("/docs/recipes/widgets") },
 			{ title: "Multiple forms", href: resolve("/docs/recipes/multiple-forms") },
 			{ title: "Pending & success feedback", href: resolve("/docs/recipes/feedback") },
 			{ title: "Form-wide error summaries", href: resolve("/docs/recipes/error-summary") },

@@ -48,6 +48,7 @@
 		"@sveltejs/package": "^2.3.7",
 		"@sveltejs/vite-plugin-svelte": "4.0.0",
 		"@vitest/browser": "^2.1.9",
+		"bits-ui": "1.8.0",
 		"linkedom": "^0.18.0",
 		"playwright": "^1.64.0",
 		"publint": "^0.2.11",

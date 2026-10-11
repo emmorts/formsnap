@@ -91,4 +91,4 @@ runGit("tag", "-a", `v${version}`, "-m", `v${version}`);
 runGit("push", "--atomic", "origin", "main", `refs/tags/v${version}`);
 
 console.log(`\nv${version} pushed. CI publishes it to npm and creates the GitHub release.`);
-console.log("Follow it with: gh run list --workflow=release.yml --limit 3");
+console.log("Follow it with: gh run list --repo emmorts/formsnap --workflow=release.yml --limit 3");

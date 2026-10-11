@@ -9,6 +9,8 @@
 # file, so there is no npm token in this repository; provenance is generated automatically.
 # The GitHub release notes are the `## <version>` section of the changelog, so users read the
 # same text here and on npm.
+# Reruns pack once, verify an existing exact npm artifact, and complete a missing GitHub release.
+# Mismatched artifacts and lookup failures abort without overwriting published content.
 name: Release
 
 on:
@@ -57,7 +59,7 @@ jobs:
                   node scripts/release-notes.mjs "$version" packages/formsnap/CHANGELOG.md > release-notes.md
 
             - name: Test release tooling
-              run: node --test scripts/release.test.mjs
+              run: node --test scripts/release.test.mjs scripts/publish-release.test.mjs
 
             - name: Type-check
               run: pnpm --filter @emmorts/formsnap run check
@@ -68,15 +70,9 @@ jobs:
             - name: Build the package
               run: pnpm --filter @emmorts/formsnap run package
 
-            - name: Publish
-              run: npm publish --access public
-              working-directory: packages/formsnap
-
-            # Notes come from the changelog section that ships inside the tarball, so the GitHub
-            # release and the package tell users the same story.
-            - name: Create the GitHub release
+            # Notes come from the changelog section that ships inside the tarball. npm publish
+            # receives the exact packed file; matching reruns skip it and finish GitHub only.
+            - name: Publish or recover the release
               env:
                   GH_TOKEN: ${{ github.token }}
-              run: |
-                  version="$(node -p "require('./packages/formsnap/package.json').version")"
-                  gh release create "v$version" --repo "${{ github.repository }}" --title "v$version" --notes-file release-notes.md --verify-tag
+              run: node scripts/publish-release.mjs

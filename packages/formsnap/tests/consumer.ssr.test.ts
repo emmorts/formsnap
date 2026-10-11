@@ -163,6 +163,9 @@ describe("real SvelteKit consumers", () => {
 		await page.goto(new URL("arrays", fixtureUrl()).href);
 		const inputs = page.locator('input[name="urls"]');
 		expect(await inputs.count()).toBe(2);
+		expect(await page.getByRole("button", { name: "Add row", exact: true }).isDisabled()).toBe(
+			true
+		);
 		await inputs.nth(0).fill("https://first.example");
 		await inputs.nth(1).fill("invalid");
 		const [rejected] = await Promise.all([
@@ -223,10 +226,16 @@ describe("real SvelteKit consumers", () => {
 		expect(await page.locator("fieldset input").count()).toBe(2);
 		await assertAssociations(page);
 		const [accepted] = await Promise.all([
-			page.waitForNavigation(),
+			page.waitForResponse(
+				(response) =>
+					response.request().method() === "POST" &&
+					new URL(response.url()).pathname === new URL(page.url()).pathname
+			),
 			page.getByRole("button", { name: "Save URLs" }).click(),
 		]);
 		expect(accepted?.status()).toBe(200);
+		expect(accepted.request().isNavigationRequest()).toBe(false);
+		await page.getByTestId("arrays-success").waitFor();
 		expect(JSON.parse(await page.getByTestId("submission-data").innerText())).toEqual({
 			urls: ["https://added.example", "https://b.example"],
 		});

@@ -1,0 +1,161 @@
+---
+title: Native and composite widgets
+description: Radio groups, multiple select and a Bits UI select with separate naming, focus and submission transport.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+The [complete widget recipe](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/widgets) renders two independent forms: native radios and multiple select, and a Bits UI select. Each has its own Superforms ID and named action.
+
+## Ownership
+
+- Superforms owns values, validation, submission and reset.
+- Formsnap supplies control identity, labels, descriptions and errors.
+- The browser or widget library owns keyboard behavior and interaction state.
+- The application connects the selected value to its form store and chooses which element transports it.
+
+## Native radio group
+
+Give each radio its own `Control` and `Label`. A `Fieldset` and `Legend` name the group; the radios share the field name, not their IDs. The browser owns exclusive selection and arrow-key navigation.
+
+```svelte
+<Fieldset {form} name="delivery" {disabled} fieldErrors>
+	<Legend>Delivery speed</Legend>
+	{#each deliveryOptions as option (option.value)}
+		<Control id={`delivery-${option.value}`}>
+			{#snippet children({ props })}
+				<input
+					{...props}
+					type="radio"
+					value={option.value}
+					required
+					bind:group={$formData.delivery}
+				/>
+				<Label>{option.label}</Label>
+			{/snippet}
+		</Control>
+	{/each}
+	{#snippet description()}Choose standard or express delivery.{/snippet}
+</Fieldset>
+```
+
+A disabled native fieldset disables its radios and excludes them from submission. The schema still validates the received values; disabling a control is not authorization or a reset.
+
+## Native multiple select
+
+One native select is one control, even though it has several options. `multiple` submits repeated values under the same name; bind its value to the array store.
+
+```svelte
+<Field {form} name="channels" fieldErrors>
+	<Control id="notification-channels">
+		{#snippet children({ props })}
+			<Label>Notification channels</Label>
+			<select
+				{...props}
+				multiple
+				required
+				{disabled}
+				size={3}
+				bind:value={$formData.channels}
+			>
+				{#each channelOptions as option (option.value)}
+					<!-- Preserve selection in server HTML, not only after hydration. -->
+					<option
+						value={option.value}
+						selected={$formData.channels.includes(option.value)}
+					>
+						{option.label}
+					</option>
+				{/each}
+			</select>
+		{/snippet}
+	</Control>
+	{#snippet description()}Choose one or two notification channels.{/snippet}
+</Field>
+```
+
+The [schema](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/widgets/schema.ts) checks membership and requires one or two channels. HTML `required` can enforce a nonempty selection, but not that upper limit. The recipe uses `novalidate` to demonstrate server errors; validation remains enforced by the action.
+
+Both native controls work without JavaScript. Enhancement keeps the current page and selections. `resetForm: false` and `invalidateAll: false` prevent successful enhanced submissions from reinitializing either form; explicit Reset buttons restore initial values.
+
+## Bits UI select
+
+The recipe uses **Bits UI 1.8.0**, whose Svelte peer range includes Formsnap's minimum Svelte 5.30.2. Bits UI 2 requires Svelte 5.33.0 or newer. Bits UI is a development dependency of the fixture, not a runtime dependency of Formsnap. Install the widget in your own application when adopting this example:
+
+```bash
+pnpm add bits-ui@1.8.0
+```
+
+Read the API documentation for the version you use. The [current Select documentation](https://bits-ui.com/docs/components/select) describes newer releases; this recipe's [complete control source](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/widgets/collection-select.svelte) pins the integration behavior.
+
+### Map attributes to the focusable target
+
+The trigger receives the control ID, naming, descriptions and validation state. Bits UI retains its own popup, expanded state, active descendant and event handlers. Do not spread all Formsnap props over widget-owned attributes or put the trigger's ID on a hidden input.
+
+```svelte title="collection-select.svelte"
+<script lang="ts">
+	import { Select } from "bits-ui";
+	import { useFormControl } from "@emmorts/formsnap";
+	import { collectionOptions } from "./schema.js";
+
+	let {
+		value = $bindable(""),
+		open = $bindable(false),
+		disabled = false,
+		ref = $bindable<HTMLButtonElement | null>(null),
+	}: {
+		value?: string;
+		open?: boolean;
+		disabled?: boolean;
+		ref?: HTMLButtonElement | null;
+	} = $props();
+	const control = useFormControl({});
+	const selectedLabel = $derived(
+		collectionOptions.find((option) => option.value === value)?.label
+	);
+</script>
+
+<span
+	id={control.labelProps.id}
+	data-fs-label=""
+	data-fs-error={control.labelProps["data-fs-error"]}>Collection point</span
+>
+<Select.Root type="single" bind:value bind:open {disabled} items={collectionOptions}>
+	<Select.Trigger
+		id={control.props.id}
+		bind:ref
+		aria-labelledby={control.labelProps.id}
+		aria-describedby={control.props["aria-describedby"]}
+		aria-invalid={control.props["aria-invalid"]}
+		aria-required={control.props["aria-required"]}
+		data-fs-control=""
+		data-fs-error={control.props["data-fs-error"]}
+	>
+		{selectedLabel ?? "Choose a collection point"}
+	</Select.Trigger>
+	<Select.Content>
+		<Select.Viewport>
+			{#each collectionOptions as option (option.value)}
+				<Select.Item value={option.value} label={option.label} disabled={option.disabled}>
+					{option.label}
+				</Select.Item>
+			{/each}
+		</Select.Viewport>
+	</Select.Content>
+</Select.Root>
+<input type="hidden" name={control.props.name} {value} {disabled} />
+```
+
+Render the component inside a `Control`, bind the selected value to Superforms, and bind its ref to the actual trigger. The [form source](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/widgets/composite-form.svelte) includes hydration, disabling, reset and explicit ref-based focus.
+
+The root has no `name`, so only the separate hidden input transports the selection. Disable both the widget and that input. The server rejects unavailable choices even if a forged request bypasses disabled items.
+
+<Callout type="warning">
+
+This composite widget requires JavaScript. Its trigger, transport and submit/reset controls stay disabled until hydration; the native form remains usable without it. Adding Formsnap attributes does not make a JavaScript widget progressively enhanced.
+
+</Callout>
+
+The browser coverage exercises keyboard navigation, disabled-item skipping, typeahead, bound focus, reset, invalid/corrected submissions and disabled transport. Manual screen-reader speech is not claimed.

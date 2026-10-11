@@ -1,6 +1,7 @@
+import { fork } from "node:child_process";
+import { once } from "node:events";
 import { createServer as createTcpServer } from "node:net";
 import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
 import type { GlobalSetupContext } from "vitest/node";
 import type {} from "./fixture-url.js";
 
@@ -24,20 +25,56 @@ export async function setup({ provide }: GlobalSetupContext) {
 			reservation.close((error) => (error ? reject(error) : resolve()));
 		});
 	}
-	const server = await createServer({
-		// Component-test optimization must never overwrite the real application's Svelte runtime.
-		cacheDir: fileURLToPath(new URL("../node_modules/.vite-consumer", import.meta.url)),
-		configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
-		server: { host: "127.0.0.1", port, strictPort: true },
-	});
+	// Keep the real application's Vite SSR loader in a separate process from Vitest's loader.
+	// Isolated optimizer caches alone do not isolate Vite 5's process-wide module state.
+	const server = fork(
+		fileURLToPath(new URL("./fixture-server.mjs", import.meta.url)),
+		[String(port)],
+		{
+			cwd: fileURLToPath(new URL("../", import.meta.url)),
+			stdio: ["ignore", "inherit", "inherit", "ipc"],
+		}
+	);
+	const close = async () => {
+		if (server.pid === undefined || server.exitCode !== null || server.signalCode !== null)
+			return;
+		const exited = once(server, "exit");
+		const deadline = setTimeout(() => server.kill("SIGKILL"), 5000);
+		server.kill("SIGTERM");
+		try {
+			const [code, signal] = await exited;
+			if (code !== 0) throw new Error(`The consumer fixture stopped with ${signal ?? code}.`);
+		} finally {
+			clearTimeout(deadline);
+		}
+	};
 
 	try {
-		await server.listen();
-		const address = server.httpServer?.address();
-		if (!address || typeof address === "string") {
-			throw new Error("The consumer fixture did not bind an HTTP port.");
-		}
-		const url = `http://127.0.0.1:${address.port}/`;
+		await new Promise<void>((resolve, reject) => {
+			const finish = (error?: Error) => {
+				clearTimeout(deadline);
+				server.off("message", onMessage);
+				server.off("exit", onExit);
+				server.off("error", finish);
+				if (error) reject(error);
+				else resolve();
+			};
+			const onMessage = (message: unknown) =>
+				finish(
+					message === "ready"
+						? undefined
+						: new Error("Unexpected fixture startup message.")
+				);
+			const onExit = () => finish(new Error("The consumer fixture exited before listening."));
+			const deadline = setTimeout(
+				() => finish(new Error("The consumer fixture did not start within 30 seconds.")),
+				30000
+			);
+			server.once("message", onMessage);
+			server.once("exit", onExit);
+			server.once("error", finish);
+		});
+		const url = `http://127.0.0.1:${port}/`;
 		for (const route of [
 			"",
 			"arrays",
@@ -48,6 +85,7 @@ export async function setup({ provide }: GlobalSetupContext) {
 			"recipes/constraints",
 			"recipes/composition",
 			"recipes/groups",
+			"recipes/widgets",
 			"recipes/feedback",
 			"recipes/announcements",
 			"recipes/errors",
@@ -63,11 +101,9 @@ export async function setup({ provide }: GlobalSetupContext) {
 		}
 		provide("fixtureUrl", url);
 	} catch (error) {
-		await server.close();
+		await close();
 		throw error;
 	}
 
-	return async () => {
-		await server.close();
-	};
+	return close;
 }

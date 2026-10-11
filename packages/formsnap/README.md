@@ -408,6 +408,16 @@ when taint changes, so object identity is not a stable key:
 Initialize `rowIds` once from the initial row count, as above. Update both arrays together on every
 row mutation; the complete fixture keeps its `nextRowId` counter separate from array indexes.
 
+The complete recipe also enhances submission without losing native POST support. When editing
+validated rows, move each row's index-based errors and taint with its value and force-replace the
+error store to discard removed slots. This example retains row errors until the next save and
+clears collection errors on structural changes; Superforms still owns validation.
+
+Added rows receive focus. Removing the active row focuses the next row, then the previous row,
+then Add row if none remain; unfocused removals do not steal focus. A persistent polite region
+reports mutations, including repeated operations. Row-management buttons require JavaScript and
+are disabled before hydration and while submitting. The form remains usable without JavaScript.
+
 ### File uploads
 
 [`/recipes/upload`](./src/routes/recipes/upload/+page.svelte) renders a file input, and the schema
@@ -550,6 +560,26 @@ control's ID, ARIA attributes or `data-fs-control`. One `Control` still identifi
 control, not its transport input or group wrapper. The button's native activation handles Space
 and Enter, while JavaScript updates its checked state. The native checkbox remains usable without
 JavaScript; the role-based example does not provide a JavaScript-free toggle.
+
+### Native and composite widgets
+
+[`/recipes/widgets`](./src/routes/recipes/widgets/+page.svelte) demonstrates native radios, a
+multiple select and a real Bits UI select. Each radio has its own `Control`/`Label` inside a
+`Fieldset`/`Legend`; the multiple select binds an array and submits repeated names. Both work
+without JavaScript. The schemas enforce choice membership and the multiple select's cardinality.
+
+The [composite select](./src/routes/recipes/widgets/collection-select.svelte) maps the headless
+control's identity, naming and validation attributes to the actual focusable trigger. Bits UI
+owns keyboard navigation, typeahead, popup state and listbox ARIA. Only a separate, ID-free hidden
+input transports the value; disable it together with the widget. The server also rejects
+unavailable choices. The bound trigger ref supports explicit focus, and reset restores the
+initial selection.
+
+The fixture pins dev-only `bits-ui@1.8.0`, whose peer range includes Svelte 5.30.2; Bits UI 2
+requires Svelte 5.33.0 or newer. Formsnap has no runtime widget dependency. The composite requires
+JavaScript and stays disabled until hydration; it does not replace the native form's fallback.
+Each form has its own ID and action, and uses `resetForm: false`/`invalidateAll: false` to retain
+successful enhanced selections without reinitializing the sibling form.
 
 ### Multiple forms
 

@@ -31,6 +31,12 @@
 				"Native fieldset semantics beside a caller-owned group and a headless checkbox control.",
 		},
 		{
+			path: "/recipes/widgets",
+			title: "Native and composite widgets",
+			description:
+				"Native radios and multiple select beside a keyboard-capable composite widget.",
+		},
+		{
 			path: "/recipes/feedback",
 			title: "Pending and success feedback",
 			description:
