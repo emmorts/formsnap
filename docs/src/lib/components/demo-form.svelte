@@ -4,7 +4,9 @@
 	import { z } from "zod/v3";
 	import { Control, Field, Label } from "@emmorts/formsnap";
 	import {
+		demoBoxClass,
 		errorClass,
+		fieldClass,
 		hintClass,
 		inputClass,
 		labelClass,
@@ -30,7 +32,7 @@
 	const { form: formData, enhance, submitting } = form;
 </script>
 
-<div class="border-line bg-surface-raised rounded-xl border p-5 sm:p-6">
+<div class={demoBoxClass}>
 	{#if submitted}
 		<div class="flex flex-col items-center gap-3 py-10 text-center">
 			<span
@@ -65,48 +67,52 @@
 		</div>
 	{:else}
 		<form method="POST" use:enhance class="flex flex-col gap-5">
-			<Field {form} name="name">
-				<Control>
-					{#snippet children({ props })}
-						<Label class={labelClass}>Name</Label>
-						<input
-							{...props}
-							type="text"
-							placeholder="Ada Lovelace"
-							class={inputClass}
-							bind:value={$formData.name}
-						/>
+			<div class={fieldClass}>
+				<Field {form} name="name">
+					<Control>
+						{#snippet children({ props })}
+							<Label class={labelClass}>Name</Label>
+							<input
+								{...props}
+								type="text"
+								placeholder="Ada Lovelace"
+								class={inputClass}
+								bind:value={$formData.name}
+							/>
+						{/snippet}
+					</Control>
+					{#snippet fieldErrors({ errors, errorProps })}
+						{#each errors as error (error)}
+							<p {...errorProps} class={errorClass}>{error}</p>
+						{/each}
 					{/snippet}
-				</Control>
-				{#snippet fieldErrors({ errors, errorProps })}
-					{#each errors as error (error)}
-						<p {...errorProps} class={errorClass}>{error}</p>
-					{/each}
-				{/snippet}
-			</Field>
+				</Field>
+			</div>
 
-			<Field {form} name="email">
-				<Control>
-					{#snippet children({ props })}
-						<Label class={labelClass}>Email</Label>
-						<input
-							{...props}
-							type="email"
-							placeholder="ada@analytical.engine"
-							class={inputClass}
-							bind:value={$formData.email}
-						/>
+			<div class={fieldClass}>
+				<Field {form} name="email">
+					<Control>
+						{#snippet children({ props })}
+							<Label class={labelClass}>Email</Label>
+							<input
+								{...props}
+								type="email"
+								placeholder="ada@analytical.engine"
+								class={inputClass}
+								bind:value={$formData.email}
+							/>
+						{/snippet}
+					</Control>
+					{#snippet description()}
+						<p class={hintClass}>One email when we ship. No newsletter.</p>
 					{/snippet}
-				</Control>
-				{#snippet description()}
-					<p class={hintClass}>One email when we ship. No newsletter.</p>
-				{/snippet}
-				{#snippet fieldErrors({ errors, errorProps })}
-					{#each errors as error (error)}
-						<p {...errorProps} class={errorClass}>{error}</p>
-					{/each}
-				{/snippet}
-			</Field>
+					{#snippet fieldErrors({ errors, errorProps })}
+						{#each errors as error (error)}
+							<p {...errorProps} class={errorClass}>{error}</p>
+						{/each}
+					{/snippet}
+				</Field>
+			</div>
 
 			<button type="submit" disabled={$submitting} class={submitClass}>
 				{$submitting ? "Joining…" : "Get early access"}

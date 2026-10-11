@@ -6,6 +6,16 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Docs and tests
+
+- Let the mobile navigation panel scroll independently of the page, so every link is reachable
+  without first scrolling the current page to its end.
+- Tighten the live examples: the documentation's prose element rhythm no longer reaches into a
+  demo box, and each field's label, input, description and errors share one tight stack while
+  the surrounding form separates one field from the next.
+- Hide an empty `## Unreleased` section on the changelog page and its "on this page" rail,
+  using the same emptiness rule as the release tooling.
+
 ## 2.2.5 (2026-10-11)
 
 ### Docs and tests

@@ -6,6 +6,7 @@
 	import {
 		demoBoxClass,
 		errorClass,
+		fieldClass,
 		hintClass,
 		inputClass,
 		labelClass,
@@ -54,30 +55,32 @@
 		</div>
 	{:else}
 		<form method="POST" use:enhance class="flex flex-col gap-4">
-			<Field {form} name="email">
-				<Control>
-					{#snippet children({ props })}
-						<Label class={labelClass}>Email</Label>
-						<input
-							{...props}
-							type="email"
-							placeholder="ada@example.com"
-							class={inputClass}
-							bind:value={$formData.email}
-						/>
+			<div class={fieldClass}>
+				<Field {form} name="email">
+					<Control>
+						{#snippet children({ props })}
+							<Label class={labelClass}>Email</Label>
+							<input
+								{...props}
+								type="email"
+								placeholder="ada@example.com"
+								class={inputClass}
+								bind:value={$formData.email}
+							/>
+						{/snippet}
+					</Control>
+					{#snippet description()}
+						<p class={hintClass}>
+							The label and this description are associated with the input.
+						</p>
 					{/snippet}
-				</Control>
-				{#snippet description()}
-					<p class={hintClass}>
-						The label and this description are associated with the input.
-					</p>
-				{/snippet}
-				{#snippet fieldErrors({ errors, errorProps })}
-					{#each errors as error (error)}
-						<p {...errorProps} class={errorClass}>{error}</p>
-					{/each}
-				{/snippet}
-			</Field>
+					{#snippet fieldErrors({ errors, errorProps })}
+						{#each errors as error (error)}
+							<p {...errorProps} class={errorClass}>{error}</p>
+						{/each}
+					{/snippet}
+				</Field>
+			</div>
 
 			<div>
 				<button type="submit" disabled={$submitting} class={submitClass}>

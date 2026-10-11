@@ -8,6 +8,12 @@
 	color: var(--color-fg-muted);
 }
 
+/* Live examples own their internal rhythm, so the element margins above must not reach into
+   them. `docs-demo` is applied by $lib/demos/input-classes.ts. */
+.docs-prose .docs-demo :is(p, ul, ol, li) {
+	margin: 0;
+}
+
 .docs-prose-header {
 	margin-bottom: 2rem;
 	padding-bottom: 1.5rem;

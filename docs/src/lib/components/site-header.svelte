@@ -67,10 +67,17 @@
 			<ThemeToggle />
 		</div>
 	</div>
-
-	{#if menuOpen}
-		<div class="border-line bg-surface border-t px-4 py-4 lg:hidden">
-			<SiteSidebar onNavigate={() => (menuOpen = false)} />
-		</div>
-	{/if}
 </header>
+
+{#if menuOpen}
+	<!--
+		A sibling of the header, never a child: the header's backdrop blur makes it the containing
+		block for fixed descendants, so a panel inside it could not fill the viewport. This panel
+		scrolls on its own, so the last link is reachable without scrolling the page to its end.
+	-->
+	<div
+		class="border-line bg-surface fixed inset-x-0 bottom-0 top-16 z-30 overflow-y-auto overscroll-contain border-t px-4 py-4 lg:hidden"
+	>
+		<SiteSidebar onNavigate={() => (menuOpen = false)} />
+	</div>
+{/if}

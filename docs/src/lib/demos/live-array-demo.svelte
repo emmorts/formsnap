@@ -6,6 +6,7 @@
 	import {
 		demoBoxClass,
 		errorClass,
+		fieldClass,
 		inputClass,
 		labelClass,
 		secondaryButtonClass,
@@ -78,35 +79,37 @@
 
 				<div class="flex flex-col gap-3">
 					{#each $formData.invites as _, index (rowIds[index])}
-						<ElementField {form} name={`invites[${index}]` as `invites[${number}]`}>
-							<Control>
-								{#snippet children({ props })}
-									<Label class={labelClass}>Invite {index + 1}</Label>
-									<div class="flex items-start gap-2">
-										<input
-											{...props}
-											type="email"
-											placeholder="ada@example.com"
-											class={inputClass}
-											bind:value={$formData.invites[index]}
-										/>
-										<button
-											type="button"
-											class={secondaryButtonClass}
-											disabled={$formData.invites.length === 1}
-											onclick={() => removeRow(index)}
-										>
-											Remove
-										</button>
-									</div>
+						<div class={fieldClass}>
+							<ElementField {form} name={`invites[${index}]` as `invites[${number}]`}>
+								<Control>
+									{#snippet children({ props })}
+										<Label class={labelClass}>Invite {index + 1}</Label>
+										<div class="flex items-start gap-2">
+											<input
+												{...props}
+												type="email"
+												placeholder="ada@example.com"
+												class={inputClass}
+												bind:value={$formData.invites[index]}
+											/>
+											<button
+												type="button"
+												class={secondaryButtonClass}
+												disabled={$formData.invites.length === 1}
+												onclick={() => removeRow(index)}
+											>
+												Remove
+											</button>
+										</div>
+									{/snippet}
+								</Control>
+								{#snippet fieldErrors({ errors, errorProps })}
+									{#each errors as error (error)}
+										<p {...errorProps} class={errorClass}>{error}</p>
+									{/each}
 								{/snippet}
-							</Control>
-							{#snippet fieldErrors({ errors, errorProps })}
-								{#each errors as error (error)}
-									<p {...errorProps} class={errorClass}>{error}</p>
-								{/each}
-							{/snippet}
-						</ElementField>
+							</ElementField>
+						</div>
 					{/each}
 				</div>
 			</Fieldset>
