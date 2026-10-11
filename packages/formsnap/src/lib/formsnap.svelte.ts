@@ -152,6 +152,21 @@ function getConstraintsAtPath(path: string, constraints: Record<string, unknown>
 	return selected == null ? {} : structuredClone(selected);
 }
 
+/** Superforms taint trees count only `true` leaves, including selected groups and array items. */
+function isSubtreeTainted(value: unknown): boolean {
+	if (value === true) return true;
+	if (value === null || typeof value !== "object") return false;
+	for (const key in value) {
+		if (
+			Object.hasOwn(value, key) &&
+			isSubtreeTainted((value as Record<string, unknown>)[key])
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
 class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#name: FormFieldStateProps<T, U>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
@@ -176,7 +191,7 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
-			? getValueAtPath(this.#name.current, this.#formTainted.current) === true
+			? isSubtreeTainted(getValueAtPath(this.#name.current, this.#formTainted.current))
 			: false
 	);
 	/** Owned declarations and additional mounted contributors for this field. */
@@ -263,7 +278,7 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
-			? getValueAtPath(this.#name.current, this.#formTainted.current) === true
+			? isSubtreeTainted(getValueAtPath(this.#name.current, this.#formTainted.current))
 			: false
 	);
 	/** Owned declarations and additional mounted contributors for this element. */
@@ -375,13 +390,24 @@ type ControlStateProps = ReadableBoxedValues<{
 	labelId: string;
 }>;
 
+/** Label attributes shared by a control's headless naming and its rendered `Label` elements. */
+function getLabelAttrs(control: ControlState, id: string): LabelAttrs {
+	return {
+		id,
+		"data-fs-label": "",
+		"data-fs-error": getDataFsError(control.field.errors),
+		for: control.id,
+	};
+}
+
 class ControlState {
 	#id: ControlStateProps["id"];
 	/** Owner-scoped headless getters, resolved synchronously with the control's props. */
 	#overrides = $state<{ owner: symbol; id: Getter<string | null | undefined> }[]>([]);
+	#labels = $state<{ owner: symbol; id: Getter<string | undefined> }[]>([]);
 	field: FieldState<Record<string, unknown>, string>;
-	/** Id used when the consumer spreads `labelProps` without rendering a `Label` to override it. */
-	labelId: ControlStateProps["id"];
+	/** Default id for consumers rendering their own headless label without a `Label` component. */
+	#labelId: ControlStateProps["labelId"];
 
 	/**
 	 * The control's id. It is the id the component resolved, which a consumer-supplied id replaces
@@ -398,7 +424,7 @@ class ControlState {
 
 	constructor(props: ControlStateProps, field: FieldState<Record<string, unknown>, string>) {
 		this.#id = props.id;
-		this.labelId = props.labelId;
+		this.#labelId = props.labelId;
 		this.field = field;
 	}
 
@@ -413,6 +439,27 @@ class ControlState {
 				this.#overrides = this.#overrides.filter((entry) => entry.owner !== owner);
 			});
 		};
+	}
+
+	/** Component registration order stays fixed; inactive labels do not contribute naming. */
+	addLabel(id: Getter<string | undefined>) {
+		const owner = Symbol();
+		untrack(() => {
+			this.#labels = [...this.#labels, { owner, id }];
+		});
+		return () => {
+			untrack(() => {
+				this.#labels = this.#labels.filter((entry) => entry.owner !== owner);
+			});
+		};
+	}
+
+	get labelId(): string {
+		for (let index = this.#labels.length - 1; index >= 0; index--) {
+			const id = this.#labels[index].id();
+			if (id !== undefined) return id;
+		}
+		return this.#labelId.current;
 	}
 
 	props = $derived.by(
@@ -432,39 +479,57 @@ class ControlState {
 			}) satisfies ControlAttrs
 	);
 
-	labelProps = $derived.by(
-		() =>
-			({
-				id: this.labelId.current,
-				"data-fs-label": "",
-				"data-fs-error": getDataFsError(this.field.errors),
-				for: this.id,
-			}) satisfies LabelAttrs
-	);
+	/**
+	 * Resolved on read rather than memoized in a derived: Svelte's server runtime memoizes deriveds
+	 * created during render and never invalidates them, so a `Label` registering after an earlier
+	 * read (its sibling reads these props while rendering) would leave the naming id stale in
+	 * server-rendered HTML. Reading resolves the currently active owner in both runtimes.
+	 */
+	get labelProps(): LabelAttrs {
+		return getLabelAttrs(this, this.labelId);
+	}
 }
 
 type LabelStateProps = WithRefProps;
 
 class LabelState {
-	#ref: LabelStateProps["ref"];
 	#id: LabelStateProps["id"];
+	#attachment: AssociationAttachment;
 	control: ControlState;
 
 	constructor(props: LabelStateProps, control: ControlState) {
-		this.#ref = props.ref;
 		this.#id = props.id;
 		this.control = control;
-		this.control.labelId = this.#id;
+		let node = $state<HTMLElement | null>(null);
+		// Register once for the component lifetime, including synchronous server-rendered naming.
+		// Attachment refreshes must not promote an older label ahead of a surviving newer one.
+		let active = $derived(true);
+		onDestroy(control.addLabel(() => (active ? props.id.current : undefined)));
+		this.#attachment = {
+			[createAttachmentKey()]: (element: HTMLElement) => {
+				node = element;
+				props.ref.current = element;
+				return () => {
+					node = null;
+					props.ref.current = null;
+				};
+			},
+		};
 
-		useRefById({
-			id: this.#id,
-			ref: this.#ref,
+		$effect(() => {
+			active = node !== null && node.id === props.id.current;
 		});
 	}
 
-	get props() {
-		return this.control.labelProps;
-	}
+	// Render from this label's identity, not the control's currently selected naming owner.
+	// Reading control.labelProps here would couple attachment refreshes to naming activity.
+	props = $derived.by(
+		() =>
+			({
+				...getLabelAttrs(this.control, this.#id.current),
+				...this.#attachment,
+			}) satisfies LabelAttrs
+	);
 }
 
 type LegendStateProps = WithRefProps;

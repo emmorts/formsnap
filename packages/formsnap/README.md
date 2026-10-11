@@ -151,6 +151,29 @@ and `constraints`, including nested constraint objects. Mutating these copies do
 Superforms stores; change metadata through those stores instead. Form values and the `form`
 object remain Superforms-owned and are not copied.
 
+`tainted` is true when the selected field or any descendant is marked true in Superforms' taint
+tree. Empty and all-false subtrees are untainted; changes outside that field do not count.
+
+### Form owner lifetime
+
+The `form` instance on `Field`, `Fieldset` and `ElementField` is fixed for the mounted scope's
+lifetime. Updates, validation and resets within that instance remain reactive. Replacing the
+instance requires remounting the whole scope, including its nested fields and headless hooks:
+
+```svelte
+{#key currentForm}
+	<Field form={currentForm} name="email">
+		{#snippet children({ value })}
+			<output>{value}</output>
+		{/snippet}
+	</Field>
+{/key}
+```
+
+Key the parent `Field` or `Fieldset`, not just an `ElementField` inside it. Components that capture
+the selected form's stores or `enhance` action must remount inside the same boundary. Initialize
+the Superforms instances once; do not call `superForm` reactively to replace them.
+
 ### Progressive enhancement
 
 Enhancement is Superforms', not Formsnap's: attach its `enhance` action and keep the rest of the form
@@ -469,6 +492,14 @@ parameter type, because it is not an inline child of the component.
 `bind:ref` hands back the element the component would otherwise have rendered, so a consumer that
 wants the node does not need to query the document for the ID.
 
+Multiple `Label` components under one `Control` keep their own IDs and refs, and all target that
+control. For headless naming, `useFormControl().labelProps.id` selects the most recently registered
+active label. Removing it restores a surviving label, or the default headless ID when none remain.
+Registration order stays fixed for each `Label` component's lifetime: changing an ID or error
+metadata does not promote an older label above a surviving newer one.
+The caller must render the target when using the default headless ID. A custom label's mounted
+naming and ref ownership require spreading its props onto the actual local element.
+
 ### Custom controls with the hooks
 
 The same page builds its range control with the headless hooks instead of the `Control` snippet props:
@@ -540,6 +571,49 @@ never generate the same target.
 drives the pending state and `$message` renders whatever the action passed to `message(form, …)`.
 `onUpdated` is the hook that runs after a result is applied — [`/json`](./src/routes/json/+page.svelte)
 counts updated results with it.
+
+### Form-wide errors and linked summaries
+
+[`/recipes/errors`](./src/routes/recipes/errors/+page.svelte) renders two independent booking forms,
+each with a summary from Superforms' `$allErrors`. A date-ordering refinement without a field path
+produces a root error in `$errors._errors`; the summary includes it as readable text, not an
+invented link to either date:
+
+```ts
+context.addIssue({
+	code: z.ZodIssueCode.custom,
+	message: "The end date must be after the start date.",
+});
+```
+
+The complete [schema](./src/routes/recipes/errors/schema.ts) and
+[action](./src/routes/recipes/errors/+page.server.ts) handle native and enhanced submissions.
+The schema validates positive-year Gregorian calendar dates before comparing numeric year, month
+and day components. Impossible dates are field errors; extended years such as `9999` to `10000`
+keep their chronological order without date-string parsing or time-zone conversion.
+The [form component](./src/routes/recipes/errors/booking-form.svelte) maps known paths to readable
+labels, explicit `Control` IDs and bound input refs. Do not derive target IDs from field paths or
+link root/group errors to arbitrary controls.
+
+Each form keeps one polite, atomic summary live region mounted, even when empty. Inline
+`fieldErrorsLive="off"` regions retain their error associations without repeating the announcement.
+`clearOnSubmit: "errors"` clears the previous summary through Superforms when submitting, so an
+identical rejection restores fresh content inside that same live region. Previous errors disappear
+while the request is pending; values and the other form's errors are unchanged.
+Superforms' `autoFocusOnError: false` and `scrollToError: "off"` avoid competing rejection focus;
+summary links move focus only on explicit activation. This is one policy, not a Formsnap default.
+
+The optional contact section demonstrates target lifetime: activating its link opens collapsed
+details before focusing the input; removing the section leaves readable error text without a stale
+link. Native rejected POSTs render the summary without JavaScript. Distinct form IDs and named
+actions keep each summary, its links and its announcement region separate, and clearing errors uses
+Superforms' error store without changing values or the other form.
+
+One interaction belongs to Superforms, not Formsnap: a successful submission re-runs the route's
+`load`, and every form whose ID appears in the refreshed data rebinds to that data. This `load`
+returns unsaved bookings, so submitting one form successfully re-initializes the other from its
+refreshed data, dropping that form's values and errors. Return the saved record from `load` to keep
+it, or set Superforms' `invalidateAll: false` on a form that must not refresh page data.
 
 ### Keyboard and accessibility responsibilities
 

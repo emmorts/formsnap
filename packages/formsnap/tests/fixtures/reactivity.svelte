@@ -2,6 +2,7 @@
 	import { untrack } from "svelte";
 	import { superForm, type SuperValidated } from "sveltekit-superforms";
 	import { Control, ElementField, Field } from "$lib/index.js";
+	import type { FsSuperForm } from "$lib/components/types.js";
 	import type { ReactivityData } from "./reactivity-schema.js";
 
 	let { validated }: { validated: SuperValidated<ReactivityData> } = $props();
@@ -9,8 +10,14 @@
 		untrack(() => validated),
 		{ dataType: "json" }
 	);
+	// Field presentation also accepts a form wrapper without the optional SDK method.
+	const fieldForm = { ...form, isTainted: undefined };
+	// A dynamically named form presents an array item's selected object subtree.
+	const dynamicForm = fieldForm as unknown as FsSuperForm<Record<string, unknown>>;
 	let nestedPath = $state<"profile.name" | "profile.sibling">("profile.name");
 	let arrayPath = $state<"rows[0].name" | "rows[1].name">("rows[0].name");
+	let groupPath = $state<"profile" | "rows">("profile");
+	let itemPath = $state<"rows[0]" | "rows[1]">("rows[0]");
 	let mutation = $state("");
 
 	export function stores() {
@@ -20,6 +27,11 @@
 	export function switchPaths() {
 		nestedPath = nestedPath === "profile.name" ? "profile.sibling" : "profile.name";
 		arrayPath = arrayPath === "rows[0].name" ? "rows[1].name" : "rows[0].name";
+		itemPath = itemPath === "rows[0]" ? "rows[1]" : "rows[0]";
+	}
+
+	export function switchGroupPath() {
+		groupPath = groupPath === "profile" ? "rows" : "profile";
 	}
 
 	type Received = { errors: string[]; tainted: boolean; constraints: Record<string, unknown> };
@@ -50,31 +62,44 @@
 	<button type="button" data-mutate={id} onclick={() => mutate(id, state)}>Mutate copies</button>
 {/snippet}
 
-<Field {form} name={nestedPath}>
+<Field form={fieldForm} name={nestedPath}>
 	{#snippet children(state)}
 		{@render received("nested", state)}
 	{/snippet}
 </Field>
-<Field {form} name={arrayPath}>
+<Field form={fieldForm} name={arrayPath}>
 	{#snippet children(state)}
 		{@render received("array", state)}
 	{/snippet}
 </Field>
-<Field {form} name="rows">
-	<ElementField {form} name={arrayPath}>
-		{#snippet children(state)}
-			{@render received("element", state)}
-		{/snippet}
-	</ElementField>
+<Field form={fieldForm} name="rows">
+	{#snippet children(state)}
+		{@render received("array-group", state)}
+		<ElementField form={fieldForm} name={arrayPath}>
+			{#snippet children(state)}
+				{@render received("element", state)}
+			{/snippet}
+		</ElementField>
+		<ElementField form={dynamicForm} name={itemPath}>
+			{#snippet children(state)}
+				{@render received("element-group", state)}
+			{/snippet}
+		</ElementField>
+	{/snippet}
 </Field>
-<Field {form} name="profile.sibling">
+<Field form={fieldForm} name="profile.sibling">
 	{#snippet children(state)}
 		{@render received("sibling", state)}
 	{/snippet}
 </Field>
-<Field {form} name="profile">
+<Field form={fieldForm} name="profile">
 	{#snippet children(state)}
 		{@render received("group", state)}
+	{/snippet}
+</Field>
+<Field form={fieldForm} name={groupPath}>
+	{#snippet children(state)}
+		{@render received("selected-group", state)}
 	{/snippet}
 </Field>
 <output data-mutation>{mutation}</output>

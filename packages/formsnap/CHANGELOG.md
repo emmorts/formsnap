@@ -6,6 +6,24 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Fixed
+
+- Report selected object and array taint when any descendant is marked true, without counting
+  unrelated fields or all-false subtrees.
+- Keep each `Label`'s ID and ref local, and resolve the headless naming target when rendering so
+  server HTML, hydration and client updates agree. Attribute updates preserve naming precedence;
+  removing the active label or stopping its custom child from spreading props restores a surviving
+  or default name.
+
+### Docs and tests
+
+- Define the mounted form-owner lifetime and cover keyed replacement of complete field subtrees,
+  including nested contexts, metadata and headless hooks.
+- Add a native/enhanced form-wide error-summary recipe with root errors, keyboard links,
+  conditional targets, one announcement region per form and isolated multiple forms. Repeated
+  identical rejections refresh the announcement; calendar validation rejects malformed dates and
+  orders extended years correctly.
+
 ## 2.2.2 (2026-10-11)
 
 ### Fixed
