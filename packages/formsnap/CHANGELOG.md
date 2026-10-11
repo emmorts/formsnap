@@ -6,6 +6,20 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.4 (2026-10-11)
+
+### Docs and tests
+
+- Rebuild the documentation site as a prerendered SvelteKit app: introduction, installation and
+  quickstart, progressive-enhancement and accessibility guides, a reference page for every
+  component, nine recipes and the changelog, with a live Formsnap form on the landing page.
+  Published to [emmorts.github.io/formsnap](https://emmorts.github.io/formsnap/).
+- Build and serve the site from the repository root with `pnpm docs:build` and `pnpm docs:dev`;
+  both build `@emmorts/formsnap` first, because the site resolves the workspace package through
+  its built output.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.3...v2.2.4)
+
 ## 2.2.3 (2026-10-11)
 
 ### Fixed
