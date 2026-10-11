@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.3 (2026-10-11)
+
 ### Fixed
 
 - Report selected object and array taint when any descendant is marked true, without counting
@@ -23,6 +25,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
   conditional targets, one announcement region per form and isolated multiple forms. Repeated
   identical rejections refresh the announcement; calendar validation rejects malformed dates and
   orders extended years correctly.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.2...v2.2.3)
 
 ## 2.2.2 (2026-10-11)
 
