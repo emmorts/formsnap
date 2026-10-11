@@ -78,10 +78,7 @@
 
 				<div class="flex flex-col gap-3">
 					{#each $formData.invites as _, index (rowIds[index])}
-						<ElementField
-							{form}
-							name={`invites[${index}]` as `invites[${number}]`}
-						>
+						<ElementField {form} name={`invites[${index}]` as `invites[${number}]`}>
 							<Control>
 								{#snippet children({ props })}
 									<Label class={labelClass}>Invite {index + 1}</Label>
