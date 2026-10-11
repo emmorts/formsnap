@@ -53,26 +53,32 @@ Changes since 2.1.1 (see the changelog for release status):
 - IDs stay stable across server rendering and hydration. Explicit control IDs are respected.
 - Description and error associations update correctly when content mounts, unmounts or changes.
 - Nested fields and arrays resolve values and constraints correctly, including optional paths.
+- Variable-length array snippet values include `undefined` when the selected item is absent.
+- Headless field hooks preserve structured Superforms messages and SDK method signatures.
 - Selected field taint includes true descendants without counting unrelated fields.
 - Multiple labels keep distinct IDs and refs; headless naming follows active label ownership.
 - `description` and `fieldErrors` slots on `Field`, `ElementField` and native `Fieldset` associate
   content before hydration and without JavaScript.
 - `live` on `FieldErrors` and `fieldErrorsLive` on owning fields accept `"assertive"`, `"polite"`
   or `"off"`. The default remains `"assertive"`.
-- Tested recipes cover uploads, arrays, custom controls, native validation, submission feedback
-  and form-wide error summaries.
+- Tested recipes cover uploads, arrays, custom controls, native validation, submission feedback,
+  form-wide error summaries and conditional multi-step forms.
 
 See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 
 ## Documentation
 
-- [Documentation site](https://emmorts.github.io/formsnap/): guides, component reference, recipes
-  and the changelog. Built from [`docs/`](./docs), a SvelteKit app deployed to GitHub Pages.
+- [Documentation site](https://emmorts.github.io/formsnap/): searchable guides, component and
+  headless-hook reference, migration help, runnable recipe demos and the changelog. Built from
+  [`docs/`](./docs), a SvelteKit app deployed to GitHub Pages.
 - [Upstream API reference](https://formsnap.dev): the original component API.
 - [Recipe source](./packages/formsnap/src/routes): complete SvelteKit examples exercised by browser tests.
 
 Build the site locally with `pnpm docs:dev` (it builds `@emmorts/formsnap` first, then serves the
 docs app on Vite). `pnpm docs:build` writes the static site to `docs/build`.
+
+Search matching runs in the browser against a prerendered section index. The live demos validate
+locally; they do not save data or send email. Complete server/native recipes remain in the fixture app.
 
 ## Support
 
@@ -82,15 +88,19 @@ Report Superforms bugs on [ciscoheat/sveltekit-superforms](https://github.com/ci
 ## Contributing
 
 Open an issue with reproduction steps or submit a pull request with a regression test for a bug fix.
-CI uses Node.js 24 and pnpm 9.14.4. From the repository root:
+The checkout and CI use Node.js 24 and pnpm 9.14.4; `.nvmrc` and the root package-manager pin
+select that toolchain. These development requirements do not raise the published library's
+consumer Node.js requirement. From the repository root:
 
 ```bash
+nvm use
 pnpm install --frozen-lockfile
 pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
 pnpm lint
 node --test scripts/release.test.mjs scripts/publish-release.test.mjs
 pnpm --filter @emmorts/formsnap run check
 pnpm --filter @formsnap/docs run check
+pnpm --filter @formsnap/docs test
 pnpm test:package
 pnpm --filter @emmorts/formsnap run package
 pnpm docs:build

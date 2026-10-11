@@ -41,8 +41,8 @@
 	},
 	"type": "module",
 	"engines": {
-		"pnpm": ">=9.0.0",
-		"node": ">=18"
+		"pnpm": "9.14.4",
+		"node": ">=24 <25"
 	},
 	"packageManager": "pnpm@9.14.4"
 }
