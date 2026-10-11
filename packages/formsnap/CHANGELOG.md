@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.6 (2026-10-11)
+
 ### Changed
 
 - Include `undefined` in snippet values selected through variable-length arrays, including
@@ -38,6 +40,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 - Align the checkout on Node.js 24 and pnpm 9.14.4. Remove conflicting package-local pnpm
   declarations without changing the published library's Node.js requirement.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.5...v2.2.6)
 
 ## 2.2.5 (2026-10-11)
 
