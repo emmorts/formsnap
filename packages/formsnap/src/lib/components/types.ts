@@ -56,6 +56,8 @@ export type FieldProps<
 > = OwnedFieldContentProps & {
 	/**
 	 * The form object returned from calling `superForm` in your component.
+	 * Keep this instance for the mounted field's lifetime. To replace it, key the
+	 * entire field subtree by the new form instance so contexts and hooks remount.
 	 */
 	form: FsSuperForm<T, M>;
 
@@ -93,6 +95,8 @@ export type ElementFieldProps<
 > = OwnedFieldContentProps & {
 	/**
 	 * The form object returned from calling `superForm` in your component.
+	 * Keep this instance for the mounted field's lifetime. To replace it, key the
+	 * enclosing field subtree by the new form instance, including its parent scope.
 	 */
 	form: FsSuperForm<T, M>;
 
@@ -134,6 +138,8 @@ export type FieldsetPropsWithoutHTML<
 	{
 		/**
 		 * The form object returned from calling `superForm` in your component.
+		 * Keep this instance for the mounted fieldset's lifetime. To replace it, key
+		 * the entire fieldset subtree by the new form instance.
 		 */
 		form: FsSuperForm<T, M>;
 

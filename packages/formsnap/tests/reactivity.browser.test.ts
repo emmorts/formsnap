@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { get } from "svelte/store";
-import { superValidate, type SuperForm, type ValidationErrors } from "sveltekit-superforms";
+import {
+	superValidate,
+	type SuperForm,
+	type TaintedFields,
+	type ValidationErrors,
+} from "sveltekit-superforms";
 import { zod } from "sveltekit-superforms/adapters";
 import Reactivity from "./fixtures/reactivity.svelte";
 import {
@@ -194,6 +199,136 @@ describe("consumer-visible same-object store updates", () => {
 		flushSync();
 		expect(expectView("nested", [], false, true).constraints).toMatchObject({ minlength: 10 });
 		for (const id of ["array", "element"]) expectView(id, [], false, true);
+	});
+});
+
+describe("selected subtree taint", () => {
+	it("counts true descendants, not sibling taint, through same-root updates and clearing", async () => {
+		const { form } = await mountConsumer();
+		expect(received("group").tainted).toBe("true");
+		expect(received("array-group").tainted).toBe("true");
+		expect(received("selected-group").tainted).toBe("true");
+		expect(received("element-group").tainted).toBe("true");
+		const root = get(form.tainted);
+
+		form.tainted.update((tainted) => {
+			expect(tainted).toBe(root);
+			tainted!.profile!.name = false;
+			tainted!.profile!.sibling = false;
+			return tainted;
+		});
+		flushSync();
+		expect(get(form.tainted)).toBe(root);
+		expect(form.isTainted(root!.profile)).toBe(false);
+		expect(received("group").tainted).toBe("false");
+		expect(received("selected-group").tainted).toBe("false");
+		expect(received("array-group").tainted).toBe("true");
+
+		form.tainted.update((tainted) => {
+			tainted!.rows![0].name = false;
+			tainted!.rows![1].name = true;
+			return tainted;
+		});
+		flushSync();
+		expect(received("array-group").tainted).toBe("true");
+		// Another array item cannot taint the selected leaf or object subtree.
+		for (const id of ["array", "element", "element-group"])
+			expect(received(id).tainted).toBe("false");
+
+		form.tainted.update((tainted) => {
+			tainted!.rows![1].name = false;
+			tainted!.profile!.name = true;
+			return tainted;
+		});
+		flushSync();
+		expect(form.isTainted(root!.rows)).toBe(false);
+		expect(received("array-group").tainted).toBe("false");
+		expect(received("group").tainted).toBe("true");
+
+		form.tainted.set({ profile: {}, rows: {} });
+		flushSync();
+		for (const id of [
+			"group",
+			"array-group",
+			"selected-group",
+			"array",
+			"element",
+			"element-group",
+		]) {
+			expect(received(id).tainted).toBe("false");
+		}
+		form.tainted.set(undefined);
+		flushSync();
+		expect(received("group").tainted).toBe("false");
+		expect(received("array-group").tainted).toBe("false");
+		expect(received("element-group").tainted).toBe("false");
+	});
+
+	it("selects array-shaped descendants and follows group name changes", async () => {
+		const { form, consumer } = await mountConsumer();
+		form.tainted.set({
+			profile: { name: false, sibling: false },
+			// The SDK traverses runtime arrays too, although its taint type models numeric records.
+			rows: [{ name: false }, { name: true }] as unknown as NonNullable<
+				TaintedFields<ReactivityData>["rows"]
+			>,
+		});
+		flushSync();
+		expect(received("selected-group").tainted).toBe("false");
+		expect(received("array-group").tainted).toBe("true");
+		consumer.switchGroupPath();
+		flushSync();
+		expect(received("selected-group").tainted).toBe("true");
+
+		const root = get(form.tainted);
+		form.tainted.update((tainted) => {
+			tainted!.profile!.name = true;
+			return tainted;
+		});
+		flushSync();
+		expect(get(form.tainted)).toBe(root);
+		expect(received("selected-group").tainted).toBe("true");
+		form.tainted.update((tainted) => {
+			tainted!.rows![1].name = false;
+			return tainted;
+		});
+		flushSync();
+		expect(received("selected-group").tainted).toBe("false");
+		expect(received("group").tainted).toBe("true");
+		consumer.switchGroupPath();
+		flushSync();
+		expect(received("selected-group").tainted).toBe("true");
+	});
+
+	it("follows an ElementField's selected object subtree through name changes and same-root updates", async () => {
+		const { form, consumer } = await mountConsumer();
+		expect(received("element-group").tainted).toBe("true");
+		consumer.switchPaths();
+		flushSync();
+		expect(received("element-group").tainted).toBe("false");
+		const root = get(form.tainted);
+		form.tainted.update((tainted) => {
+			tainted!.rows![0].name = false;
+			return tainted;
+		});
+		flushSync();
+		expect(get(form.tainted)).toBe(root);
+		expect(received("element-group").tainted).toBe("false");
+		form.tainted.update((tainted) => {
+			tainted!.rows![1].name = true;
+			return tainted;
+		});
+		flushSync();
+		expect(received("element-group").tainted).toBe("true");
+		expect(received("array-group").tainted).toBe("true");
+		form.tainted.update((tainted) => {
+			delete tainted!.rows![1].name;
+			return tainted;
+		});
+		flushSync();
+		expect(received("element-group").tainted).toBe("false");
+		expect(received("array-group").tainted).toBe("false");
+		expect(received("group").tainted).toBe("true");
 	});
 });
 

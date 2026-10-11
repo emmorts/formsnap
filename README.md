@@ -53,11 +53,14 @@ Changes since 2.1.1 (see the changelog for release status):
 - IDs stay stable across server rendering and hydration. Explicit control IDs are respected.
 - Description and error associations update correctly when content mounts, unmounts or changes.
 - Nested fields and arrays resolve values and constraints correctly, including optional paths.
+- Selected field taint includes true descendants without counting unrelated fields.
+- Multiple labels keep distinct IDs and refs; headless naming follows active label ownership.
 - `description` and `fieldErrors` slots on `Field`, `ElementField` and native `Fieldset` associate
   content before hydration and without JavaScript.
 - `live` on `FieldErrors` and `fieldErrorsLive` on owning fields accept `"assertive"`, `"polite"`
   or `"off"`. The default remains `"assertive"`.
-- Tested recipes cover uploads, arrays, custom controls, native validation and submission feedback.
+- Tested recipes cover uploads, arrays, custom controls, native validation, submission feedback
+  and form-wide error summaries.
 
 See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 

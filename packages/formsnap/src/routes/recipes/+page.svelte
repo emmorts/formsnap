@@ -42,6 +42,12 @@
 			description:
 				"The announcement policy of an owned or standalone error region, and what each one costs.",
 		},
+		{
+			path: "/recipes/errors",
+			title: "Form-wide errors and summaries",
+			description:
+				"Root validation, a single announcement policy, and caller-owned links to conditional controls.",
+		},
 	] as const;
 </script>
 
