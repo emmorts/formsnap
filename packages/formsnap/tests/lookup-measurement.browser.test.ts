@@ -130,26 +130,29 @@ function instrument(validated: SuperValidated<Record<string, string>>, names: st
 	const counts = { mount: { ...emptyCounters }, updates: { ...emptyCounters } };
 	let active = counts.mount;
 	const original = globalThis.structuredClone;
-	globalThis.structuredClone = function <T>(value: T, options?: StructuredSerializeOptions): T {
-		active.cloneCalls++;
-		const objectInput = value !== null && typeof value === "object";
-		if (Array.isArray(value)) active.arrayInputs++;
-		else if (objectInput) active.objectInputs++;
-		else active.otherInputs++;
-		if (objectInput) active.aggregateRootKeys += Object.keys(value).length;
-		const wholeForm = objectInput && names.every((name) => Object.hasOwn(value, name));
-		if (wholeForm) active.wholeFormShapedInputs++;
-		try {
-			// Serialized character counts are payload-shape evidence, not heap bytes.
-			const characters = JSON.stringify(value)?.length ?? 0;
-			active.aggregateJsonCharacters += characters;
-			active.maxJsonCharacters = Math.max(active.maxJsonCharacters, characters);
-			if (wholeForm) active.wholeFormJsonCharacters += characters;
-		} catch {
-			active.unserializableInputs++;
-		}
-		return original(value, options);
-	};
+	globalThis.structuredClone = new Proxy(original, {
+		apply(target, thisArg, args) {
+			const value: unknown = args[0];
+			active.cloneCalls++;
+			const objectInput = value !== null && typeof value === "object";
+			if (Array.isArray(value)) active.arrayInputs++;
+			else if (objectInput) active.objectInputs++;
+			else active.otherInputs++;
+			if (objectInput) active.aggregateRootKeys += Object.keys(value).length;
+			const wholeForm = objectInput && names.every((name) => Object.hasOwn(value, name));
+			if (wholeForm) active.wholeFormShapedInputs++;
+			try {
+				// Serialized character counts are payload-shape evidence, not heap bytes.
+				const characters = JSON.stringify(value)?.length ?? 0;
+				active.aggregateJsonCharacters += characters;
+				active.maxJsonCharacters = Math.max(active.maxJsonCharacters, characters);
+				if (wholeForm) active.wholeFormJsonCharacters += characters;
+			} catch {
+				active.unserializableInputs++;
+			}
+			return Reflect.apply(target, thisArg, args);
+		},
+	});
 	try {
 		mountFixture(validated, names);
 		const initial = checkInitial(names);
