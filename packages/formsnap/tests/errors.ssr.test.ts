@@ -186,6 +186,68 @@ describe("form-wide validation and linked error summaries", () => {
 		await assertReferences(page);
 	});
 
+	it("refreshes the same live region on two identical enhanced rejections without moving focus", async () => {
+		const page = await openPage();
+		await hydrated(page);
+		const announcement = await page.getByTestId("errors-personal-announcement").elementHandle();
+		expect(await submit(page)).toMatchObject({ type: "failure", status: 400 });
+		await summary(page).waitFor();
+		const firstSummary = await summary(page).elementHandle();
+		const expectedErrors = [
+			"End date: Choose an end date.",
+			"Start date: Choose a start date.",
+		];
+		expect(
+			(await summary(page).locator("li").allTextContents()).map((text) => text.trim()).sort()
+		).toEqual(expectedErrors);
+
+		// Hold delivery of a real action result so removal and restoration are separate updates.
+		let requestArrived!: () => void;
+		let releaseResponse!: () => void;
+		const requested = new Promise<void>((resolve) => (requestArrived = resolve));
+		const released = new Promise<void>((resolve) => (releaseResponse = resolve));
+		await page.route(
+			(url) => url.pathname === new URL(errorsUrl()).pathname && url.search === "?/personal",
+			async (route) => {
+				const response = await route.fetch();
+				requestArrived();
+				await released;
+				await route.fulfill({ response });
+			}
+		);
+		const secondSubmission = submit(page);
+		try {
+			await requested;
+			await expect.poll(() => summary(page).count()).toBe(0);
+			expect(await firstSummary!.evaluate((element) => element.isConnected)).toBe(false);
+			expect(await announcement!.evaluate((element) => element.isConnected)).toBe(true);
+		} finally {
+			releaseResponse();
+		}
+		expect(await secondSubmission).toMatchObject({ type: "failure", status: 400 });
+		await summary(page).waitFor();
+		expect(
+			(await summary(page).locator("li").allTextContents()).map((text) => text.trim()).sort()
+		).toEqual(expectedErrors);
+		expect(
+			await announcement!.evaluate(
+				(element) =>
+					element ===
+					document.querySelector('[data-testid="errors-personal-announcement"]')
+			)
+		).toBe(true);
+		expect(
+			await booking(page)
+				.getByRole("button", { name: "Save personal booking" })
+				.evaluate((element) => element === document.activeElement)
+		).toBe(true);
+		expect(await summary(page, "work").count()).toBe(0);
+		await assertSingleAnnouncement(booking(page));
+		await assertFieldLink(page, "Start date", "Choose a start date.");
+		await assertFieldLink(page, "End date", "Choose an end date.");
+		await assertReferences(page);
+	});
+
 	it("keeps a root-only rejection readable without inventing a field target or moving focus", async () => {
 		const page = await openPage();
 		await hydrated(page);

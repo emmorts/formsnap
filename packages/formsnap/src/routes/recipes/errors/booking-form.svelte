@@ -20,6 +20,8 @@
 		{
 			id: prefix,
 			resetForm: false,
+			// Clear through Superforms so identical rejections restore fresh summary content.
+			clearOnSubmit: "errors",
 			// The summary is the sole live announcement. Superforms does not also move focus to
 			// a field on rejection; links move it only at the user's explicit request.
 			autoFocusOnError: false,

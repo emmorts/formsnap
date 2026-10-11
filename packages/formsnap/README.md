@@ -495,6 +495,8 @@ wants the node does not need to query the document for the ID.
 Multiple `Label` components under one `Control` keep their own IDs and refs, and all target that
 control. For headless naming, `useFormControl().labelProps.id` selects the most recently registered
 active label. Removing it restores a surviving label, or the default headless ID when none remain.
+Registration order stays fixed for each `Label` component's lifetime: changing an ID or error
+metadata does not promote an older label above a surviving newer one.
 The caller must render the target when using the default headless ID. A custom label's mounted
 naming and ref ownership require spreading its props onto the actual local element.
 
@@ -586,12 +588,18 @@ context.addIssue({
 
 The complete [schema](./src/routes/recipes/errors/schema.ts) and
 [action](./src/routes/recipes/errors/+page.server.ts) handle native and enhanced submissions.
+The schema validates positive-year Gregorian calendar dates before comparing numeric year, month
+and day components. Impossible dates are field errors; extended years such as `9999` to `10000`
+keep their chronological order without date-string parsing or time-zone conversion.
 The [form component](./src/routes/recipes/errors/booking-form.svelte) maps known paths to readable
 labels, explicit `Control` IDs and bound input refs. Do not derive target IDs from field paths or
 link root/group errors to arbitrary controls.
 
 Each form keeps one polite, atomic summary live region mounted, even when empty. Inline
 `fieldErrorsLive="off"` regions retain their error associations without repeating the announcement.
+`clearOnSubmit: "errors"` clears the previous summary through Superforms when submitting, so an
+identical rejection restores fresh content inside that same live region. Previous errors disappear
+while the request is pending; values and the other form's errors are unchanged.
 Superforms' `autoFocusOnError: false` and `scrollToError: "off"` avoid competing rejection focus;
 summary links move focus only on explicit activation. This is one policy, not a Formsnap default.
 

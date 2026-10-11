@@ -73,6 +73,27 @@ describe("label-local identity and owner-scoped naming", () => {
 		expect(consumer.refs().first).toBe(first);
 	});
 
+	it("preserves naming precedence when a surviving label's attributes change", async () => {
+		const consumer = await mountConsumer(true);
+		const first = document.getElementById("first-label");
+		expectSelected("second-label");
+		click("Change first label id");
+		expect(first?.id).toBe("changed-first-label");
+		expect(consumer.refs().first).toBe(first);
+		expectSelected("second-label");
+
+		click("Change control id");
+		expectSelected("second-label");
+		consumer.stores().errors.set({ profile: { name: ["Required name"] } }, { force: true });
+		flushSync();
+		expectSelected("second-label");
+
+		click("Change second label id");
+		expectSelected("changed-second-label");
+		click("Toggle second label");
+		expectSelected("changed-first-label");
+	});
+
 	it("tracks the latest active label ID and restores surviving/default naming on teardown", async () => {
 		const consumer = await mountConsumer(true);
 		expectSelected("second-label");

@@ -404,7 +404,7 @@ class ControlState {
 	#id: ControlStateProps["id"];
 	/** Owner-scoped headless getters, resolved synchronously with the control's props. */
 	#overrides = $state<{ owner: symbol; id: Getter<string | null | undefined> }[]>([]);
-	#labels = $state<{ owner: symbol; id: Getter<string> }[]>([]);
+	#labels = $state<{ owner: symbol; id: Getter<string | undefined> }[]>([]);
 	field: FieldState<Record<string, unknown>, string>;
 	/** Default id for consumers rendering their own headless label without a `Label` component. */
 	#labelId: ControlStateProps["labelId"];
@@ -441,8 +441,8 @@ class ControlState {
 		};
 	}
 
-	/** Last active Label wins; releasing its owner restores the surviving label or default id. */
-	addLabel(id: Getter<string>) {
+	/** Component registration order stays fixed; inactive labels do not contribute naming. */
+	addLabel(id: Getter<string | undefined>) {
 		const owner = Symbol();
 		untrack(() => {
 			this.#labels = [...this.#labels, { owner, id }];
@@ -455,8 +455,11 @@ class ControlState {
 	}
 
 	get labelId(): string {
-		const label = this.#labels[this.#labels.length - 1];
-		return label ? label.id() : this.#labelId.current;
+		for (let index = this.#labels.length - 1; index >= 0; index--) {
+			const id = this.#labels[index].id();
+			if (id !== undefined) return id;
+		}
+		return this.#labelId.current;
 	}
 
 	props = $derived.by(
@@ -498,13 +501,10 @@ class LabelState {
 		this.#id = props.id;
 		this.control = control;
 		let node = $state<HTMLElement | null>(null);
-		// Synchronous ownership preserves the common server-rendered naming association.
-		let release: (() => void) | undefined = control.addLabel(() => props.id.current);
-		const withdraw = () => {
-			release?.();
-			release = undefined;
-		};
-		onDestroy(withdraw);
+		// Register once for the component lifetime, including synchronous server-rendered naming.
+		// Attachment refreshes must not promote an older label ahead of a surviving newer one.
+		let active = $derived(true);
+		onDestroy(control.addLabel(() => (active ? props.id.current : undefined)));
 		this.#attachment = {
 			[createAttachmentKey()]: (element: HTMLElement) => {
 				node = element;
@@ -512,28 +512,17 @@ class LabelState {
 				return () => {
 					node = null;
 					props.ref.current = null;
-					withdraw();
 				};
 			},
 		};
 
 		$effect(() => {
-			const id = props.id.current;
-			if (!node || node.id !== id) {
-				withdraw();
-				return;
-			}
-			// A custom child that later spreads its props can reclaim naming ownership.
-			if (!release) release = control.addLabel(() => props.id.current);
+			active = node !== null && node.id === props.id.current;
 		});
 	}
 
-	/**
-	 * Built from this label's own id through `getLabelAttrs`, not from `control.labelProps`. The
-	 * naming id belongs to the label registry, and the attachment below writes to that registry when
-	 * it mounts, so depending on it here re-applies the attachment in response to its own
-	 * registration — an update loop that older Svelte 5 releases reject outright.
-	 */
+	// Render from this label's identity, not the control's currently selected naming owner.
+	// Reading control.labelProps here would couple attachment refreshes to naming activity.
 	props = $derived.by(
 		() =>
 			({
