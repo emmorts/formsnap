@@ -10,11 +10,20 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 - Forward `data-fs-error` to custom `Fieldset` child containers, matching the native container
   as field errors appear and clear.
+- Keep `ElementField` snippet constraints isolated from Superforms stores, like `Field` and
+  `Fieldset`.
+- Report the required field or control parent when components or headless hooks lack their context.
+
+### Changed
+
+- Read field errors and taint without cloning whole-form trees; copy only the selected constraints.
 
 ### Docs and tests
 
 - Add a runnable native/custom group recipe covering role-based control naming, refs, keyboard
   activation, disabled controls and transport, server-rendered associations and submission errors.
+- Cover same-object metadata updates, nested and array path changes, metadata mutation isolation
+  and missing-provider diagnostics during real SvelteKit server requests.
 
 ## 2.2.1 (2026-10-10)
 

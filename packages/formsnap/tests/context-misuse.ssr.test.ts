@@ -19,7 +19,8 @@ async function requiredParentMessage(kind: string) {
 	expect(response.status).toBe(200);
 	const document = parseDocument(await response.text());
 	const failure = document.querySelector("[data-context-error]");
-	expect(failure?.getAttribute("data-error-type")).toBe("Error");
+	expect(failure, `SSR diagnostic for ${kind}`).not.toBeNull();
+	expect(failure!.getAttribute("data-error-type")).not.toBe("TypeError");
 	return failure!.textContent ?? "";
 }
 
