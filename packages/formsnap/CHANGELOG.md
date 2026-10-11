@@ -10,8 +10,9 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 - Report selected object and array taint when any descendant is marked true, without counting
   unrelated fields or all-false subtrees.
-- Keep each `Label`'s ID and ref local. Restore surviving or default headless naming when a label
-  is removed or its custom child stops spreading props.
+- Keep each `Label`'s ID and ref local, and resolve the headless naming target when rendering so
+  server HTML, hydration and client updates agree. Removing the active label or stopping its custom
+  child from spreading props restores a surviving or default name.
 
 ### Docs and tests
 

@@ -598,8 +598,14 @@ summary links move focus only on explicit activation. This is one policy, not a 
 The optional contact section demonstrates target lifetime: activating its link opens collapsed
 details before focusing the input; removing the section leaves readable error text without a stale
 link. Native rejected POSTs render the summary without JavaScript. Distinct form IDs and named
-actions isolate both forms; success removes the corresponding summary, and clearing errors uses
+actions keep each summary, its links and its announcement region separate, and clearing errors uses
 Superforms' error store without changing values or the other form.
+
+One interaction belongs to Superforms, not Formsnap: a successful submission re-runs the route's
+`load`, and every form whose ID appears in the refreshed data rebinds to that data. This `load`
+returns unsaved bookings, so submitting one form successfully re-initializes the other from its
+refreshed data, dropping that form's values and errors. Return the saved record from `load` to keep
+it, or set Superforms' `invalidateAll: false` on a form that must not refresh page data.
 
 ### Keyboard and accessibility responsibilities
 

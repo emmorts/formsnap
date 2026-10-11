@@ -466,15 +466,20 @@ class ControlState {
 			}) satisfies ControlAttrs
 	);
 
-	labelProps = $derived.by(
-		() =>
-			({
-				id: this.labelId,
-				"data-fs-label": "",
-				"data-fs-error": getDataFsError(this.field.errors),
-				for: this.id,
-			}) satisfies LabelAttrs
-	);
+	/**
+	 * Resolved on read rather than memoized in a derived: Svelte's server runtime memoizes deriveds
+	 * created during render and never invalidates them, so a `Label` registering after an earlier
+	 * read (its sibling reads these props while rendering) would leave the naming id stale in
+	 * server-rendered HTML. Reading resolves the currently active owner in both runtimes.
+	 */
+	get labelProps(): LabelAttrs {
+		return {
+			id: this.labelId,
+			"data-fs-label": "",
+			"data-fs-error": getDataFsError(this.field.errors),
+			for: this.id,
+		};
+	}
 }
 
 type LabelStateProps = WithRefProps;

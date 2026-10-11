@@ -222,9 +222,12 @@ describe("form-wide validation and linked error summaries", () => {
 		await dates(booking(page, "work"), "2026-12-10", "2026-12-12");
 		expect(await submit(page, "work")).toMatchObject({ type: "success", status: 200 });
 		await expect.poll(() => summary(page, "work").count()).toBe(0);
-		expect(await summary(page).innerText()).toContain(
-			"The end date must be after the start date."
-		);
+		expect(await page.getByTestId("errors-work-success").innerText()).toBe("Booking saved.");
+		// A success makes Superforms re-run the route's load, and every form whose id appears in the
+		// refreshed data rebinds to it. This load has no saved booking, so the personal form
+		// re-initializes with the refreshed data: its values and its summary reset.
+		await expect.poll(() => summary(page).count(), { timeout: 15000 }).toBe(0);
+		expect(await booking(page).getByLabel("Start date", { exact: true }).inputValue()).toBe("");
 		await assertReferences(page);
 	});
 
