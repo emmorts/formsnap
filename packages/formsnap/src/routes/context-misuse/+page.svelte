@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
 	import { getAllContexts, untrack, type ComponentProps } from "svelte";
-	import { render } from "svelte/server";
+	import { render as renderServer } from "svelte/server";
 	import ContextMisuse from "../../../tests/fixtures/context-misuse.svelte";
 	import type { PageData } from "./$types.js";
 
@@ -11,7 +11,7 @@
 		: untrack(() => {
 				try {
 					// Retain SvelteKit's real request stores: Superforms 2 reads them during SSR.
-					void render(ContextMisuse, {
+					void renderServer(ContextMisuse, {
 						props: {
 							kind: data.kind as ComponentProps<typeof ContextMisuse>["kind"],
 							validated: data.form,
