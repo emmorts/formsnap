@@ -146,6 +146,11 @@ are stable between server rendering and hydration. `Field` and `ElementField` pr
 and snippet values without a root element, and do not accept an `id`. Their optional owned
 content slots render description/error containers after the children.
 
+`Field`, `ElementField`, `Fieldset` and `useFormField` expose field-local copies of `errors`
+and `constraints`, including nested constraint objects. Mutating these copies does not update
+Superforms stores; change metadata through those stores instead. Form values and the `form`
+object remain Superforms-owned and are not copied.
+
 ### Progressive enhancement
 
 Enhancement is Superforms', not Formsnap's: attach its `enhance` action and keep the rest of the form
@@ -477,9 +482,13 @@ const control = useFormControl({});
 <input type="range" min="1" max="5" {...control.props} bind:value bind:this={ref} />
 ```
 
-`useFormControl` reads the surrounding `Control` and `useFormField` reads the surrounding `Field`, so
-the widget has to be rendered inside them. The result matches spreading a snippet's `props`; reach for
-the hooks when the widget is its own component and cannot receive them as an argument.
+`useFormControl` requires an enclosing `Control`; `useFormField` requires an enclosing `Field`,
+`Fieldset` or `ElementField`. Initialize the hooks inside a component rendered under those
+providers. Missing contexts throw an error naming the required parent during server rendering
+and on the client; a `Field` alone does not provide `Control` context.
+
+The result matches spreading a snippet's `props`; reach for the hooks when the widget is its own
+component and cannot receive them as an argument.
 
 ### Native and custom groups
 

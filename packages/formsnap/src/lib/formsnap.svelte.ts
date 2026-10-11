@@ -13,9 +13,10 @@ import type {
 } from "sveltekit-superforms";
 import type { FormPathArrays, TaintedFields, ValidationErrors } from "sveltekit-superforms/client";
 import { createAttachmentKey, type Attachment } from "svelte/attachments";
-import { getContext, onDestroy, setContext, untrack } from "svelte";
+import { onDestroy, setContext, untrack } from "svelte";
 import { extractErrorArray } from "./internal/utils/errors.js";
 import { getValueAtPath } from "./internal/utils/path.js";
+import { getRequiredContext } from "./internal/context.js";
 import {
 	getAriaDescribedBy,
 	getAriaInvalid,
@@ -145,6 +146,12 @@ function useAssociationRef(
 	return attachment;
 }
 
+function getConstraintsAtPath(path: string, constraints: Record<string, unknown>) {
+	const selected = getValueAtPath(path, constraints);
+	// Snippet consumers may mutate their metadata without changing the Superforms store.
+	return selected == null ? {} : structuredClone(selected);
+}
+
 class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>> {
 	#name: FormFieldStateProps<T, U>["name"];
 	#formErrors: SvelteBox<ValidationErrors<T>>;
@@ -162,19 +169,14 @@ class FormFieldState<T extends Record<string, unknown>, U extends AnyFormPath<T>
 			: name.replace(/\[\d+\]/g, "");
 	});
 	errors = $derived.by(() =>
-		extractErrorArray(
-			getValueAtPath(this.#name.current, structuredClone(this.#formErrors.current))
-		)
+		extractErrorArray(getValueAtPath(this.#name.current, this.#formErrors.current))
 	);
-	constraints = $derived.by(
-		() =>
-			getValueAtPath(this.#constraintsPath, structuredClone(this.#formConstraints.current)) ??
-			{}
+	constraints = $derived.by(() =>
+		getConstraintsAtPath(this.#constraintsPath, this.#formConstraints.current)
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
-			? getValueAtPath(this.#name.current, structuredClone(this.#formTainted.current)) ===
-				true
+			? getValueAtPath(this.#name.current, this.#formTainted.current) === true
 			: false
 	);
 	/** Owned declarations and additional mounted contributors for this field. */
@@ -256,8 +258,8 @@ class ElementFieldState<T extends Record<string, unknown>, U extends AnyFormPath
 	errors = $derived.by(() =>
 		extractErrorArray(getValueAtPath(this.#name.current, this.#formErrors.current))
 	);
-	constraints = $derived.by(
-		() => getValueAtPath(this.#constraintsPath, this.#formConstraints.current) ?? {}
+	constraints = $derived.by(() =>
+		getConstraintsAtPath(this.#constraintsPath, this.#formConstraints.current)
 	);
 	tainted = $derived.by(() =>
 		this.#formTainted.current
@@ -513,7 +515,7 @@ export function getField<
 	T extends Record<string, unknown> = Record<string, unknown>,
 	U extends AnyFormPath<T> = FormPath<T>,
 >() {
-	return getContext<FieldState<T, U>>(FORM_FIELD_CTX);
+	return getRequiredContext<FieldState<T, U>>(FORM_FIELD_CTX, "Field, Fieldset or ElementField");
 }
 
 export function useFieldErrors<
@@ -532,7 +534,7 @@ export function useControl(props: ControlStateProps) {
 }
 
 export function _getFormControl() {
-	return getContext<ControlState>(FORM_CONTROL_CTX);
+	return getRequiredContext<ControlState>(FORM_CONTROL_CTX, "Control");
 }
 
 export function useLabel(props: LabelStateProps) {
@@ -545,8 +547,6 @@ export function useLegend(props: LegendStateProps) {
 
 // takes a string like "urls[0]" and returns ["urls", "0"]
 // so we can access the specific array index properties
-// since datatype: json is not supported with regular form
-// submission, this should be fine
 function splitArrayPath<T extends Record<string, unknown>>(name: string) {
 	const [path, index] = name.split(/[[\]]/);
 	return [path, index] as [FormPathArrays<T>, string];
@@ -563,7 +563,7 @@ export function useFormField<
 	T extends Record<string, unknown> = Record<string, unknown>,
 	U extends AnyFormPath<T> = FormPath<T>,
 >(props: UseFormFieldProps) {
-	const fieldState = getContext<FieldState<T, U>>(FORM_FIELD_CTX);
+	const fieldState = getField<T, U>();
 	const form = fieldState.form;
 	$effect(() => {
 		const id = props.errorsId?.();
@@ -604,7 +604,7 @@ export type UseFormControlProps = {
 };
 
 export function useFormControl(props: UseFormControlProps) {
-	const controlState = getContext<ControlState>(FORM_CONTROL_CTX);
+	const controlState = _getFormControl();
 	if (props.id) onDestroy(controlState.addId(props.id));
 
 	return {
