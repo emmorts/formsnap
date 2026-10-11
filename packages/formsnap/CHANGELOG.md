@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.5 (2026-10-11)
+
 ### Docs and tests
 
 - Improve primitive-array editing after validation: preserve row error/taint identity during
@@ -20,6 +22,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 - Recover partial publication by verifying existing npm tarball bytes before skipping publication
   and completing the missing GitHub release. Matching completed reruns are read-only; artifact,
   release-metadata and lookup failures stop without overwriting published content.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.4...v2.2.5)
 
 ## 2.2.4 (2026-10-11)
 
