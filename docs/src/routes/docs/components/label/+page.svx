@@ -3,7 +3,17 @@ title: Label
 description: Renders a label element bound to its Control's input, with for, id and error-state attributes wired automatically.
 ---
 
+<script>
+	import LiveFieldDemo from "$lib/demos/live-field-demo.svelte";
+</script>
+
 `Label` renders a `<label>` whose `for` attribute points at the input created by the enclosing [Control](/docs/components/control). You write the text; Formsnap resolves the association, the label's own `id`, and the `data-fs-*` styling hooks.
+
+## Live example
+
+Click the label text: focus moves to the input, because `Label` renders `for` pointing at the ID that `Control` generated.
+
+<LiveFieldDemo />
 
 ## Minimal example
 

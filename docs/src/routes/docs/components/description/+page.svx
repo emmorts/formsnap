@@ -3,9 +3,19 @@ title: Description
 description: Renders supplementary help text for a field and associates it with the control via aria-describedby.
 ---
 
+<script>
+	import LiveFieldDemo from "$lib/demos/live-field-demo.svelte";
+</script>
+
 `Description` renders a `<div>` with hint text for the current field. The enclosing [Control](/docs/components/control) automatically adds the description's ID to the input's `aria-describedby`, so screen readers announce the hint when the control receives focus.
 
 For the common case — one description per field — prefer the [owned `description` snippet on Field](/docs/components/field), which puts the association in server-rendered HTML. Use standalone `Description` when the layout needs the hint somewhere the owned slot can't reach, or when a control should have several descriptions.
+
+## Live example
+
+The help text below the input is associated through `aria-describedby`, and it leaves that attribute again if the snippet is withdrawn.
+
+<LiveFieldDemo />
 
 ## Minimal example
 

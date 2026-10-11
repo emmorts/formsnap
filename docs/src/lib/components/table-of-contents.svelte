@@ -3,16 +3,19 @@
 
 	type Heading = { id: string; text: string; level: number };
 
+	/** Heading levels to list. The changelog passes [2] so its version headings form the rail. */
+	let { levels = [2, 3] }: { levels?: number[] } = $props();
+
+	const selector = $derived(levels.map((level) => `main h${level}[id]`).join(", "));
+
 	let headings = $state<Heading[]>([]);
 	let activeId = $state("");
 
 	onMount(() => {
-		headings = Array.from(
-			document.querySelectorAll<HTMLElement>("main h2[id], main h3[id]")
-		).map((el) => ({
+		headings = Array.from(document.querySelectorAll<HTMLElement>(selector)).map((el) => ({
 			id: el.id,
 			text: el.textContent ?? "",
-			level: el.tagName === "H2" ? 2 : 3,
+			level: Number(el.tagName.slice(1)),
 		}));
 
 		const observer = new IntersectionObserver(
@@ -23,7 +26,7 @@
 			},
 			{ rootMargin: "-80px 0px -70% 0px" }
 		);
-		for (const heading of document.querySelectorAll("main h2[id], main h3[id]")) {
+		for (const heading of document.querySelectorAll(selector)) {
 			observer.observe(heading);
 		}
 		return () => observer.disconnect();

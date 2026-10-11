@@ -3,9 +3,19 @@ title: ElementField
 description: Provides field context for a single element of an array — one row of a repeated group, with per-item errors and constraints.
 ---
 
+<script>
+	import LiveArrayDemo from "$lib/demos/live-array-demo.svelte";
+</script>
+
 `ElementField` is the array counterpart of [Field](/docs/components/field). It scopes context to one indexed path such as `urls[0]` or `contacts[2].email`, so the [Control](/docs/components/control) inside it gets that element's errors, constraints and value. Like `Field`, it renders no element of its own.
 
 It must be nested inside an enclosing `Field` or [Fieldset](/docs/components/fieldset), which supplies the parent context.
+
+## Live example
+
+Add and remove rows, then submit empty values: every row keeps its own error region, and the rows are keyed by a stable id list rather than by object identity.
+
+<LiveArrayDemo />
 
 ## Primitive arrays
 

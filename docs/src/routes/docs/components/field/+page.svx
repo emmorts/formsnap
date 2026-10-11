@@ -3,9 +3,19 @@ title: Field
 description: Provides the form-state context for one schema path — values, errors, constraints and ARIA associations — without rendering any markup of its own.
 ---
 
+<script>
+	import LiveFieldDemo from "$lib/demos/live-field-demo.svelte";
+</script>
+
 `Field` is the root of every form control subtree. It takes a Superforms form object and a schema path, reads that path's value, errors, tainted state and constraints from the Superforms stores, and exposes all of it to descendant `Control`, `Label`, `Description` and `FieldErrors` components through context.
 
 It renders no element and accepts no `id`. Everything visual is composed inside it.
+
+## Live example
+
+This form is one `Field` around a single schema path. Submit it empty: the error region appears, and `Control` has already pointed the input's `aria-describedby` at both the description and the errors.
+
+<LiveFieldDemo />
 
 ## Minimal example
 

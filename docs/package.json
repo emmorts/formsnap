@@ -25,6 +25,7 @@
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@tailwindcss/vite": "^4.1.4",
 		"@types/hast": "^3",
+		"github-slugger": "^2",
 		"marked": "^15",
 		"mdsvex": "^0.12.6",
 		"rehype-slug": "^6",

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import "../app.css";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { isDocsRoute, site } from "$lib/config";
 	import SiteHeader from "$lib/components/site-header.svelte";
@@ -9,7 +10,11 @@
 
 	let { children } = $props();
 
-	let docs = $derived(isDocsRoute(page.url.pathname));
+	const pathname = $derived(page.url.pathname);
+	// The changelog shares the documentation shell; other routes are full width.
+	const shell = $derived(isDocsRoute(pathname) || pathname === resolve("/changelog"));
+	// Its rail lists the version headings only, so repeated section names do not crowd it.
+	const tocLevels = $derived(pathname === resolve("/changelog") ? [2] : [2, 3]);
 </script>
 
 <svelte:head>
@@ -29,7 +34,7 @@
 
 <SiteHeader />
 
-{#if docs}
+{#if shell}
 	<div class="mx-auto flex max-w-[90rem] gap-8 px-4 sm:px-6 lg:px-8">
 		<aside
 			class="sticky top-16 hidden h-[calc(100vh-4rem)] w-60 shrink-0 overflow-y-auto py-8 pr-2 lg:block"
@@ -42,7 +47,7 @@
 		<aside
 			class="sticky top-16 hidden h-[calc(100vh-4rem)] w-52 shrink-0 overflow-y-auto py-8 xl:block"
 		>
-			<TableOfContents />
+			<TableOfContents levels={tocLevels} />
 		</aside>
 	</div>
 {:else}

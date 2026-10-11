@@ -3,9 +3,19 @@ title: FieldErrors
 description: Renders the validation-error container for a field — a live region whose ID is added to the control's aria-describedby while errors exist.
 ---
 
+<script>
+	import LiveFieldDemo from "$lib/demos/live-field-demo.svelte";
+</script>
+
 `FieldErrors` renders a `<div>` listing the current field's validation errors. It is an ARIA live region, so errors that appear after page load are announced by screen readers, and its ID enters the input's `aria-describedby` (via the enclosing [Control](/docs/components/control)) only while errors exist.
 
 For one error region per field, the [owned `fieldErrors` slot on Field](/docs/components/field) is usually simpler and SSR-safe. Use standalone `FieldErrors` when the errors must live elsewhere in the layout, or to set a per-container announcement policy with `live`.
+
+## Live example
+
+Submit empty to render the owned error region. Its ID joins `aria-describedby` while the error exists; a correct value removes the ID again while the container stays mounted.
+
+<LiveFieldDemo />
 
 ## Minimal example
 

@@ -3,9 +3,19 @@ title: Fieldset & Legend
 description: Groups related controls under an accessible title — Fieldset is the Field variant that renders a fieldset element, and Legend names the group.
 ---
 
+<script>
+	import LiveArrayDemo from "$lib/demos/live-array-demo.svelte";
+</script>
+
 `Fieldset` does everything [Field](/docs/components/field) does — form context, snippet state, owned description and error slots — and additionally renders a native `<fieldset>` element around the group. Pair it with `Legend`, which renders the `<legend>` that gives the group its accessible title. Screen readers announce the legend when focus moves into the group, which is what makes grouped controls (address blocks, contact lists, radio groups) understandable.
 
 Per the [W3C grouping guidance](https://www.w3.org/WAI/tutorials/forms/grouping/), a fieldset should always have a legend.
+
+## Live example
+
+Each row is an `ElementField` inside one `Fieldset`, which supplies the parent context the rows need. Remove rows down to none, or submit empty values, to see the fieldset-level error region as well as the per-row ones.
+
+<LiveArrayDemo />
 
 ## Minimal example
 

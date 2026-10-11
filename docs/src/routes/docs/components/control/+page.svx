@@ -3,9 +3,19 @@ title: Control
 description: Associates a Label with a form control and hands the input a spreadable props object with every required id, name and ARIA attribute already set.
 ---
 
+<script>
+	import LiveFieldDemo from "$lib/demos/live-field-demo.svelte";
+</script>
+
 `Control` sits between a [Field](/docs/components/field) and the actual input element. It resolves the control's `id`, looks up the field's name, errors and constraints from context, and exposes a `props` object that you spread onto the form control. That spread is the whole contract: it carries labelling, description and error wiring so you never hand-write `aria-*` attributes.
 
 It renders no element of its own.
+
+## Live example
+
+`Control` hands the input its `id`, `name` and ARIA attributes. Submit the form empty, then inspect the input: every one of those attributes comes from the spread, not from the markup.
+
+<LiveFieldDemo />
 
 ## Minimal example
 

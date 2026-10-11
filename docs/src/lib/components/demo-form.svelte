@@ -3,6 +3,13 @@
 	import { zod, zodClient } from "sveltekit-superforms/adapters";
 	import { z } from "zod/v3";
 	import { Control, Field, Label } from "@emmorts/formsnap";
+	import {
+		errorClass,
+		hintClass,
+		inputClass,
+		labelClass,
+		submitClass,
+	} from "$lib/demos/input-classes";
 
 	// Client-side demo: SPA mode validates against the same schema, no server involved.
 	const schema = z.object({
@@ -21,9 +28,6 @@
 		},
 	});
 	const { form: formData, enhance, submitting } = form;
-
-	const inputClass =
-		"w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-fg outline-none transition-colors placeholder:text-fg-subtle focus:border-accent aria-[invalid=true]:border-rose-400";
 </script>
 
 <div class="border-line bg-surface-raised rounded-xl border p-5 sm:p-6">
@@ -64,7 +68,7 @@
 			<Field {form} name="name">
 				<Control>
 					{#snippet children({ props })}
-						<Label class="text-fg mb-1.5 block text-sm font-medium">Name</Label>
+						<Label class={labelClass}>Name</Label>
 						<input
 							{...props}
 							type="text"
@@ -76,7 +80,7 @@
 				</Control>
 				{#snippet fieldErrors({ errors, errorProps })}
 					{#each errors as error (error)}
-						<p {...errorProps} class="mt-1.5 text-sm text-rose-400">{error}</p>
+						<p {...errorProps} class={errorClass}>{error}</p>
 					{/each}
 				{/snippet}
 			</Field>
@@ -84,7 +88,7 @@
 			<Field {form} name="email">
 				<Control>
 					{#snippet children({ props })}
-						<Label class="text-fg mb-1.5 block text-sm font-medium">Email</Label>
+						<Label class={labelClass}>Email</Label>
 						<input
 							{...props}
 							type="email"
@@ -95,22 +99,16 @@
 					{/snippet}
 				</Control>
 				{#snippet description()}
-					<p class="text-fg-muted mt-1.5 text-sm">
-						One email when we ship. No newsletter.
-					</p>
+					<p class={hintClass}>One email when we ship. No newsletter.</p>
 				{/snippet}
 				{#snippet fieldErrors({ errors, errorProps })}
 					{#each errors as error (error)}
-						<p {...errorProps} class="mt-1.5 text-sm text-rose-400">{error}</p>
+						<p {...errorProps} class={errorClass}>{error}</p>
 					{/each}
 				{/snippet}
 			</Field>
 
-			<button
-				type="submit"
-				disabled={$submitting}
-				class="bg-accent text-accent-contrast rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-			>
+			<button type="submit" disabled={$submitting} class={submitClass}>
 				{$submitting ? "Joining…" : "Get early access"}
 			</button>
 		</form>
