@@ -93,9 +93,15 @@ importers:
       bits-ui:
         specifier: 1.8.0
         version: 1.8.0(svelte@5.57.2(@typescript-eslint/types@8.18.0))
+      entities:
+        specifier: ^8.1.0
+        version: 8.1.0
       github-slugger:
         specifier: ^2
         version: 2.0.0
+      linkedom:
+        specifier: ^0.18.0
+        version: 0.18.13
       marked:
         specifier: ^15
         version: 15.0.12

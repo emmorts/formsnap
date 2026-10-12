@@ -99,6 +99,18 @@ test("indexed descriptions keep their words but drop inline Markdown markers", (
 	);
 });
 
+test("indexed descriptions preserve decoded text and literal code entities", () => {
+	const source = [
+		"---",
+		"title: Groups",
+		"description: <div>Fish &amp; chips, with `&amp;` literally.</div>",
+		"---",
+		"## Section",
+	].join("\n");
+	const [page] = indexPage(source, "/docs/groups", "Groups");
+	assert.equal(page.text, "Fish & chips, with &amp; literally.");
+});
+
 test("every term must match, and section names outrank incidental body matches", () => {
 	const outcome = searchDocumentation(entries, " ARRAY errors array ");
 	assert.deepEqual(
@@ -211,6 +223,20 @@ test("a joined identifier match must line up with whole words", () => {
 	);
 });
 
+test("later compact occurrences remain searchable after a boundary-invalid occurrence", () => {
+	for (const section of ["reform field. formField", "Reading form fieldset. formField"]) {
+		const entry = { href: "/docs/later", title: "", section, text: "" };
+		const [result] = searchDocumentation([entry], "formfield").results;
+		assert.ok(result, section);
+		const start = section.indexOf("formField");
+		assert.deepEqual(result.sectionRanges, [[start, start + "formField".length]], section);
+		assert.deepEqual(
+			highlightSegments(section, result.sectionRanges).filter(({ match }) => match),
+			[{ text: "formField", match: true }]
+		);
+	}
+});
+
 test("identifier typos highlight the whole original identifier without joining arbitrary prose", () => {
 	const [result] = searchDocumentation(entries, "useformfiled").results;
 	assert.equal(result.entry.href, "/docs/reference/headless-hooks#useformfield");
@@ -254,18 +280,22 @@ test("identifier typos highlight the whole original identifier without joining a
 	assert.equal(hrefs("fieldst")[0], "/docs/components/fieldset");
 });
 
-test("later compact occurrences remain searchable after a boundary-invalid occurrence", () => {
-	for (const section of ["reform field. formField", "Reading form fieldset. formField"]) {
-		const entry = { href: "/docs/later", title: "", section, text: "" };
-		const [result] = searchDocumentation([entry], "formfield").results;
+test("Unicode normalization highlights entire original code points and decomposed accents", () => {
+	for (const [section, query] of [
+		["𐐨", "𐐨"],
+		["𝒄𝒂𝒇𝒆", "cafe"],
+		["Cafe\u0301", "cafe"],
+		["Ca\u0301fe\u0301", "cafe"],
+	]) {
+		const entry = { href: "/docs/unicode", title: "", section, text: "" };
+		const [result] = searchDocumentation([entry], query).results;
 		assert.ok(result, section);
-		const start = section.indexOf("formField");
-		assert.deepEqual(result.sectionRanges, [[start, start + "formField".length]], section);
-		assert.deepEqual(
-			highlightSegments(section, result.sectionRanges).filter(({ match }) => match),
-			[{ text: "formField", match: true }]
-		);
+		assert.deepEqual(result.sectionRanges, [[0, section.length]], section);
+		assert.deepEqual(highlightSegments(section, result.sectionRanges), [
+			{ text: section, match: true },
+		]);
 	}
+	assert.deepEqual(tokenizeQuery("𐐨"), ["𐐨"]);
 });
 
 test("snippet word boundaries cannot skip the focused match after a long unbroken word", () => {
@@ -300,21 +330,3 @@ test("snippet ranges are clipped to visible text rather than ellipses", () => {
 		[{ text: "alpha", match: true }]
 	);
 });
-test("Unicode normalization highlights entire original code points and decomposed accents", () => {
-	for (const [section, query] of [
-		["𐐨", "𐐨"],
-		["𝒄𝒂𝒇𝒆", "cafe"],
-		["Cafe\u0301", "cafe"],
-		["Ca\u0301fe\u0301", "cafe"],
-	]) {
-		const entry = { href: "/docs/unicode", title: "", section, text: "" };
-		const [result] = searchDocumentation([entry], query).results;
-		assert.ok(result, section);
-		assert.deepEqual(result.sectionRanges, [[0, section.length]], section);
-		assert.deepEqual(highlightSegments(section, result.sectionRanges), [
-			{ text: section, match: true },
-		]);
-	}
-	assert.deepEqual(tokenizeQuery("𐐨"), ["𐐨"]);
-});
-

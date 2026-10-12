@@ -1,3 +1,4 @@
+import { decodeHTMLStrict } from "entities";
 import { Lexer, type Token, type Tokens } from "marked";
 
 export type InlineOptions = {
@@ -40,7 +41,7 @@ function render(tokens: readonly Token[], base: string, mode: Mode): string {
 				const children = nested(token);
 				output += children.length
 					? render(children, base, mode)
-					: leaf((token as Tokens.Text).text ?? "", mode);
+					: leaf(decodeHTMLStrict((token as Tokens.Text).text ?? ""), mode);
 				break;
 			}
 			case "escape":
@@ -59,7 +60,7 @@ function render(tokens: readonly Token[], base: string, mode: Mode): string {
 				output += element("code", leaf((token as Tokens.Codespan).text, mode), mode);
 				break;
 			case "link": {
-				const { href } = token as Tokens.Link;
+				const href = decodeHTMLStrict((token as Tokens.Link).href);
 				const target =
 					href.startsWith("/") && !href.startsWith("//") && base
 						? `${base}${href}`
@@ -69,7 +70,7 @@ function render(tokens: readonly Token[], base: string, mode: Mode): string {
 				break;
 			}
 			case "image":
-				output += leaf((token as Tokens.Image).text ?? "", mode);
+				output += leaf(render(nested(token), base, "text"), mode);
 				break;
 			case "br":
 				output += mode === "html" ? "<br>" : " ";
