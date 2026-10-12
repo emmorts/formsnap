@@ -83,8 +83,15 @@ async function place(page: Page, options: { seats: number; note?: string }) {
 	return response;
 }
 
-/** The id of the order the message reports, so the list can be checked against it. */
+/**
+ * The id of the order the message reports, so the list can be checked against it. `place` waits for
+ * the command's response; the message is Superforms' own store, written only once its action callback
+ * has translated that response, so it is waited for rather than read once.
+ */
 async function reportedOrder(page: Page) {
+	await expect
+		.poll(() => read(page, "command-message"), { timeout: 10000 })
+		.toMatch(/Placed order-\d+\./);
 	const message = await read(page, "command-message");
 	const match = /Placed (order-\d+)\./.exec(message);
 	if (!match) throw new Error(`the message does not report an order: ${message}`);
@@ -217,9 +224,6 @@ describe("remote command recipe", () => {
 			.toContain("Nothing was placed.");
 
 		await place(page, { seats: 3, note: "accepted retry" });
-		await expect
-			.poll(() => read(page, "command-message"), { timeout: 10000 })
-			.toMatch(/Placed order-\d+\./);
 		const id = await reportedOrder(page);
 		await expect.poll(() => list(page), { timeout: 10000 }).toContain(`${id}: 3 seats`);
 		expect(await read(page, "command-failure")).toBe("");
@@ -231,7 +235,6 @@ describe("remote command recipe", () => {
 		const page = await hydrated();
 		// Complete a real first mutation so no initial query can race with the failed refresh.
 		await place(page, { seats: 1, note: "before failed refresh" });
-		await page.getByTestId("command-message").waitFor();
 		const first = await reportedOrder(page);
 		await expect.poll(() => list(page), { timeout: 10000 }).toContain(`${first}: 1 seats`);
 		await expect
@@ -254,9 +257,6 @@ describe("remote command recipe", () => {
 		await expect
 			.poll(() => read(page, "command-message"), { timeout: 10000 })
 			.not.toBe(`Placed ${first}.`);
-		await expect
-			.poll(() => read(page, "command-message"), { timeout: 10000 })
-			.toMatch(/Placed order-\d+\./);
 		const id = await reportedOrder(page);
 		expect(id).not.toBe(first);
 		expect(refreshes).toBe(1);
