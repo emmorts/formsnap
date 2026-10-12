@@ -44,6 +44,8 @@ type Field = {
 	compactMap: number[];
 	/** The same words in joined coordinates, for checking that a match lines up with whole words. */
 	compactWords: Word[];
+	/** Whole camel/digit identifiers only, never words joined across original prose boundaries. */
+	identifiers: Word[];
 };
 
 type Prepared = { title: Field; section: Field; text: Field };
@@ -123,6 +125,22 @@ function prepareField(value: string): Field {
 	}
 
 	const compact = compactCharacters.join("");
+	const identifiers: Word[] = [];
+	for (let first = 0; first < compactWords.length; ) {
+		let last = first;
+		while (
+			last + 1 < compactWords.length &&
+			compactMap[compactWords[last].end - 1] + 1 === compactMap[compactWords[last + 1].start]
+		) {
+			last++;
+		}
+		if (last > first) {
+			const start = compactWords[first].start;
+			const end = compactWords[last].end;
+			identifiers.push({ start, end, text: compact.slice(start, end) });
+		}
+		first = last + 1;
+	}
 
 	return {
 		normal,
@@ -131,6 +149,7 @@ function prepareField(value: string): Field {
 		compact,
 		compactMap,
 		compactWords,
+		identifiers,
 	};
 }
 
@@ -247,7 +266,10 @@ function matchField(
 		const end = joined + term.length;
 		const startsWord = field.compactWords.some((word) => word.start === joined);
 		const endsWord = field.compactWords.some((word) => word.end === end);
-		if (startsWord && (endsWord || joined === 0)) {
+		const firstIdentifier = field.identifiers[0];
+		const identifierPrefix =
+			joined === 0 && firstIdentifier?.start === 0 && end <= firstIdentifier.end;
+		if (startsWord && (endsWord || identifierPrefix)) {
 			const range = rawRange(field.compactMap, joined, end);
 			return { score: weight * 0.45, start: range[0], ranges: [range] };
 		}
@@ -258,20 +280,33 @@ function matchField(
 	const limit = term.length < 3 ? 0 : term.length < 5 ? 1 : term.length < 9 ? 2 : 3;
 	if (!limit) return null;
 
-	let closest: { word: Word; distance: number } | undefined;
-	for (const word of field.words) {
+	let closest: Word | undefined;
+	let closestDistance = limit + 1;
+	let closestIdentifier = false;
+	for (let index = 0; index < field.words.length + field.identifiers.length; index++) {
+		const identifier = index >= field.words.length;
+		const word = identifier
+			? field.identifiers[index - field.words.length]
+			: field.words[index];
 		if (Math.abs(word.text.length - term.length) > limit) continue;
 		const distance = editDistance(term, word.text, limit);
-		if (distance > limit) continue;
-		if (!closest || distance < closest.distance) closest = { word, distance };
+		if (distance < closestDistance) {
+			closest = word;
+			closestDistance = distance;
+			closestIdentifier = identifier;
+		}
 	}
 	if (!closest) return null;
 
-	const range = rawRange(field.map, closest.word.start, closest.word.end);
+	const range = rawRange(
+		closestIdentifier ? field.compactMap : field.map,
+		closest.start,
+		closest.end
+	);
 	return {
 		score:
 			(heading ? FUZZY_HEADING_BASE : FUZZY_TEXT_BASE) +
-			FUZZY_SIMILARITY_SHARE * (1 - closest.distance / (term.length + 1)),
+			FUZZY_SIMILARITY_SHARE * (1 - closestDistance / (term.length + 1)),
 		start: range[0],
 		ranges: [range],
 	};

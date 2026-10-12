@@ -211,3 +211,46 @@ test("a joined identifier match must line up with whole words", () => {
 	);
 });
 
+test("identifier typos highlight the whole original identifier without joining arbitrary prose", () => {
+	const [result] = searchDocumentation(entries, "useformfiled").results;
+	assert.equal(result.entry.href, "/docs/reference/headless-hooks#useformfield");
+	assert.deepEqual(result.sectionRanges, [[0, "useFormField".length]]);
+	assert.deepEqual(highlightSegments(result.entry.section, result.sectionRanges), [
+		{ text: "useFormField", match: true },
+	]);
+
+	const digitIdentifier = {
+		href: "/docs/zod",
+		title: "",
+		section: "zod4Schema",
+		text: "",
+	};
+	const [digitResult] = searchDocumentation([digitIdentifier], "zod4schmea").results;
+	assert.deepEqual(digitResult.sectionRanges, [[0, digitIdentifier.section.length]]);
+
+	for (const section of [
+		"use form field",
+		"use Form Field",
+		"use.Form.Field",
+		"use-form-field",
+	]) {
+		assert.deepEqual(
+			searchDocumentation(
+				[{ href: "/docs/prose", title: "", section, text: "" }],
+				"useformfiled"
+			).results,
+			[],
+			section
+		);
+	}
+
+	for (const section of ["Reading field state", "field state"]) {
+		const fieldState = { href: "/docs/field-state", title: "", section, text: "" };
+		const [stateResult] = searchDocumentation([fieldState], "fieldst").results;
+		// A tolerated typo may reach "field", but must never highlight the literal false span "field st".
+		const start = section.indexOf("field");
+		assert.deepEqual(stateResult.sectionRanges, [[start, start + "field".length]], section);
+	}
+	assert.equal(hrefs("fieldst")[0], "/docs/components/fieldset");
+});
+
