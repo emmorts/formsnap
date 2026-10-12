@@ -98,3 +98,66 @@ test("entity-bearing destinations retain query parameters after HTML parsing", (
 	}
 });
 
+test("executable and unknown schemes render labels without anchors", () => {
+	assert.equal(inlineHtml("[Run](javascript:alert(1))"), "Run");
+	assert.equal(inlineHtml("[Run](data:text/plain,test)"), "Run");
+
+	for (const destination of [
+		"javascript:alert(1)",
+		"JaVaScRiPt:alert(1)",
+		"jav&#x61;script:alert(1)",
+		"javascript&colon;alert(1)",
+		"java&#9;script:alert(1)",
+		"java&#10;script:alert(1)",
+		"java&#13;script:alert(1)",
+		"java&Tab;script:alert(1)",
+		"java&NewLine;script:alert(1)",
+		"&#1;javascript:alert(1)",
+		"&#32;javascript:alert(1)",
+		"java\tscript:alert(1)",
+		"java\rscript:alert(1)",
+		"data:text/html;base64,PHNjcmlwdD4=",
+		"DaTa:text/plain,test",
+		"d&#97;ta:text/plain,test",
+		"vbscript:msgbox(1)",
+		"VbScRiPt:msgbox(1)",
+		"vb&#9;script:msgbox(1)",
+		"ftp://example.com/file",
+		"custom:destination",
+	]) {
+		const source = `[**Safe** &amp; sound](<${destination}>)`;
+		const { document } = parseHTML(
+			`<html><body>${inlineHtml(source, { base: "/formsnap" })}</body></html>`
+		);
+
+		assert.equal(document.querySelector("a"), null, destination);
+		assert.equal(document.body.textContent, "Safe & sound", destination);
+		assert.equal(document.querySelector("strong").textContent, "Safe", destination);
+		assert.equal(inlinePlain(source), "Safe & sound", destination);
+	}
+});
+
+test("permitted destinations keep their targets and deployment base behavior", () => {
+	for (const [destination, expected] of [
+		["http://example.com/docs", "http://example.com/docs"],
+		["HTTPS://example.com/docs", "HTTPS://example.com/docs"],
+		["mailto:team@example.com", "mailto:team@example.com"],
+		["tel:+123456789", "tel:+123456789"],
+		["docs/guide", "docs/guide"],
+		["../guide", "../guide"],
+		["?a=1&amp;b=2", "?a=1&b=2"],
+		["/docs/guide", "/formsnap/docs/guide"],
+		["&#x2F;docs/guide", "/formsnap/docs/guide"],
+		["//example.com/docs", "//example.com/docs"],
+		["#details", "#details"],
+	]) {
+		const { document } = parseHTML(
+			`<html><body>${inlineHtml(`[Guide](${destination})`, { base: "/formsnap" })}</body></html>`
+		);
+		const anchor = document.querySelector("a");
+
+		assert.ok(anchor, destination);
+		assert.equal(anchor.getAttribute("href"), expected, destination);
+		assert.equal(anchor.textContent, "Guide", destination);
+	}
+});

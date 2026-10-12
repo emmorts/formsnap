@@ -32,6 +32,29 @@ function nested(token: Token): Token[] {
 	return "tokens" in token && Array.isArray(token.tokens) ? (token.tokens as Token[]) : [];
 }
 
+/** Match browser URL handling, including mixed case and ignored ASCII controls in schemes. */
+function linkTarget(href: string, base: string): string | null {
+	const decoded = decodeHTMLStrict(href);
+	try {
+		const { protocol } = new URL(decoded, "https://formsnap.invalid");
+		if (
+			protocol !== "http:" &&
+			protocol !== "https:" &&
+			protocol !== "mailto:" &&
+			protocol !== "tel:"
+		) {
+			return null;
+		}
+	} catch {
+		return null;
+	}
+
+	// Only root-relative app paths need the deployment base; other destinations stay untouched.
+	return decoded.startsWith("/") && !decoded.startsWith("//") && base
+		? `${base}${decoded}`
+		: decoded;
+}
+
 function render(tokens: readonly Token[], base: string, mode: Mode): string {
 	let output = "";
 
@@ -60,13 +83,10 @@ function render(tokens: readonly Token[], base: string, mode: Mode): string {
 				output += element("code", leaf((token as Tokens.Codespan).text, mode), mode);
 				break;
 			case "link": {
-				const href = decodeHTMLStrict((token as Tokens.Link).href);
-				const target =
-					href.startsWith("/") && !href.startsWith("//") && base
-						? `${base}${href}`
-						: href;
 				const inner = render(nested(token), base, mode);
-				output += mode === "html" ? `<a href="${escapeHtml(target)}">${inner}</a>` : inner;
+				const target =
+					mode === "html" ? linkTarget((token as Tokens.Link).href, base) : null;
+				output += target === null ? inner : `<a href="${escapeHtml(target)}">${inner}</a>`;
 				break;
 			}
 			case "image":
