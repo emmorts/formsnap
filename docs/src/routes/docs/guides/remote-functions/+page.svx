@@ -7,9 +7,13 @@ description: What SvelteKit remote functions mean for Formsnap today, which part
 	import { Callout } from "$lib/markdown";
 </script>
 
-SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap does not integrate with remote **forms** yet. This page records the current boundary so you can plan around it rather than guess from examples written for a different version.
+SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, which is built and packaged but not released. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
 
-Forsnap presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot simply be combined on the same `form` prop.
+<Callout type="warning">
+	**Version.** The `./remote` subpath is due in `@emmorts/formsnap` **2.3.0**, and is not published yet. `@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
+</Callout>
+
+Forsnap's root entry presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot be combined on the same `form` prop.
 
 ## Support matrix
 
@@ -18,13 +22,14 @@ Forsnap presents field state that Superforms owns. A native remote form owns its
 | Remote `query` / `prerender` loading data beside an ordinary Formsnap form        | Works as-is               | SvelteKit loads the data; Superforms keeps the form                  |
 | Submitting a Superforms form through a remote `command`                           | Application-owned         | Superforms keeps the form; your code translates the command's result into its stores |
 | A native remote `form` rendered with Kit's own `fields.as(...)` and `issues()`     | Works, without Formsnap   | Kit owns values, issues and submission                               |
-| A native remote `form` presented by Formsnap's `Field` / `Control` components      | **Not supported yet**     | Intended split: Kit owns state, Formsnap owns presentation           |
+| A native remote `form` presented with the `./remote` entry's `RemoteField` / `RemoteControl` | Built and packaged; ships in 2.3.0, unreleased | Kit owns values, issues and submission; Formsnap owns associations, ids and error containers |
+| A native remote `form` passed to the root entry's `Field` / `Fieldset` / `ElementField` | **Not supported**   | A remote form is not a Superforms form; see [Remote forms](/docs/recipes/remote-forms) |
 
 ## Why a native remote form is not a drop-in
 
 `Field`, `Fieldset`, `ElementField` and `useFormField` read four Superforms stores: `form`, `errors`, `constraints` and `tainted`. A native remote form has no such stores. It exposes `fields`, `issues()`, `allIssues()`, `result`, `pending` and a form attachment instead.
 
-Passing a remote form as the `form` prop is therefore not supported, and the wider `SuperForm` contract that `useFormField` exposes cannot be faked for it without inventing lifecycle members that do not exist.
+Passing a remote form as the `form` prop is therefore not supported, and the wider `SuperForm` contract that `useFormField` exposes cannot be faked for it without inventing lifecycle members that do not exist. The supported route is the separate `./remote` entry, whose components take the selected Kit field and read Kit's own state; [Remote forms](/docs/recipes/remote-forms) documents it.
 
 <Callout type="warning">
 	Do not build a stand-in object with dummy Superforms methods to make the types line up. The field state would be wrong at runtime, and the failure appears as missing errors rather than a type error.
@@ -36,7 +41,7 @@ Calling a remote `command` from your own submit handler keeps Superforms and For
 
 This is an application-level integration, not something Formsnap provides, and it is JavaScript-dependent: a command has no native HTML form contract, so there is no progressive enhancement unless you also implement a real action or endpoint as a fallback. Server validation and authorization remain your responsibility in every case.
 
-The version facts below were established by building this integration against the installed versions, and the fixture app in this repository runs it end to end at `/recipes/remote-command`. The route that presents a **native remote form** with Formsnap is a different thing entirely: that one is a presentation boundary, and it is the row marked *not supported yet*, not this one.
+The version facts below were established by building this integration against the installed versions, and the fixture app in this repository runs it end to end at `/recipes/remote-command`. The route that presents a **native remote form** is a different thing entirely: that one is a presentation boundary served by the `./remote` entry, and it is [documented separately](/docs/recipes/remote-forms), not here.
 
 - **`customRequest`, not SPA mode.** Superforms' SPA mode cancels the submission and runs client validation instead, so a request never happens and a registered custom request is never reached. A command submission therefore registers `customRequest` from the form's `onSubmit`, which is also where the SPA documentation points for your own request handling.
 - **`customRequest` may resolve an `ActionResult`.** The released 3.x source accepts `Response`, `XMLHttpRequest` or an `ActionResult` directly, although the public events page still shows only the first two. What the stores read is `data.form`: it has to be a `SuperValidated`-shaped object whose `id` matches the form's, with `valid`, `errors`, `data` and `message`. A `success` result makes Superforms reset the form when `resetForm` is on, a `failure` result applies the errors and keeps what you put in `data`, and both need `applyAction` to be `false` unless you really have page data to apply.

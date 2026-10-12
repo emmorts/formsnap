@@ -6,6 +6,38 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Added
+
+- Publish a `@emmorts/formsnap/remote` entry point that presents a native SvelteKit remote form, with
+  no Superforms in its graph. `RemoteField`, `RemoteFieldset` and `RemoteControl` read the selected Kit
+  field's `value()`, `issues()`, `touched()` and `dirty()`, and share `Label`, `Description`,
+  `FieldErrors` and `Legend` with the root entry point. Kit keeps the control's transport name and
+  `aria-invalid`, so the props from `field.as(...)` supply both; `RemoteControl` adds the associations,
+  container IDs and `data-fs-*` attributes, and required state is exactly the `constraints` a caller
+  passes because Kit's `as(...)` derives none from a schema. `useRemoteFormField`, `useRemoteField` and
+  `getRemoteField` give a custom widget the same scope, and `getRemoteFormField` returns the caller's
+  own Kit field rather than a fabricated Superforms member.
+- Support `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions` for that entry point. `3.0.1` is
+  the baseline this entry point was built and exercised against, and the supported range moves only
+  when the `remote` CI job exercises a new Kit version.
+
+### Changed
+
+- Declare `@sveltejs/kit` `^3.0.1` as a peer and mark both `@sveltejs/kit` and `sveltekit-superforms`
+  optional, so a consumer that only renders a remote form installs Kit and nothing Superforms-shaped.
+  No existing import path changes: `@emmorts/formsnap` still requires Superforms, its peer range and its
+  declarations are unchanged, and a correctly installed root consumer is unaffected. One consequence is
+  worth stating: package managers no longer auto-install a missing `sveltekit-superforms` for a root
+  consumer that omitted it, so install Superforms explicitly as the installation instructions say.
+
+### Docs
+
+- Document the remote path on its own page, including the empty-transport, missing-attachment, stale
+  snapshot and double-enhancement cases, and state that Superforms' serialization `transport` option
+  and its JSON mode are not remote-form bridges.
+- Add the `./remote` entry point to the installation requirements as its own row, and point the remote
+  functions guide at it.
+
 ## 2.2.7 (2026-10-12)
 
 ### Docs and tests

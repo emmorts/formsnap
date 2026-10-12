@@ -60,6 +60,7 @@ export const navigation: NavSection[] = [
 			{ title: "Pending & success feedback", href: resolve("/docs/recipes/feedback") },
 			{ title: "Form-wide error summaries", href: resolve("/docs/recipes/error-summary") },
 			{ title: "Conditional multi-step forms", href: resolve("/docs/recipes/multi-step") },
+			{ title: "Remote forms", href: resolve("/docs/recipes/remote-forms") },
 		],
 	},
 	{

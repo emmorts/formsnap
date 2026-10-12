@@ -16,11 +16,12 @@ The original component API remains documented at [formsnap.dev](https://formsnap
 
 ## Requirements
 
-| Dependency             | Supported range                                |
-| ---------------------- | ---------------------------------------------- |
-| `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10 |
-| `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0`                          |
-| schema library         | any Superforms adapter; the example uses zod   |
+| Dependency             | Supported range                                                     |
+| ---------------------- | ------------------------------------------------------------------- |
+| `svelte`               | `^5.30.2` — required by `svelte-toolbelt` 0.10                      |
+| `sveltekit-superforms` | `^2.19.0 \|\| ^3.0.0` — the `./remote` entry point does not need it |
+| `@sveltejs/kit`        | `^3.0.1` — the `./remote` entry point only                          |
+| schema library         | any Superforms adapter; the example uses zod                        |
 
 Superforms 3.0.0 additionally requires Svelte `^5.56.4`. The Svelte 5.30.2 minimum applies
 to Formsnap with Superforms 2; also satisfy the selected Superforms version's own peer range.
@@ -32,24 +33,47 @@ Superforms' own dependencies — check with `pnpm why zod`).
 
 ## Remote functions
 
-SvelteKit's remote functions are experimental and are **not integrated yet**. `Field`, `Fieldset`,
-`ElementField` and `useFormField` read Superforms' four stores (`form`, `errors`, `constraints`,
-`tainted`), so a native remote `form` cannot be passed as the `form` prop, and there is no remote
-equivalent in this package. Do not substitute an object with dummy Superforms methods to satisfy the
-types: the field state would be wrong at runtime.
+SvelteKit's remote functions are experimental and opt-in. Formsnap presents a native remote **form**
+through a second entry point, `@emmorts/formsnap/remote`, which imports nothing from Superforms.
+`RemoteField`, `RemoteFieldset` and `RemoteControl` read the Kit field you pass and Kit's own `issues()`,
+`touched()`, `dirty()` and `value()`; `Label`, `Description`, `FieldErrors` and `Legend` are shared
+with the root entry point. Kit keeps the control's transport name and `aria-invalid`, so the props from
+`field.as(...)` supply both, and constraints are exactly what you pass rather than anything inferred
+from a schema.
 
-Calling a remote `command` from your own submit handler keeps Superforms and Formsnap in charge of
-the form and only swaps the mutation mechanism. That is an application-level integration, and it is
-JavaScript-dependent.
+The root entry point's `Field`, `Fieldset`, `ElementField` and `useFormField` read Superforms' four
+stores (`form`, `errors`, `constraints`, `tainted`), and a native remote `form` has none of them.
+Passing a remote form as the `form` prop is therefore not supported, and a stand-in object with dummy
+Superforms methods will not fix it: the field state would be wrong at runtime, and the failure appears
+as missing errors rather than as a type error.
 
-The [remote functions guide](https://emmorts.github.io/formsnap/docs/guides/remote-functions) has the
-current support matrix, the version facts to check before copying an example, and the upstream
-issues tracking both projects.
+The `./remote` entry point was added after `2.2.7` and is due in `2.3.0`; `2.2.7` and earlier have no
+remote entry. It needs `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions` enabled and no
+Superforms at all: both peers are declared optional, so a remote-only consumer is not asked to install
+an unused SDK. The root entry point's Superforms requirement is unchanged.
+
+Calling a remote `command` from your own submit handler is a separate, application-level integration.
+It keeps Superforms and Formsnap in charge of the form and only swaps the mutation mechanism, and it
+is JavaScript-dependent.
+
+- [Remote forms](https://emmorts.github.io/formsnap/docs/recipes/remote-forms) documents the
+  components, props, ownership limits, result handling and troubleshooting, and links the runnable
+  recipes in this repository.
+- The [remote functions guide](https://emmorts.github.io/formsnap/docs/guides/remote-functions) has the
+  support matrix, the version facts to check before copying an example, and the upstream issues
+  tracking both projects.
 
 ## Installation
 
 ```bash
 npm i @emmorts/formsnap sveltekit-superforms zod
+```
+
+A consumer that only renders a native SvelteKit remote form needs the package and its own SvelteKit
+app, and no Superforms:
+
+```bash
+npm i @emmorts/formsnap
 ```
 
 ## Usage

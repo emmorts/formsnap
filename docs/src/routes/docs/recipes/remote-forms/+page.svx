@@ -1,0 +1,407 @@
+---
+title: Remote forms
+description: Present a native SvelteKit remote form with the `@emmorts/formsnap/remote` entry point, and the plugin, prop and result contracts it relies on.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+Forsnap's root entry point presents a [Superforms](https://superforms.rocks) form. A native SvelteKit
+remote form is a different kind of form — Kit owns its values, its issues and its submission — so it
+is presented through a second entry point, `@emmorts/formsnap/remote`. That entry shares the
+association and presentation components with the root entry and imports nothing from Superforms.
+
+<Callout type="warning">
+
+**Version.** The `./remote` subpath is due in `@emmorts/formsnap` **2.3.0**, and is not published
+yet. `@emmorts/formsnap` 2.2.7 and every earlier version have no `./remote` entry: on those versions
+a native remote form cannot be passed to `Field`, `Fieldset`, `ElementField` or `useFormField`, and it
+is rendered with Kit's own `fields.as(...)` and `issues()` instead.
+
+</Callout>
+
+The [remote functions guide](/docs/guides/remote-functions) stays the single source for the support
+matrix and for the version facts that changed between Kit 2.27 and 3.x. This page documents the API
+the source carries and the recipes that exercise it.
+
+## Install without Superforms
+
+A consumer that only renders a remote form installs `@emmorts/formsnap` alongside its own SvelteKit
+app and nothing Superforms-shaped:
+
+```bash
+npm install @emmorts/formsnap
+# @sveltejs/kit and svelte come with your SvelteKit app
+```
+
+`sveltekit-superforms` is declared as an **optional** peer, so package managers neither install it for
+this entry point nor warn about it. The root entry point's own requirement is unchanged: a consumer
+importing from `@emmorts/formsnap` rather than `@emmorts/formsnap/remote` still needs Superforms.
+
+`@sveltejs/kit` is a peer with the range `^3.0.1`, and it is optional for the same reason: the
+package's own modules import nothing from Kit, and only a remote-form consumer needs Kit at all.
+`^3.0.1` is the baseline this entry was built and exercised against; no wider range is claimed. The
+maintenance policy for Kit's experimental remote API is the comment above the `remote` job in
+[`.github/workflows/ci.yml`](https://github.com/emmorts/formsnap/blob/main/.github/workflows/ci.yml).
+
+## Enable Kit's remote functions
+
+Remote functions are opt-in. Add the flag to the `sveltekit()` plugin:
+
+```ts title="vite.config.ts"
+sveltekit({ experimental: { remoteFunctions: true } });
+```
+
+`compilerOptions.experimental.async` is only needed when a template uses `await` (queries), not for a
+plain remote form.
+
+## A minimal remote form
+
+A remote form is created with `form(...)` from `$app/server`, which takes the schema and the handler.
+Kit validates the submission against the schema before the handler runs, so the handler holds only
+what a schema cannot express. Any Standard Schema validator works here, because Superforms is not in
+this path:
+
+```ts title="save-remote-order.remote.ts"
+import { form } from "$app/server";
+import { z } from "zod";
+
+export const saveRemoteOrder = form(
+	z.object({
+		title: z.string().min(3, "Use at least three characters."),
+		seats: z.number().int().min(1, "Book at least one seat."),
+	}),
+	async (data) => ({ outcome: "accepted" as const, title: data.title, seats: data.seats })
+);
+```
+
+A boolean in a form schema has to be optional. An unchecked checkbox sends no value at all, so a
+required boolean could never validate, and Kit rejects that schema at the type level.
+
+The page reads the selected fields from `saveRemoteOrder.fields` and spreads Kit's own control props
+onto each control, alongside the attributes `RemoteControl` contributes:
+
+```svelte title="+page.svelte"
+<script lang="ts">
+	import { Label, RemoteControl, RemoteField } from "@emmorts/formsnap/remote";
+	import { saveRemoteOrder } from "./save-remote-order.remote.js";
+
+	const title = saveRemoteOrder.fields.title;
+	const seats = saveRemoteOrder.fields.seats;
+</script>
+
+<form {...saveRemoteOrder}>
+	<RemoteField field={title} constraints={{ required: true }}>
+		<RemoteControl id="order-title">
+			{#snippet children({ props })}
+				<Label>Order title</Label>
+				<input {...props} {...title.as("text")} />
+			{/snippet}
+		</RemoteControl>
+	</RemoteField>
+
+	<RemoteField field={seats}>
+		<RemoteControl id="order-seats">
+			{#snippet children({ props })}
+				<Label>Seats</Label>
+				<input {...props} {...seats.as("number", 3)} />
+			{/snippet}
+		</RemoteControl>
+	</RemoteField>
+
+	<button type="submit">Save order</button>
+</form>
+```
+
+The two prop sets share no key, so the spread order does not matter and there is nothing to remove.
+The complete version of this form, with a choice group, a nested group and a refused result, is the
+[`/recipes/remote`](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/remote/+page.svelte)
+recipe.
+
+## What Formsnap owns, and what Kit owns
+
+The split is the whole point of the separate entry point:
+
+| Concern                                                         | Owner                                              |
+| --------------------------------------------------------------- | -------------------------------------------------- |
+| Values, issues, submission, pending state, result                | Kit's remote form                                  |
+| Control `name` and `aria-invalid`                                | Kit, through the props returned by `field.as(...)` |
+| Labels, descriptions, error containers, ids, `aria-describedby`  | Formsnap's presentation components                  |
+| Required state, constraints, focus and reset policy              | You                                                |
+
+`RemoteField` takes no `form` prop. A remote scope is never handed a form root, a `form` prop on one
+is a type error, and `useRemoteFormField` returns the caller's own Kit field rather than inventing
+Superforms members.
+
+<Callout type="warning">
+
+Do not build a stand-in object with dummy Superforms methods to pass a remote form to `Field`. The
+field state would be wrong at runtime, and the failure appears as missing errors rather than as a
+type error.
+
+</Callout>
+
+### Required state is only what you passed
+
+Kit's `as(...)` derives no constraints from a schema, so `constraints` on `RemoteField` or
+`RemoteFieldset` is the only source of `aria-required`, and it is exactly what you passed — nothing is
+inferred. `RemoteControl` sets `aria-required` from it and never adds a native `required` attribute,
+so browser constraint validation stays your own choice, alongside `novalidate` where you would rather
+validate on the server.
+
+### Exact issues and the aggregate list
+
+A field's `issues()` are its own, with their structured paths. `allIssues()` exists on a group or on
+the form root and aggregates everything below it. The snippet props expose the same data:
+
+| Snippet prop  | What it is                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `value`       | The selected subtree's value, which Kit returns as a partial structure while incomplete    |
+| `issues`      | Kit's issues unnormalized, so a summary keeps the structured path                          |
+| `errors`      | The same issues as messages, which is what an inline list renders                          |
+| `touched`     | Kit's touched state for the subtree — not Superforms taint                                 |
+| `dirty`       | Kit's dirty state for the subtree — not Superforms taint                                   |
+| `constraints` | The explicit constraints you passed                                                        |
+
+Render an inline list from `errors`, and a form-wide summary from the form root's `allIssues()`, so a
+message reaches the reader exactly once. Root issues carry no path and get no link to a control.
+
+## Props
+
+`RemoteField` presents one selected field. It takes `field`, optional `constraints`, and the owned
+description and error content it shares with the Superforms components — `description`, `fieldErrors`,
+`descriptionId`, `fieldErrorsId` and `fieldErrorsLive` — plus a `children` snippet.
+
+`RemoteFieldset` groups a field that is a group rather than a single value. A Kit group has `issues()`
+and `allIssues()` but no `as()`, so it cannot be presented as one control, and the fieldset provides
+the grouping and the `Legend`. It adds `id`, `ref`, `constraints` and a full-container `child`
+snippet. As with the Superforms `Fieldset`, `child` cannot be combined with an owned description or
+error region: the component throws rather than rendering both.
+
+`RemoteControl` associates a `Label` with a control and contributes `id`, `aria-describedby` and the
+`data-fs-*` styling attributes. Spread the Kit props from `field.as(...)` and its `props` in either
+order.
+
+The `./remote` entry also exports `Label`, `Description`, `FieldErrors` and `Legend` — the same
+components as the root entry, since a remote field installs the same presentation scope.
+
+## Custom controls
+
+A custom widget can take the Kit field it drives as a prop and read or write that one field. The
+runnable
+[quantity stepper](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/remote-instances/quantity-stepper.svelte)
+does that: it renders its readout from `field.value()` with the *rendered* default as its fallback —
+an unset `value()` means nothing has been typed yet, not that the field is empty — and writes through
+`field.set(...)`, so the field state, the native control that submits and the readout cannot disagree.
+It is enhancement-only and disables itself until hydration, while the number input it drives stays the
+control that submits.
+
+```svelte title="quantity-stepper.svelte"
+const shown = $derived.by(() => {
+	const value = field.value();
+	return typeof value === "number" ? value : defaultValue;
+});
+
+function step(delta: number) {
+	field.set(Math.min(5, Math.max(1, shown + delta)));
+}
+```
+
+When the widget is its own component and cannot receive the field or the snippet props as arguments,
+`useRemoteFormField` reads the enclosing scope instead and returns the Kit field plus `issues`,
+`errors`, `touched`, `dirty`, `constraints`, `errorsId` and `descriptionId`. Pass `errorsId` and
+`descriptionId` getters to declare caller-owned containers, as with `useFormField`. Its contract is
+asserted by the type tests in `tests/remote-types.ts`; the runnable recipes use the prop-passing form
+above.
+
+## Defaults, reset and snapshots
+
+Each field's default comes from the value arguments of `as(...)`, for example `seats.as("number", 3)`.
+Kit's reset is a native reset control on the form: the browser restores the rendered defaults, and the
+form's reset event makes Kit clear the issues and the touched and dirty state it tracks.
+
+Two consequences are worth knowing before you build a widget around it:
+
+- Kit re-reads the reset form in a microtask, while a browser restores a form's defaults a task later.
+  Measured against Kit 3.0.1 in Chromium, the control still holds its pre-reset value during the reset
+  event and in the following microtask, so field state read at that moment disagrees with the DOM. A
+  widget that renders from field state should wait for the DOM to settle and write the rendered
+  defaults back; the instances recipe does exactly that.
+- A field's `value()` is a live read of Kit's state, not a snapshot. Reading it once into your own
+  `$state` and treating that copy as the field is what goes stale after a reset or a programmatic
+  update; read it where you render it.
+
+## Instances and keys
+
+`form.for(key)` returns one refcounted instance per key, with its own fields, issues, pending state
+and result. Two rules follow:
+
+- Create instances at component initialization, not in a template expression or a derived, or every
+  re-evaluation registers another instance. A form that is removed and rendered again re-attaches to
+  the instance it had, with the state it already held.
+- A key is client input. Kit puts it in the action URL for a native submission and in the payload for
+  an enhanced one, so the server looks the key up in its own records and takes any limit from that
+  record. A key never grants anything by itself.
+
+Attaching one instance to two form elements is refused by Kit rather than silently duplicated.
+
+## Preflight
+
+`form.preflight(schema)` adds a client pass over the form's input shape that runs before the request.
+A preflight failure returns before the enhancement callback runs, so anything you render from that
+callback — a summary announcement, a settled pending state — has to be arranged so it does not depend
+on it. The
+[feedback recipe](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/remote-feedback/+page.svelte)
+renders every layer from the form's own issue state for that reason.
+
+A preflight schema describes the same submission as the server schema, not a subset of it: the client
+pass checks what it can without a round trip, and the server still validates everything. The
+[transport recipe](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/remote-transport/schema.ts)
+keeps two schemas for one submission, and the server owns the largest limits.
+
+## Results, issues and domain refusal
+
+Kit resets a submission that comes back without issues. A refused *domain* result — the input was
+valid and the business declined it — has no issues either, so the existence of `result` is not a
+success signal:
+
+- Key your confirmation and any reset on a field of your own result, for example `result?.outcome`.
+- `invalid(issue(...))` with a path is field feedback; without a path it is form-wide feedback.
+- A command's own schema failure is not a field issue; it arrives as a failed request.
+
+```ts title="save-remote-order.remote.ts"
+if (data.title.trim().toLowerCase() === "reserved") {
+	invalid(issue.title("That title is reserved."));
+}
+
+if (data.delivery.method === "courier" && data.delivery.postcode.startsWith("9")) {
+	return { outcome: "unavailable", reason: "The courier does not deliver to the 9xxx area." } as const;
+}
+```
+
+Replacing Kit's default enhancement is one call on the form, using its own `enhance`; the remote
+recipes do it so that a refused result neither resets the form nor reads as success. No action shim
+and no second enhancement are involved.
+
+## Announcing errors and moving focus
+
+The owned error region takes `fieldErrorsLive` exactly as the Superforms components do, and the
+[error summaries recipe](/docs/recipes/error-summary) describes the policy that keeps a message from
+being announced twice: one form-wide polite region owns the announcement, and inline regions are set
+to `"off"` while keeping their associations.
+
+For remote forms, the feedback recipe pairs that with issue paths mapped to application-owned,
+declared ids, so a server-rendered summary can link to its control without JavaScript. Root entries
+stay unlinked, a group's issues point at the control a user starts from, activating a link reveals a
+collapsed target before focusing it, and an entry whose conditional control has been removed becomes
+plain text. Focus otherwise stays where the user left it.
+
+One candid limit: the repository's automated checks assert the accessibility tree, the associations
+and the live-region markup. That is DOM evidence. What a screen reader actually speaks, in which
+order, and whether a policy duplicates speech needs a named screen-reader and browser pair, which the
+project has not run. See [Verification status](#verification-status).
+
+## The recipes
+
+Four routes in the fixture app exercise the entry end to end. They need a running SvelteKit server, so
+this static documentation site does not host them; each entry links the route's source in the
+repository.
+
+- [`/recipes/remote`](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/remote)
+  — a complete native remote form: an edit default, a number, a boolean, a choice group, a nested
+  group constraint, a server-only rejection and a refused domain result, with native and enhanced
+  submission.
+- [`/recipes/remote-feedback`](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/remote-feedback)
+  — every rejection layer behind one feedback policy: native constraint, client preflight, server
+  schema, imperative issue, domain refusal, and an unexpected error through the route's error
+  boundary.
+- [`/recipes/remote-instances`](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/remote-instances)
+  — three keyed `.for(key)` instances, a custom stepper, an uploaded file, a native reset and a
+  rejected forged key.
+- [`/recipes/remote-transport`](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/remote-transport)
+  — every control spread from Kit's own props: a number, a checkbox, a primitive-array group, a file,
+  and two submit buttons sharing one transport name.
+
+Every API above is exercised by one of these routes and by the consumer tests under
+`packages/formsnap/tests/remote-*.ts`.
+
+## Troubleshooting
+
+These are the four failures a remote form produces most often when the presentation is wired up
+incorrectly, plus the two integration questions that get confused with it.
+
+### The server rejects a submission, or a field arrives empty
+
+Do not replace a generated transport name with the logical field name. Generated names carry coercion
+prefixes (`n:` for numbers, `b:` for scalar booleans), an `[]` suffix for arrays and a `/<form-id>`
+suffix the server requires. Spread the object `field.as(...)` returns, and remember that
+`RemoteControl` contributes no `name` of its own — Kit does. A field that arrives empty is usually a
+control that never received its `as(...)` props, or one whose props were overwritten by a later
+spread.
+
+### The form submits but nothing is intercepted
+
+The attachment is spread from the form, not from a field: `<form {...saveRemoteOrder}>`, or
+`<form {...saveRemoteOrder.enhance(callback)}>` when you need to observe the result. A field scope is
+not a form attachment, and a `.for(key)` instance belongs to one form element.
+
+### The displayed state disagrees with the control
+
+A cached `value()` read, a reset that has not finished (see
+[Defaults, reset and snapshots](#defaults-reset-and-snapshots)), or a widget that renders from its own
+copy of the value rather than from the field. Read the field where you render it, and write back
+through `set()`.
+
+### Feedback appears twice, or not at all
+
+Two enhancement sources are competing: Kit's default enhancement plus a second `enhance` wrapper, or
+a summary and inline regions that both announce. Apply one enhancement — replacing Kit's through its
+own `enhance` counts as one — and give the announcement to a single region. Feedback that never
+appears at all after a preflight failure is usually rendered inside the enhancement callback that the
+preflight pass skipped.
+
+### `transport` and JSON mode are not bridges
+
+Superforms' `transport` option for serializing a form, and its `dataType: "json"` mode, belong to the
+Superforms lifecycle. Neither carries a remote form's state, and neither makes a remote form usable
+with `Field`, `Fieldset`, `ElementField` or `useFormField`. A remote form is presented through the
+`./remote` entry above, or not at all.
+
+### The command path is a different path
+
+Calling a remote `command` from a Superforms submit handler keeps Superforms and Formsnap in charge of
+the form and only swaps the mutation mechanism. It is JavaScript-dependent, its result has to be
+translated into Superforms' stores, a command cannot `redirect()`, and a command's own schema failure
+is not a field issue. It is
+[documented separately](/docs/guides/remote-functions#submitting-through-a-remote-command) with the
+[`/recipes/remote-command`](https://github.com/emmorts/formsnap/tree/main/packages/formsnap/src/routes/recipes/remote-command)
+recipe. It is not native remote-form support.
+
+## Verification status
+
+Stated plainly, because the difference matters when you plan a migration:
+
+- The entry point, its declarations and its packaging are proven by `scripts/verify-package.mjs`,
+  which installs the packed tarball into a consumer with no Superforms and type-checks, server-renders
+  and submits a native remote form through the installed copy. Browser hydration of the installed copy
+  is not part of that check; the repository's browser tests cover the same components from source.
+- Behaviour is proven by the consumer tests: native and enhanced rejection, preflight, domain failure,
+  defaults and reset, keyed instances, custom controls, files and the public type contracts.
+- Accessibility evidence is the accessibility tree, the association attributes and the live-region
+  markup. Announcement order and duplicate speech were **not** verified, because no screen reader is
+  available in the project's environment.
+- Only `sveltekit-superforms` 3.0.0 is exercised locally. 2.x compatibility is covered by the
+  `compatibility` job in CI, not by a local result.
+- Kit's remote API is experimental. The supported Kit range is the one the `remote` CI job exercises,
+  and a Kit remote-API change is answered by adding that version to the job before the declared range
+  moves, or by a Formsnap release if the change breaks the presentation.
+
+## Where to go next
+
+- [Remote functions guide](/docs/guides/remote-functions) — the support matrix, the version facts and
+  the command integration.
+- [Installation](/docs/installation) — the requirements of both entry points.
+- [Error summaries](/docs/recipes/error-summary) and
+  [custom controls](/docs/recipes/custom-controls) — the association patterns the remote components
+  reuse.

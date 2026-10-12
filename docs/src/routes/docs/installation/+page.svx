@@ -32,10 +32,13 @@ bun add @emmorts/formsnap sveltekit-superforms zod
 | Dependency             | Supported range                                     |
 | ---------------------- | --------------------------------------------------- |
 | `svelte`               | `^5.30.2`                                           |
-| `sveltekit-superforms` | `^2.19.0` or `^3.0.0`                               |
+| `sveltekit-superforms` | `^2.19.0` or `^3.0.0` — `./remote` does not need it |
+| `@sveltejs/kit`        | `^3.0.1` — the `./remote` entry point only          |
 | schema library         | any Superforms adapter; these docs use zod          |
 
 Superforms 3 additionally requires Svelte `^5.56.4`; the Svelte 5.30.2 minimum applies to Formsnap with Superforms 2.
+
+`@sveltejs/kit` and `sveltekit-superforms` are both optional peers. The root entry point still needs Superforms, exactly as before; the `@emmorts/formsnap/remote` entry point presents a native Kit remote form and needs Kit with `experimental.remoteFunctions` enabled, and nothing Superforms-shaped. See [Remote forms](/docs/recipes/remote-forms) before installing for that entry, because it ships in an unreleased version.
 
 <Callout type="warning">
 
@@ -50,6 +53,12 @@ Components and hooks come from the package root:
 ```ts title="src/routes/settings/settings-form.svelte"
 import { Control, Description, Field, FieldErrors, Fieldset, Label, Legend, ElementField } from "@emmorts/formsnap";
 import { useFormControl, useFormField } from "@emmorts/formsnap";
+```
+
+A native SvelteKit remote form comes from its own entry point, which needs no Superforms:
+
+```ts title="src/routes/orders/order-form.svelte"
+import { Label, RemoteControl, RemoteField, RemoteFieldset } from "@emmorts/formsnap/remote";
 ```
 
 ## Next steps
