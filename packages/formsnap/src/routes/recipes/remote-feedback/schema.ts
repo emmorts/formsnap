@@ -16,7 +16,9 @@ import { z } from "zod";
 const handle = z.string();
 const seats = z.number();
 // An unchecked group sends nothing at all, so the missing and empty cases read the same.
-const channels = z.array(z.enum(["email", "sms", "push"]), { error: "Choose at least one channel." });
+const channels = z.array(z.enum(["email", "sms", "push"]), {
+	error: "Choose at least one channel.",
+});
 
 export const feedbackPreflightSchema = z.object({
 	handle: handle.min(3, "Use at least three characters."),

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { fixtureUrl } from "./fixture-url.js";
+import { isRemoteEndpointRequest } from "./remote-endpoint.js";
 import { danglingReferences, duplicateIds, parseDocument } from "./html.js";
 
 /**
@@ -41,9 +42,6 @@ afterEach(async () => {
 });
 
 const url = () => new URL("recipes/remote-feedback", fixtureUrl()).href;
-/** The enhanced transport posts to the app's remote endpoint, not to the page URL. */
-const remoteEndpoint = () => (response: { url(): string; request(): { method(): string } }) =>
-	response.request().method() === "POST" && /\/_app\/remote\//.test(response.url());
 const form = (page: Page) => page.locator('form[data-testid="recipe-remote-feedback"]');
 const summary = (page: Page, path: string) => page.getByTestId(`feedback-summary-${path}`);
 
@@ -75,7 +73,7 @@ async function fillValid(page: Page, handle = "team_digest") {
 
 async function submit(page: Page) {
 	return Promise.all([
-		page.waitForResponse(remoteEndpoint()),
+		page.waitForResponse(isRemoteEndpointRequest),
 		page.getByRole("button", { name: "Save order" }).click(),
 	]).then(([response]) => response);
 }
@@ -177,11 +175,15 @@ describe("remote feedback recipe", () => {
 		// focus: a rejection on its own leaves focus where the user put it.
 		await page.getByTestId("feedback-notes-disclosure").locator("summary").click();
 		expect(
-			await page.getByTestId("feedback-notes-disclosure").evaluate((element) => (element as HTMLDetailsElement).open)
+			await page
+				.getByTestId("feedback-notes-disclosure")
+				.evaluate((element) => (element as HTMLDetailsElement).open)
 		).toBe(false);
 		await summary(page, "notes").click();
 		expect(
-			await page.getByTestId("feedback-notes-disclosure").evaluate((element) => (element as HTMLDetailsElement).open)
+			await page
+				.getByTestId("feedback-notes-disclosure")
+				.evaluate((element) => (element as HTMLDetailsElement).open)
 		).toBe(true);
 		expect(await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))).toBe(
 			"feedback-notes-input"
@@ -206,7 +208,7 @@ describe("remote feedback recipe", () => {
 		// Submit from the keyboard while another control holds focus, so "unchanged" is observable.
 		const seats = page.getByTestId("feedback-seats-input");
 		const [response] = await Promise.all([
-			page.waitForResponse(remoteEndpoint()),
+			page.waitForResponse(isRemoteEndpointRequest),
 			seats.press("Enter"),
 		]);
 		expect(response.status()).toBe(200);

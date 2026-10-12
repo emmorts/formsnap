@@ -67,6 +67,12 @@
 				"Every rejection layer of a native remote form behind one announcement policy, with linked and unlinked summary entries.",
 		},
 		{
+			path: "/recipes/remote-instances",
+			title: "Remote form instances",
+			description:
+				"Repeated form.for(id) instances with isolation, a custom control, a submitted file, an explicit reset policy and a refused duplicate attachment.",
+		},
+		{
 			path: "/recipes/multi-step",
 			title: "Conditional multi-step form",
 			description:

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { fixtureUrl } from "./fixture-url.js";
+import { isRemoteEndpointRequest } from "./remote-endpoint.js";
 import { danglingReferences, duplicateIds, parseDocument } from "./html.js";
 
 /**
@@ -34,9 +35,6 @@ afterEach(async () => {
 });
 
 const url = () => new URL("recipes/remote", fixtureUrl()).href;
-/** The enhanced transport posts to the app's remote endpoint, not to the page URL. */
-const remoteEndpoint = () => (response: { url(): string; request(): { method(): string } }) =>
-	response.request().method() === "POST" && /\/_app\/remote\//.test(response.url());
 const form = (page: Page) => page.locator('form[data-testid="recipe-remote"]');
 const password = (page: Page) => page.getByTestId("remote-recipe-password-input");
 
@@ -252,7 +250,7 @@ describe("native remote recipe", () => {
 		await fillValid(page, { postcode: "9021" });
 
 		const [response] = await Promise.all([
-			page.waitForResponse(remoteEndpoint()),
+			page.waitForResponse(isRemoteEndpointRequest),
 			page.getByRole("button", { name: "Save order" }).click(),
 		]);
 		expect(response.status()).toBe(200);
@@ -276,7 +274,7 @@ describe("native remote recipe", () => {
 		await page.getByLabel("Postcode").fill("1234");
 
 		const [response] = await Promise.all([
-			page.waitForResponse(remoteEndpoint()),
+			page.waitForResponse(isRemoteEndpointRequest),
 			page.getByRole("button", { name: "Save order" }).click(),
 		]);
 		expect(response.status()).toBe(200);
