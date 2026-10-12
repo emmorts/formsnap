@@ -326,6 +326,53 @@ repository.
 Every API above is exercised by one of these routes and by the consumer tests under
 `packages/formsnap/tests/remote-*.ts`.
 
+## Run the fixture locally
+
+This documentation site is static, and GitHub Pages cannot run a remote mutation handler. So there is
+no hosted remote-form demo here and no mock submission standing in for one, and no page on this site
+enables `experimental.remoteFunctions` or imports `@emmorts/formsnap/remote`. The recipes are
+exercised by running the fixture application from a checkout:
+
+```bash
+pnpm install
+pnpm --filter @emmorts/formsnap run package
+pnpm --filter @emmorts/formsnap exec vite --port 5181 --strictPort
+```
+
+`--strictPort` fails instead of silently moving to another port. The fixture enables remote functions
+itself, and serves all four routes on `http://localhost:5181`: `/recipes/remote`,
+`/recipes/remote-feedback`, `/recipes/remote-instances` and `/recipes/remote-transport`.
+
+A native submission does not go to the page URL. Kit renders the form with a generated action and
+generated input names, and the server requires both:
+
+```bash
+curl -s http://localhost:5181/recipes/remote | grep -o '<form[^>]*>'
+# <form action="?/remote=<hash>/saveRemoteOrder" method="POST" ...
+```
+
+The hash in that action is generated per form. Read the action and the input `name`s from the rendered
+page rather than composing them, because every value has to arrive under the name its input rendered
+with: a coercion prefix (`n:` for numbers, `b:` for scalar booleans), an `[]` suffix for an array, and
+the `/<hash>/<function>` suffix. A submission that targets the action with `Accept: text/html` answers
+`200` and renders the issues into the page even when the data is invalid, while a `POST` of the bare
+page URL answers `405`, with or without that header:
+
+```bash
+# 405: the page URL is not the action
+curl -i -X POST http://localhost:5181/recipes/remote
+curl -i -H 'Accept: text/html' -X POST http://localhost:5181/recipes/remote
+
+# 200 with the server schema issue rendered, using the action and names read from the page
+curl -s -H 'Accept: text/html' -X POST \
+  'http://localhost:5181/recipes/remote?/remote=<hash>/saveRemoteOrder' \
+  --data-urlencode 'title/<hash>/saveRemoteOrder=ab' \
+  --data-urlencode 'n:seats/<hash>/saveRemoteOrder=2'
+```
+
+A presentation-only demo would need the same server, and a static build cannot supply it, so this page
+shows the code and links the source instead of imitating the behaviour.
+
 ## Troubleshooting
 
 These are the four failures a remote form produces most often when the presentation is wired up
@@ -334,11 +381,12 @@ incorrectly, plus the two integration questions that get confused with it.
 ### The server rejects a submission, or a field arrives empty
 
 Do not replace a generated transport name with the logical field name. Generated names carry coercion
-prefixes (`n:` for numbers, `b:` for scalar booleans), an `[]` suffix for arrays and a `/<form-id>`
-suffix the server requires. Spread the object `field.as(...)` returns, and remember that
-`RemoteControl` contributes no `name` of its own — Kit does. A field that arrives empty is usually a
-control that never received its `as(...)` props, or one whose props were overwritten by a later
-spread.
+prefixes (`n:` for numbers, `b:` for scalar booleans), an `[]` suffix for arrays and a
+`/<hash>/<function>` suffix the server requires. A rendered control for `title` in a form whose action
+is `?/remote=<hash>/saveRemoteOrder` submits as `title/<hash>/saveRemoteOrder`. Spread the object
+`field.as(...)` returns, and remember that `RemoteControl` contributes no `name` of its own — Kit
+does. A field that arrives empty is usually a control that never received its `as(...)` props, or one
+whose props were overwritten by a later spread.
 
 ### The form submits but nothing is intercepted
 

@@ -7,7 +7,7 @@ description: What SvelteKit remote functions mean for Formsnap today, which part
 	import { Callout } from "$lib/markdown";
 </script>
 
-SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, which is built and packaged but not released. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
+SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, which is built and packaged in this repository's source and is due in `2.3.0`. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
 
 <Callout type="warning">
 	**Version.** The `./remote` subpath is due in `@emmorts/formsnap` **2.3.0**, and is not published yet. `@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
