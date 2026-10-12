@@ -222,7 +222,7 @@
 	bind:this={dialog}
 	aria-labelledby={titleId}
 	onclose={closeSearchPalette}
-	class="border-line bg-surface text-fg fixed left-1/2 top-6 m-0 max-h-[min(40rem,calc(100dvh-3rem))] w-[min(44rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border p-0 shadow-2xl backdrop:bg-black/40 flex"
+	class="border-line bg-surface text-fg fixed left-1/2 top-6 m-0 max-h-[min(40rem,calc(100dvh-3rem))] w-[min(44rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border p-0 shadow-2xl backdrop:bg-black/40 open:flex"
 >
 	<h2 id={titleId} class="sr-only">Search documentation</h2>
 
