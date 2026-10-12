@@ -107,3 +107,64 @@ jobs:
 
             - name: Build the package
               run: pnpm --filter @emmorts/formsnap run package
+
+    # The remote entry (`@emmorts/formsnap/remote`) presents a native Kit remote form with no
+    # Superforms in the graph. `packages/formsnap/package.json` therefore declares
+    # `sveltekit-superforms` and `@sveltejs/kit` as optional peers, and this job is the evidence for
+    # that claim: it runs the fixture suite at the Kit baseline, builds the package, then installs the
+    # packed tarball into a consumer that has no Superforms at all. `scripts/verify-package.mjs` also
+    # checks the tarball contents, the declaration graph of the remote entry, the root entry's
+    # contract in a Superforms consumer, and prints the repository, commit and dependency versions it
+    # ran against.
+    #
+    # Maintenance policy for Kit's experimental remote API. The remote entry is claimed only for the
+    # Kit versions this job exercises, and the declared peer range starts at the lowest one exercised:
+    # there is no unbounded compatibility promise. Kit 3.0.1 is that baseline — the released version
+    # whose remote form implementation was read and exercised here. When Kit changes the remote API,
+    # add the new version to this matrix and let it pass before widening the range in the manifest; if
+    # the change breaks the presentation, the remote entry follows in a Formsnap release instead. The
+    # range is never widened past a version no job exercises.
+    remote:
+        name: Remote (${{ matrix.description }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - description: Kit 3.0.1, Svelte 5.57.2, packed consumer without Superforms
+                      svelte: "5.57.2"
+                      kit: "3.0.1"
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 24
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install the matrix versions
+              run: >-
+                  pnpm --filter @emmorts/formsnap add -D --save-exact
+                  svelte@${{ matrix.svelte }}
+                  @sveltejs/kit@${{ matrix.kit }}
+
+            - name: Install the browser used by the browser test project
+              run: pnpm --filter @emmorts/formsnap exec playwright install --with-deps chromium
+
+            - name: Type-check
+              run: pnpm --filter @emmorts/formsnap run check
+
+            - name: Test
+              run: pnpm --filter @emmorts/formsnap test
+
+            - name: Build the package
+              run: pnpm --filter @emmorts/formsnap run package
+
+            - name: Prove the packed artifact
+              run: >-
+                  node scripts/verify-package.mjs
+                  --kit=${{ matrix.kit }}
+                  --svelte=${{ matrix.svelte }}
