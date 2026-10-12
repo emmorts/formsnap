@@ -1,5 +1,6 @@
 import GithubSlugger from "github-slugger";
 import { marked, type Token } from "marked";
+import { inlinePlain } from "./markdown/inline.ts";
 import type { SearchEntry } from "./search.js";
 
 /** Strip formatting through the Markdown parser, not a heading regex that also sees code fences. */
@@ -31,7 +32,7 @@ export function indexPage(source: string, href: string, fallbackTitle: string): 
 	const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(source);
 	const metadata = frontmatter?.[1] ?? "";
 	const title = /^title:\s*(.+)$/m.exec(metadata)?.[1]?.trim() ?? fallbackTitle;
-	const description = /^description:\s*(.+)$/m.exec(metadata)?.[1]?.trim() ?? "";
+	const description = inlinePlain(/^description:\s*(.+)$/m.exec(metadata)?.[1]?.trim() ?? "");
 	const tokens = marked.lexer(source.slice(frontmatter?.[0].length ?? 0));
 	const slugger = new GithubSlugger();
 	const entries: SearchEntry[] = [{ href, title, section: "", text: description }];

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { base } from "$app/paths";
+	import { inlineHtml, inlinePlain } from "$lib/markdown/inline";
 
 	let {
 		title,
@@ -37,7 +39,7 @@
 		<title>{title} — Formsnap</title>
 	{/if}
 	{#if description}
-		<meta name="description" content={description} />
+		<meta name="description" content={inlinePlain(description)} />
 	{/if}
 </svelte:head>
 
@@ -46,7 +48,10 @@
 		<header class="docs-prose-header">
 			<h1>{title}</h1>
 			{#if description}
-				<p class="docs-prose-lede">{description}</p>
+				<!-- inlineHtml escapes every text leaf and drops raw HTML, so repository Markdown cannot
+				     inject markup here; see $lib/markdown/inline.ts. -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				<p class="docs-prose-lede">{@html inlineHtml(description, { base })}</p>
 			{/if}
 		</header>
 	{/if}
