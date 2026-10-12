@@ -6,6 +6,23 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+### Docs and tests
+
+- Render page descriptions as inline Markdown, so `code` spans, emphasis and links in a description
+  are formatted instead of printed literally. The meta description and the search index keep the
+  plain wording.
+- Replace the standalone search page with a search palette available on every page: the header
+  trigger or `⌘K`/`Ctrl+K` opens a dialog with combobox semantics, results grouped by page,
+  highlighted matches and arrow-key navigation. Matching tolerates typos, identifier-style queries
+  such as `useformfield` or `usef`, and multi-word queries where only some words match.
+- Keep the search palette hidden visually and from assistive technology when closed. Preserve
+  native Home/End editing and leave input-method composition keystrokes untouched.
+- Match typos in joined identifiers without joining arbitrary prose, scan past invalid earlier
+  matches, preserve full Unicode highlight spans, and keep matched text inside search snippets.
+- Decode Markdown character references consistently in page descriptions, metadata and indexed
+  descriptions while preserving literal code and escapes. Allow only HTTP, HTTPS, email, telephone
+  and relative link destinations; render other link labels without an anchor.
+
 ## 2.2.6 (2026-10-11)
 
 ### Changed

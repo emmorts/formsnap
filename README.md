@@ -77,8 +77,12 @@ See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 Build the site locally with `pnpm docs:dev` (it builds `@emmorts/formsnap` first, then serves the
 docs app on Vite). `pnpm docs:build` writes the static site to `docs/build`.
 
-Search matching runs in the browser against a prerendered section index. The live demos validate
-locally; they do not save data or send email. Complete server/native recipes remain in the fixture app.
+Search is available on every page: the header button or `⌘K`/`Ctrl+K` opens a palette that matches
+in the browser against a prerendered section index, tolerates typos and identifier-style queries
+such as `useformfield` or `useformfiled`, and links straight to the matching section. Arrow keys
+select results and Enter opens them; Home/End keep their normal text-editing behavior.
+The live demos validate locally; they do not save data or send email. Complete server/native
+recipes remain in the fixture app.
 
 ## Support
 
