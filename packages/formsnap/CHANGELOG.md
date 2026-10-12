@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.3.0 (2026-10-12)
+
 Additive. The root entry point's imports, declarations and runtime behaviour are unchanged, so an
 existing Superforms consumer has nothing to migrate. The new `./remote` subpath is claimed only for
 `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions`, and the root entry point's Superforms
@@ -61,6 +63,8 @@ difference is described under Changed below.
   and its JSON mode are not remote-form bridges.
 - Add the `./remote` entry point to the installation requirements as its own row, and point the remote
   functions guide at it.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.7...v2.3.0)
 
 ## 2.2.7 (2026-10-12)
 
