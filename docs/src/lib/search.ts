@@ -349,22 +349,37 @@ function windowSnippet(
 ): { text: string; ranges: HighlightRange[] } {
 	if (text.length <= SNIPPET_LENGTH) return { text, ranges: mergeRanges(ranges) };
 
-	const anchor = Number.isFinite(focus) ? Math.max(0, focus - 60) : 0;
+	const focused = Number.isFinite(focus);
+	let focusEnd = focus;
+	if (focused) {
+		for (const [start, end] of ranges) {
+			if (start <= focus && end > focusEnd) focusEnd = end;
+		}
+	}
+	const anchor = focused ? Math.max(0, focus - 60) : 0;
 	let from = Math.max(0, Math.min(anchor, text.length - SNIPPET_LENGTH));
 	let to = Math.min(text.length, from + SNIPPET_LENGTH);
 	const nextSpace = text.indexOf(" ", from);
-	if (from > 0 && nextSpace !== -1 && nextSpace < to) from = nextSpace + 1;
+	if (from > 0 && nextSpace !== -1 && nextSpace < to && (!focused || nextSpace + 1 <= focus)) {
+		from = nextSpace + 1;
+	}
+	if (focused && focusEnd > to) {
+		to = focusEnd;
+		from = Math.max(from, Math.min(focus, to - SNIPPET_LENGTH));
+	}
 	const previousSpace = text.lastIndexOf(" ", to);
-	if (to < text.length && previousSpace > from) to = previousSpace;
+	if (to < text.length && previousSpace > from && (!focused || previousSpace >= focusEnd)) {
+		to = previousSpace;
+	}
 
 	const prefix = from > 0 ? "…" : "";
 	const snippet = `${prefix}${text.slice(from, to)}${to < text.length ? "…" : ""}`;
 	const shift = prefix.length - from;
 	const clipped: HighlightRange[] = [];
 	for (const [start, end] of mergeRanges(ranges)) {
-		const clippedStart = Math.max(0, Math.min(snippet.length, start + shift));
-		const clippedEnd = Math.max(0, Math.min(snippet.length, end + shift));
-		if (clippedEnd > clippedStart) clipped.push([clippedStart, clippedEnd]);
+		const clippedStart = Math.max(from, start);
+		const clippedEnd = Math.min(to, end);
+		if (clippedEnd > clippedStart) clipped.push([clippedStart + shift, clippedEnd + shift]);
 	}
 
 	return { text: snippet, ranges: clipped };

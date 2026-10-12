@@ -268,3 +268,35 @@ test("later compact occurrences remain searchable after a boundary-invalid occur
 	}
 });
 
+test("snippet word boundaries cannot skip the focused match after a long unbroken word", () => {
+	const entry = {
+		href: "/docs/long-word",
+		title: "",
+		section: "",
+		text: `${"x".repeat(100)}constraint ${"tail ".repeat(50)}`,
+	};
+	const [result] = searchDocumentation([entry], "constraint").results;
+	assert.ok(result.snippet.length <= 202, result.snippet.length);
+	assert.ok(result.snippet.includes("constraint"));
+	assert.deepEqual(
+		highlightSegments(result.snippet, result.snippetRanges).filter(({ match }) => match),
+		[{ text: "constraint", match: true }]
+	);
+});
+
+test("snippet ranges are clipped to visible text rather than ellipses", () => {
+	const entry = {
+		href: "/docs/clipped",
+		title: "",
+		section: "",
+		text: `alpha ${"filler ".repeat(50)}omega`,
+	};
+	const [result] = searchDocumentation([entry], "alpha omega").results;
+	assert.equal(result.complete, true);
+	assert.ok(result.snippet.endsWith("…"));
+	assert.ok(result.snippet.length <= 202, result.snippet.length);
+	assert.deepEqual(
+		highlightSegments(result.snippet, result.snippetRanges).filter(({ match }) => match),
+		[{ text: "alpha", match: true }]
+	);
+});
