@@ -6,6 +6,12 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+Additive. The root entry point's imports, declarations and runtime behaviour are unchanged, so an
+existing Superforms consumer has nothing to migrate. The new `./remote` subpath is claimed only for
+`@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions`, and the root entry point's Superforms
+`^2.19.0 || ^3.0.0` and Svelte `^5.30.2` requirements are unchanged. The one install-visible
+difference is described under Changed below.
+
 ### Added
 
 - Publish a `@emmorts/formsnap/remote` entry point that presents a native SvelteKit remote form, with
