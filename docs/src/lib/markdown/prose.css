@@ -190,7 +190,7 @@
 	vertical-align: top;
 }
 
-/* Code blocks rendered by the shiki highlighter in svelte.config.js. */
+/* Syntax-highlighted code blocks. */
 .docs-prose .code-block,
 .code-block {
 	position: relative;

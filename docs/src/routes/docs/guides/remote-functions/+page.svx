@@ -7,13 +7,13 @@ description: What SvelteKit remote functions mean for Formsnap today, which part
 	import { Callout } from "$lib/markdown";
 </script>
 
-SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, which is built and packaged in this repository's source and is due in `2.3.0`. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
+SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, available from `2.3.0`. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
 
-<Callout type="warning">
-	**Version.** The `./remote` subpath is due in `@emmorts/formsnap` **2.3.0**, and is not published yet. `@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
+<Callout type="note">
+	**Version.** The `./remote` subpath ships in `@emmorts/formsnap` **2.3.0** and later. `@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
 </Callout>
 
-Forsnap's root entry presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot be combined on the same `form` prop.
+Formsnap's root entry presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot be combined on the same `form` prop.
 
 ## Support matrix
 
@@ -22,8 +22,21 @@ Forsnap's root entry presents field state that Superforms owns. A native remote 
 | Remote `query` / `prerender` loading data beside an ordinary Formsnap form        | Works as-is               | SvelteKit loads the data; Superforms keeps the form                  |
 | Submitting a Superforms form through a remote `command`                           | Application-owned         | Superforms keeps the form; your code translates the command's result into its stores |
 | A native remote `form` rendered with Kit's own `fields.as(...)` and `issues()`     | Works, without Formsnap   | Kit owns values, issues and submission                               |
-| A native remote `form` presented with the `./remote` entry's `RemoteField` / `RemoteControl` | Built and packaged; ships in 2.3.0, unreleased | Kit owns values, issues and submission; Formsnap owns associations, ids and error containers |
+| A native remote `form` presented with the `./remote` entry's `RemoteField` / `RemoteControl` | Available in 2.3.0+ | Kit owns values, issues and submission; Formsnap owns associations, ids and error containers |
 | A native remote `form` passed to the root entry's `Field` / `Fieldset` / `ElementField` | **Not supported**   | A remote form is not a Superforms form; see [Remote forms](/docs/recipes/remote-forms) |
+
+The remote entry requires Kit `^3.0.1` with `experimental.remoteFunctions`; Kit 3 requires Svelte
+`^5.57.1`, and the tested baseline is Kit 3.0.1 with Svelte 5.57.2. Formsnap's Svelte `^5.30.2`
+minimum applies to the root Superforms 2 backend, not a Kit 3 app.
+
+Superforms is an optional peer so remote-only installs need none. Kit requirements cannot be
+encoded per entry point in package metadata: even an optional global Kit 3 peer would reject
+existing root Kit 2/Superforms 2 apps. Kit is therefore a documented backend-specific requirement,
+not a package-wide peer. Remote Kit 2 support is not claimed.
+
+Kit's remote API is experimental. Changed Kit versions must pass the `remote` CI job before the
+documented baseline changes, and incompatible changes require a Formsnap release. A caret range
+does not establish that every later Kit release was exercised.
 
 ## Why a native remote form is not a drop-in
 
@@ -47,6 +60,9 @@ The version facts below were established by building this integration against th
 - **`customRequest` may resolve an `ActionResult`.** The released 3.x source accepts `Response`, `XMLHttpRequest` or an `ActionResult` directly, although the public events page still shows only the first two. What the stores read is `data.form`: it has to be a `SuperValidated`-shaped object whose `id` matches the form's, with `valid`, `errors`, `data` and `message`. A `success` result makes Superforms reset the form when `resetForm` is on, a `failure` result applies the errors and keeps what you put in `data`, and both need `applyAction` to be `false` unless you really have page data to apply.
 - **The default `onError` throws.** A result of type `error` reaches Superforms' `onError`, whose default throws, and a throw from there aborts the submission before its pending state is finalised: the form stays busy. Handle it, or translate a failed request into one of the result types above.
 - **A command's schema failure is not a field issue.** When the command's own schema rejects its input, the call rejects rather than returning issues, so there is nothing to map onto controls; present it as a failed request.
+- **Refresh failure is not mutation failure.** Once a command accepts the mutation, translate its
+  success to Superforms and keep the receipt even if refreshing a related query fails. Report the
+  failed refresh separately rather than presenting an accepted order as a failed submission.
 - **No `redirect()`.** A command cannot redirect inside its handler, so return something the client can navigate with and let the application do the navigation.
 
 ## Version facts to check before copying an example

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { base } from "$app/paths";
+	import { deploymentBase } from "$lib/deployment-base";
 	import { inlineHtml, inlinePlain } from "$lib/markdown/inline";
 
 	let {
@@ -50,8 +50,10 @@
 			{#if description}
 				<!-- inlineHtml escapes every text leaf and drops raw HTML, so repository Markdown cannot
 				     inject markup here; see $lib/markdown/inline.ts. -->
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<p class="docs-prose-lede">{@html inlineHtml(description, { base })}</p>
+				<p class="docs-prose-lede">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html inlineHtml(description, { base: deploymentBase })}
+				</p>
 			{/if}
 		</header>
 	{/if}

@@ -7,16 +7,16 @@ description: Present a native SvelteKit remote form with the `@emmorts/formsnap/
 	import { Callout } from "$lib/markdown";
 </script>
 
-Forsnap's root entry point presents a [Superforms](https://superforms.rocks) form. A native SvelteKit
-remote form is a different kind of form — Kit owns its values, its issues and its submission — so it
-is presented through a second entry point, `@emmorts/formsnap/remote`. That entry shares the
-association and presentation components with the root entry and imports nothing from Superforms.
+Formsnap's root entry point presents a [Superforms](https://superforms.rocks) form. A native SvelteKit
+remote form has different state: Kit owns its values, issues and submission. It is presented through
+`@emmorts/formsnap/remote`, which shares the association and presentation components with the root
+entry and imports nothing from Superforms.
 
-<Callout type="warning">
+<Callout type="note">
 
-**Version.** The `./remote` subpath is due in `@emmorts/formsnap` **2.3.0**, and is not published
-yet. `@emmorts/formsnap` 2.2.7 and every earlier version have no `./remote` entry: on those versions
-a native remote form cannot be passed to `Field`, `Fieldset`, `ElementField` or `useFormField`, and it
+**Version.** The `./remote` subpath ships in `@emmorts/formsnap` **2.3.0** and later.
+`@emmorts/formsnap` 2.2.7 and every earlier version have no `./remote` entry: on those versions a
+native remote form cannot be passed to `Field`, `Fieldset`, `ElementField` or `useFormField`, and it
 is rendered with Kit's own `fields.as(...)` and `issues()` instead.
 
 </Callout>
@@ -39,10 +39,14 @@ npm install @emmorts/formsnap
 this entry point nor warn about it. The root entry point's own requirement is unchanged: a consumer
 importing from `@emmorts/formsnap` rather than `@emmorts/formsnap/remote` still needs Superforms.
 
-`@sveltejs/kit` is a peer with the range `^3.0.1`, and it is optional for the same reason: the
-package's own modules import nothing from Kit, and only a remote-form consumer needs Kit at all.
-`^3.0.1` is the baseline this entry was built and exercised against; no wider range is claimed. The
-maintenance policy for Kit's experimental remote API is the comment above the `remote` job in
+The remote entry requires `@sveltejs/kit` `^3.0.1`, and Kit 3 requires Svelte `^5.57.1`. The tested
+remote baseline is Kit 3.0.1 with Svelte 5.57.2, not Formsnap's root Svelte minimum. Kit is not a
+package-wide peer: even an optional Kit 3 peer rejects existing root Kit 2/Superforms 2 applications.
+Backend-specific requirements are documented instead; remote support is not extended to Kit 2.
+
+Kit's remote API is experimental. Changed versions must pass the `remote` CI job before the
+documented baseline changes; incompatible changes require a Formsnap release. The `^3.0.1` range
+does not establish that every later release was tested. See the policy above the `remote` job in
 [`.github/workflows/ci.yml`](https://github.com/emmorts/formsnap/blob/main/.github/workflows/ci.yml).
 
 ## Enable Kit's remote functions
@@ -158,11 +162,15 @@ the form root and aggregates everything below it. The snippet props expose the s
 | Snippet prop  | What it is                                                                               |
 | ------------- | ---------------------------------------------------------------------------------------- |
 | `value`       | The selected subtree's value, which Kit returns as a partial structure while incomplete    |
-| `issues`      | Kit's issues unnormalized, so a summary keeps the structured path                          |
+| `issues`      | Copies of Kit's structured issues, preserving paths without exposing mutable backend metadata |
 | `errors`      | The same issues as messages, which is what an inline list renders                          |
 | `touched`     | Kit's touched state for the subtree — not Superforms taint                                 |
 | `dirty`       | Kit's dirty state for the subtree — not Superforms taint                                   |
-| `constraints` | The explicit constraints you passed                                                        |
+| `constraints` | A copy of the explicit constraints you passed                                               |
+
+Issue and constraint metadata is copied before presentation, so mutating those views cannot mutate
+the backend. The selected `value` and `field` remain Kit's own public reads, not detached form copies.
+Snippet getters read values and interaction state only when the snippet uses them.
 
 Render an inline list from `errors`, and a form-wide summary from the form root's `allIssues()`, so a
 message reaches the reader exactly once. Root issues carry no path and get no link to a control.
@@ -188,32 +196,28 @@ components as the root entry, since a remote field installs the same presentatio
 
 ## Custom controls
 
-A custom widget can take the Kit field it drives as a prop and read or write that one field. The
-runnable
+The runnable
 [quantity stepper](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/routes/recipes/remote-instances/quantity-stepper.svelte)
-does that: it renders its readout from `field.value()` with the *rendered* default as its fallback —
-an unset `value()` means nothing has been typed yet, not that the field is empty — and writes through
-`field.set(...)`, so the field state, the native control that submits and the readout cannot disagree.
-It is enhancement-only and disables itself until hydration, while the number input it drives stays the
+uses `useRemoteFormField<QuantityField>()` inside an enclosing `RemoteField`. It derives
+`QuantityField` from `ReturnType<typeof saveOrderLine.for>["fields"]["quantity"]`, so
+`quantity.field.value()` and `quantity.field.set(...)` retain Kit's exact field types without a
+separate field prop. The readout falls back to the rendered default when the value is unset. The
+stepper is enhancement-only and disables itself until hydration; the number input remains the
 control that submits.
 
-```svelte title="quantity-stepper.svelte"
-const shown = $derived.by(() => {
-	const value = field.value();
-	return typeof value === "number" ? value : defaultValue;
-});
+`useRemoteFormField` returns that original field plus `issues`, `errors`, `touched`, `dirty`,
+`constraints`, `errorsId` and `descriptionId`. Optional `errorsId` and `descriptionId` getters
+register caller-owned containers, as with `useFormField`. Getter views follow source changes; avoid
+destructuring them into stale snapshots. Initialize the hook inside the component, under a remote
+field provider. Using a backend-specific hook under the wrong provider throws.
 
-function step(delta: number) {
-	field.set(Math.min(5, Math.max(1, shown + delta)));
-}
-```
-
-When the widget is its own component and cannot receive the field or the snippet props as arguments,
-`useRemoteFormField` reads the enclosing scope instead and returns the Kit field plus `issues`,
-`errors`, `touched`, `dirty`, `constraints`, `errorsId` and `descriptionId`. Pass `errorsId` and
-`descriptionId` getters to declare caller-owned containers, as with `useFormField`. Its contract is
-asserted by the type tests in `tests/remote-types.ts`; the runnable recipes use the prop-passing form
-above.
+For a custom presentation provider, `useRemoteField` installs a selected-field scope from boxed
+getters (`field: { get current() { return field; } }` and the matching constraints/owned ID boxes).
+`getRemoteField<YourField>()` looks up the enclosing typed `RemoteFieldState`, including its
+association registry and lazy snippet view, without registering widget IDs. Both are initialized
+inside a component. The existing
+[`RemoteField.svelte`](https://github.com/emmorts/formsnap/blob/main/packages/formsnap/src/lib/remote/RemoteField.svelte)
+is the provider implementation; use it as the reference rather than installing a second form owner.
 
 ## Defaults, reset and snapshots
 
@@ -439,11 +443,14 @@ Stated plainly, because the difference matters when you plan a migration:
 - Accessibility evidence is the accessibility tree, the association attributes and the live-region
   markup. Announcement order and duplicate speech were **not** verified, because no screen reader is
   available in the project's environment.
-- Only `sveltekit-superforms` 3.0.0 is exercised locally. 2.x compatibility is covered by the
-  `compatibility` job in CI, not by a local result.
-- Kit's remote API is experimental. The supported Kit range is the one the `remote` CI job exercises,
-  and a Kit remote-API change is answered by adding that version to the job before the declared range
-  moves, or by a Formsnap release if the change breaks the presentation.
+- The `compatibility` CI matrix installs the packed root entry in isolated Kit 2 apps at the
+  Superforms 2.19.0/Svelte 5.30.2 minimum, Superforms 3.0.0/Svelte 5.56.4, and current selectors.
+  It checks actual app types and native classic-action submissions, not the full browser fixture at
+  each older version. The full source/browser suite stays on the locked baseline in verify and remote.
+- Kit's remote API is experimental. Kit 3.0.1 with Svelte 5.57.2 is the tested remote baseline.
+  Changed Kit versions must pass the `remote` CI job before the documented baseline changes;
+  incompatible changes require a Formsnap release. Kit requirements stay backend-specific rather
+  than a global package peer that would reject root Kit 2 consumers.
 
 ## Where to go next
 

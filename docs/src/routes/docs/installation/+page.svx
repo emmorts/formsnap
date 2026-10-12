@@ -38,7 +38,13 @@ bun add @emmorts/formsnap sveltekit-superforms zod
 
 Superforms 3 additionally requires Svelte `^5.56.4`; the Svelte 5.30.2 minimum applies to Formsnap with Superforms 2.
 
-`@sveltejs/kit` and `sveltekit-superforms` are both optional peers. The root entry point still needs Superforms, exactly as before; the `@emmorts/formsnap/remote` entry point presents a native Kit remote form and needs Kit with `experimental.remoteFunctions` enabled, and nothing Superforms-shaped. See [Remote forms](/docs/recipes/remote-forms) before installing for that entry, because the version that carries it is not published yet.
+`sveltekit-superforms` is an optional peer so remote-only consumers need not install it; root consumers
+must install it explicitly. Kit requirements depend on the backend and are documented rather than
+encoded in a package-wide peer: even an optional Kit 3 peer would reject existing root Kit 2 apps.
+The `./remote` entry still needs Kit `^3.0.1` with `experimental.remoteFunctions`, not Kit 2, and
+Kit 3 needs Svelte `^5.57.1`. Its tested baseline is Kit 3.0.1 with Svelte 5.57.2. Changed experimental
+APIs must pass the `remote` CI job before the documented baseline changes; the caret range is not a
+claim that every later release was tested. See [Remote forms](/docs/recipes/remote-forms).
 
 <Callout type="warning">
 

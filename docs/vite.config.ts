@@ -1,5 +1,5 @@
 import { createHighlighter } from "shiki";
-import { mdsvex, escapeSvelte } from "mdsvex";
+import { mdsvex, escapeSvelte, type MdsvexOptions } from "mdsvex";
 import rehypeSlug from "rehype-slug";
 import { rehypeTableScroll } from "./src/lib/markdown/rehype-table-scroll.js";
 import { rehypeBaseLinks } from "./src/lib/markdown/rehype-base-links.js";
@@ -10,10 +10,19 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
-const isPages = process.env.GITHUB_ACTIONS === "true";
-
 /** Deployment base path: the repository name on GitHub Pages, empty for local builds. */
-const base = isPages ? `/${process.env.GITHUB_REPOSITORY?.split("/")[1] ?? ""}` : "";
+const base: "" | `/${string}` = (() => {
+	if (process.env.GITHUB_ACTIONS !== "true") return "";
+	const name = process.env.GITHUB_REPOSITORY?.split("/")[1];
+	return name ? `/${name}` : "";
+})();
+
+/** mdsvex's Plugin/Settings generics predate hast Root transformers; cast at the boundary. */
+const rehypePlugins = [
+	rehypeSlug,
+	rehypeTableScroll,
+	[rehypeBaseLinks, base],
+] as unknown as NonNullable<MdsvexOptions["rehypePlugins"]>;
 
 export default defineConfig(async () => {
 	const highlighter = await createHighlighter({
@@ -22,7 +31,7 @@ export default defineConfig(async () => {
 	});
 
 	/** Render fenced code blocks with dual light/dark themes so the site toggle can swap them in CSS. */
-	function highlight(code, lang, meta) {
+	function highlight(code: string, lang: string, meta?: string) {
 		const language = highlighter.getLoadedLanguages().includes(lang) ? lang : "text";
 		const html = highlighter
 			.codeToHtml(code, {
@@ -54,12 +63,12 @@ export default defineConfig(async () => {
 						),
 						highlight: {
 							highlighter: (code, lang, meta) =>
-								escapeSvelte(highlight(code, lang, meta)),
+								escapeSvelte(highlight(code, lang ?? "", meta ?? undefined)),
 						},
 						// Heading ids feed the "On this page" rail and make sections deep-linkable; tables get a
 						// scroll container; markdown links get the deployment base path prefix. The base plugin
 						// takes its base as a unified option, so it is registered as [plugin, options].
-						rehypePlugins: [rehypeSlug, rehypeTableScroll, [rehypeBaseLinks, base]],
+						rehypePlugins,
 					}),
 				],
 				paths: { base },

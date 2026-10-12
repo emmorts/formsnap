@@ -4,7 +4,7 @@
  * Pages project path, those would point outside the site. SvelteKit's `resolve()` handles links in
  * components, but plain markdown anchors are not touched by it.
  *
- * Registered as `[rehypeBaseLinks, base]` in docs/svelte.config.js, so the base arrives as a
+ * Registered as `[rehypeBaseLinks, base]` in docs/vite.config.ts, so the base arrives as a
  * unified option.
  *
  * @typedef {import('hast').Element} Element
