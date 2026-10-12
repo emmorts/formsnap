@@ -55,6 +55,12 @@
 				"Root validation, a single announcement policy, and caller-owned links to conditional controls.",
 		},
 		{
+			path: "/recipes/remote",
+			title: "Native remote form",
+			description:
+				"One native SvelteKit remote form presented by Formsnap, with a rejection, a refused domain result, and an explicit reset policy.",
+		},
+		{
 			path: "/recipes/multi-step",
 			title: "Conditional multi-step form",
 			description:
