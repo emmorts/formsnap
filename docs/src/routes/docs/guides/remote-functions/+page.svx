@@ -10,7 +10,11 @@ description: What SvelteKit remote functions mean for Formsnap today, which part
 SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap presents a native remote **form** through a second entry point, `@emmorts/formsnap/remote`, available from `2.3.0`. This page records the boundary and the version facts so you can plan around them rather than guess from examples written for a different version.
 
 <Callout type="note">
-	**Version.** The `./remote` subpath ships in `@emmorts/formsnap` **2.3.0** and later. `@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
+
+**Version.** The `./remote` subpath ships in `@emmorts/formsnap` **2.3.0** and later.
+`@emmorts/formsnap` 2.2.7 and every earlier version contain no remote entry and none of the work
+behind it: on those versions use Kit's own `fields.as(...)` and `issues()`, as the matrix below says.
+
 </Callout>
 
 Formsnap's root entry presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot be combined on the same `form` prop.
@@ -45,7 +49,10 @@ does not establish that every later Kit release was exercised.
 Passing a remote form as the `form` prop is therefore not supported, and the wider `SuperForm` contract that `useFormField` exposes cannot be faked for it without inventing lifecycle members that do not exist. The supported route is the separate `./remote` entry, whose components take the selected Kit field and read Kit's own state; [Remote forms](/docs/recipes/remote-forms) documents it.
 
 <Callout type="warning">
-	Do not build a stand-in object with dummy Superforms methods to make the types line up. The field state would be wrong at runtime, and the failure appears as missing errors rather than a type error.
+
+Do not build a stand-in object with dummy Superforms methods to make the types line up. The field
+state would be wrong at runtime, and the failure appears as missing errors rather than a type error.
+
 </Callout>
 
 ## Submitting through a remote command
