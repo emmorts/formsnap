@@ -22,6 +22,8 @@
 	let handleDirty = $state(false);
 	let siblingIssues = $state<RemoteIssue[] | undefined>(undefined);
 	let groupIssues = $state<RemoteIssue[] | undefined>(undefined);
+	/** Whether the group's standalone description and error container are mounted at all. */
+	let showContributors = $state(true);
 
 	export function setHandle(next: {
 		issues?: RemoteIssue[];
@@ -41,6 +43,11 @@
 
 	export function setGroup(issues: RemoteIssue[] | undefined) {
 		groupIssues = issues;
+	}
+
+	/** Mount or unmount the group's standalone contributors, which own their registrations. */
+	export function setContributors(on: boolean) {
+		showContributors = on;
 	}
 
 	function fieldProps(
@@ -145,6 +152,8 @@
 			<input data-links-control {...props} />
 		{/snippet}
 	</RemoteControl>
-	<Description>One link per row.</Description>
-	<FieldErrors />
+	{#if showContributors}
+		<Description>One link per row.</Description>
+		<FieldErrors />
+	{/if}
 </RemoteFieldset>

@@ -143,6 +143,43 @@ describe("remote presentation", () => {
 		expect(fieldset.getAttribute("data-fs-error")).toBe("");
 	});
 
+	it("keeps one registration per contributor across conditional remounts", () => {
+		const consumer = mountFixture();
+		const fieldset = element<HTMLFieldSetElement>("fieldset[data-fs-fieldset]");
+		const control = element<HTMLInputElement>("[data-links-control]");
+		const contributors = () =>
+			fieldset.querySelectorAll("[data-fs-description], [data-fs-field-errors]");
+		consumer.setGroup([{ message: "Pick a link", path: ["links"] }]);
+		flushSync();
+		expect(describedBy(control).length).toBe(2);
+		expect(contributors().length).toBe(2);
+
+		// Removing a contributor withdraws the association its owner registered, so the control stops
+		// describing an element that is not there.
+		consumer.setContributors(false);
+		flushSync();
+		expect(describedBy(control)).toEqual([]);
+		expect(contributors().length).toBe(0);
+
+		// Remounting them twenty-five times registers one owner each time and releases the previous one,
+		// which is what keeps the list at one description and one error container rather than growing
+		// with ids that no longer resolve.
+		for (let index = 0; index < 25; index++) {
+			consumer.setContributors(false);
+			flushSync();
+			consumer.setContributors(true);
+			flushSync();
+		}
+
+		expect(describedElements(control).length).toBe(2);
+		expect(contributors().length).toBe(2);
+		expect(
+			describedElements(control).some((node) =>
+				node.textContent?.includes("One link per row.")
+			)
+		).toBe(true);
+	});
+
 	it("fails descriptively when the Superforms Control presents a remote field", () => {
 		// `Control` reads a name that a remote field deliberately does not own, so the mistake must
 		// name the right component instead of emitting a duplicate name or invalid state.
