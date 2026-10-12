@@ -321,7 +321,13 @@ describe("remote consumer contracts", () => {
 					timeout: 10000,
 				})
 				.toContain("does not deliver to the 9xxx postcode area");
-			expect(await page.locator('[data-testid="remote-recipe-pending"]').count()).toBe(0);
+			// As with an accepted result, Kit decrements pending after it assigns the result, so the
+			// refusal is rendered for a few milliseconds while the form still reads as pending.
+			await expect
+				.poll(() => page.locator('[data-testid="remote-recipe-pending"]').count(), {
+					timeout: 10000,
+				})
+				.toBe(0);
 			expect(
 				await page
 					.locator('form[data-testid="recipe-remote"] button[type="submit"]')

@@ -315,7 +315,12 @@ describe("native remote recipe", () => {
 			expect(await form(page).locator('button[type="submit"]').isDisabled()).toBe(true);
 			resume();
 			await page.getByTestId("remote-recipe-message").waitFor();
-			expect(await page.getByTestId("remote-recipe-pending").count()).toBe(0);
+			// Kit assigns the result before it decrements its pending counter, so the accepted message
+			// is rendered for a few milliseconds while the form still reads as pending.
+			await expect
+				.poll(() => page.getByTestId("remote-recipe-pending").count(), { timeout: 10000 })
+				.toBe(0);
+			expect(await form(page).locator('button[type="submit"]').isDisabled()).toBe(false);
 		} finally {
 			resume();
 		}
