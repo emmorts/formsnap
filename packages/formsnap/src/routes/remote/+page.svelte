@@ -12,7 +12,7 @@
 <form {...saveRemote} data-testid="remote-form">
 	<label for="remote-handle">Handle</label>
 	<input id="remote-handle" {...saveRemote.fields.handle.as("text")} />
-	{#each saveRemote.fields.handle.issues() ?? [] as issue}
+	{#each saveRemote.fields.handle.issues() ?? [] as issue (issue.message)}
 		<p data-issue="handle">{issue.message}</p>
 	{/each}
 
