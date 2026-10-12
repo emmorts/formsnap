@@ -30,6 +30,22 @@ Under `sveltekit-superforms` 2.31 and later the zod adapter is typed against the
 `zod/v3`, and keep a single zod version in your dependency tree (pnpm can install a second copy for
 Superforms' own dependencies — check with `pnpm why zod`).
 
+## Remote functions
+
+SvelteKit's remote functions are experimental and are **not integrated yet**. `Field`, `Fieldset`,
+`ElementField` and `useFormField` read Superforms' four stores (`form`, `errors`, `constraints`,
+`tainted`), so a native remote `form` cannot be passed as the `form` prop, and there is no remote
+equivalent in this package. Do not substitute an object with dummy Superforms methods to satisfy the
+types: the field state would be wrong at runtime.
+
+Calling a remote `command` from your own submit handler keeps Superforms and Formsnap in charge of
+the form and only swaps the mutation mechanism. That is an application-level integration, and it is
+JavaScript-dependent.
+
+The [remote functions guide](https://emmorts.github.io/formsnap/docs/guides/remote-functions) has the
+current support matrix, the version facts to check before copying an example, and the upstream
+issues tracking both projects.
+
 ## Installation
 
 ```bash

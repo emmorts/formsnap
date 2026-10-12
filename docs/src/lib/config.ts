@@ -30,6 +30,7 @@ export const navigation: NavSection[] = [
 		items: [
 			{ title: "Progressive enhancement", href: resolve("/docs/guides/enhancement") },
 			{ title: "Accessibility", href: resolve("/docs/guides/accessibility") },
+			{ title: "Remote functions", href: resolve("/docs/guides/remote-functions") },
 			{ title: "Migration & troubleshooting", href: resolve("/docs/guides/migration") },
 		],
 	},

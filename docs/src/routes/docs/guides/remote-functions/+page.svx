@@ -1,0 +1,58 @@
+---
+title: Remote functions
+description: What SvelteKit remote functions mean for Formsnap today, which parts are not supported yet, and the version facts to check before you copy any example.
+---
+
+<script>
+	import { Callout } from "$lib/markdown";
+</script>
+
+SvelteKit's [remote functions](https://svelte.dev/docs/kit/remote-functions) are experimental and opt-in. Formsnap does not integrate with remote **forms** yet. This page records the current boundary so you can plan around it rather than guess from examples written for a different version.
+
+Forsnap presents field state that Superforms owns. A native remote form owns its own field state, so the two cannot simply be combined on the same `form` prop.
+
+## Support matrix
+
+| Usage                                                                            | Status                    | Who owns the state                                                  |
+| -------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| Remote `query` / `prerender` loading data beside an ordinary Formsnap form        | Works as-is               | SvelteKit loads the data; Superforms keeps the form                  |
+| Submitting a Superforms form through a remote `command`                           | Application-owned         | Your code translates the result into the Superforms stores           |
+| A native remote `form` rendered with Kit's own `fields.as(...)` and `issues()`     | Works, without Formsnap   | Kit owns values, issues and submission                               |
+| A native remote `form` presented by Formsnap's `Field` / `Control` components      | **Not supported yet**     | Intended split: Kit owns state, Formsnap owns presentation           |
+
+## Why a native remote form is not a drop-in
+
+`Field`, `Fieldset`, `ElementField` and `useFormField` read four Superforms stores: `form`, `errors`, `constraints` and `tainted`. A native remote form has no such stores. It exposes `fields`, `issues()`, `allIssues()`, `result`, `pending` and a form attachment instead.
+
+Passing a remote form as the `form` prop is therefore not supported, and the wider `SuperForm` contract that `useFormField` exposes cannot be faked for it without inventing lifecycle members that do not exist.
+
+<Callout type="warning">
+	Do not build a stand-in object with dummy Superforms methods to make the types line up. The field state would be wrong at runtime, and the failure appears as missing errors rather than a type error.
+</Callout>
+
+## Submitting through a remote command
+
+Calling a remote `command` from your own submit handler keeps Superforms and Formsnap in charge of the form and only swaps the mutation mechanism. The documented building blocks are Superforms' [SPA mode](https://superforms.rocks/concepts/spa) and `customRequest`.
+
+This is an application-level integration, not something Formsnap provides, and it is JavaScript-dependent: a command has no native HTML form contract, so there is no progressive enhancement unless you also implement a real action or endpoint as a fallback. Server validation and authorization remain your responsibility in every case.
+
+Two version facts matter here. Superforms' own `customRequest` accepts an `ActionResult` directly in the released 3.x source, although the public events page still shows only `Response` / `XMLHttpRequest`. And a remote `command` does not support `redirect()` inside its handler, so return a location and navigate from the client.
+
+## Version facts to check before copying an example
+
+Remote functions changed between SvelteKit 2.27 and 3.x, and the published documentation lags the released code in places:
+
+- **Opt-in flags.** Remote functions need `experimental.remoteFunctions` on the `sveltekit()` Vite plugin. `compilerOptions.experimental.async` is only needed when a template uses `await` (queries), not for a plain remote form.
+- **Validation options.** SvelteKit 3 uses `validate({ all, preflightOnly })`. The live guide still shows `includeUntouched`, which the released runtime ignores.
+- **Input names belong to Kit.** Generated names carry coercion prefixes (`n:` for numbers, `b:` for scalar booleans), an `[]` suffix for arrays, and a `/<form-id>` suffix that the server requires. Never replace a generated name with the logical field name; the server rejects the submission.
+- **Rejection status.** A native remote-form submission returns `200` and renders the issues into the page, even when the data is invalid. Classic enhanced actions behave differently: since SvelteKit 3 they return the status passed to `fail(...)`, where they previously always returned `200`. Do not copy one expectation onto the other.
+- **Sensitive fields.** A field whose name starts with `_` is not echoed back when a native submission is rejected, so it cannot be repopulated from the server response.
+
+## Track upstream work
+
+- [svecosystem/formsnap#228](https://github.com/svecosystem/formsnap/issues/228) tracks remote-function support for Formsnap. That repository is the **upstream** project, which has not been maintained since April 2025, and it is not the package you installed.
+- [ciscoheat/sveltekit-superforms#616](https://github.com/ciscoheat/sveltekit-superforms/issues/616) tracks the same question for Superforms.
+
+Superforms 3 is a SvelteKit 3 **compatibility** release. It does not add remote-function support, so `sveltekit-superforms` resolving against SvelteKit 3 says nothing about native remote forms working with Formsnap.
+
+This page describes what ships in `@emmorts/formsnap` today. It does not describe unreleased work as available.
