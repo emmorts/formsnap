@@ -2,7 +2,7 @@
 	import { box } from "svelte-toolbelt";
 	import type { ControlProps } from "./types.js";
 	import { useId } from "$lib/internal/utils/index.js";
-	import { useControl } from "$lib/formsnap.svelte.js";
+	import { useControl } from "$lib/internal/presentation.svelte.js";
 
 	const instanceId = $props.id();
 	const labelId = useId(instanceId, "label");

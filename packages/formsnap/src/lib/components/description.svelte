@@ -2,7 +2,7 @@
 	import { box, mergeProps } from "svelte-toolbelt";
 	import type { DescriptionProps } from "./types.js";
 	import { useId } from "$lib/internal/utils/index.js";
-	import { useDescription } from "$lib/formsnap.svelte.js";
+	import { useDescription } from "$lib/internal/presentation.svelte.js";
 
 	const instanceId = $props.id();
 

@@ -2,7 +2,7 @@
 	import { box, mergeProps } from "svelte-toolbelt";
 	import type { LegendProps } from "./types.js";
 	import { useId } from "$lib/internal/utils/id.js";
-	import { useLegend } from "$lib/formsnap.svelte.js";
+	import { useLegend } from "$lib/internal/presentation.svelte.js";
 
 	const instanceId = $props.id();
 

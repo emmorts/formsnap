@@ -2,7 +2,7 @@
 	import { box, mergeProps } from "svelte-toolbelt";
 	import type { FieldErrorsProps } from "./types.js";
 	import { useId } from "$lib/internal/utils/index.js";
-	import { useFieldErrors } from "$lib/formsnap.svelte.js";
+	import { useFieldErrors } from "$lib/internal/presentation.svelte.js";
 	import ErrorContent from "./error-content.svelte";
 
 	const instanceId = $props.id();
