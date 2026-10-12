@@ -10,8 +10,9 @@ dist
 /docs/.svelte-kit
 /docs/.vite
 
-# Local working plan
+# Local working documents
 /docs/implementation-plan.md
+/docs/remote-functions-implementation-plan.md
 
 # Logs
 logs
