@@ -254,3 +254,17 @@ test("identifier typos highlight the whole original identifier without joining a
 	assert.equal(hrefs("fieldst")[0], "/docs/components/fieldset");
 });
 
+test("later compact occurrences remain searchable after a boundary-invalid occurrence", () => {
+	for (const section of ["reform field. formField", "Reading form fieldset. formField"]) {
+		const entry = { href: "/docs/later", title: "", section, text: "" };
+		const [result] = searchDocumentation([entry], "formfield").results;
+		assert.ok(result, section);
+		const start = section.indexOf("formField");
+		assert.deepEqual(result.sectionRanges, [[start, start + "formField".length]], section);
+		assert.deepEqual(
+			highlightSegments(section, result.sectionRanges).filter(({ match }) => match),
+			[{ text: "formField", match: true }]
+		);
+	}
+});
+

@@ -261,11 +261,26 @@ function matchField(
 
 	// The joined form answers identifier-style queries ("useformfield", "formfield"), but only when
 	// the match lines up with whole words: otherwise "fieldst" would match "field" + "st(ate)".
-	const joined = field.compact.indexOf(term);
-	if (joined !== -1) {
+	let startWord = 0;
+	let endWord = 0;
+	for (
+		let joined = field.compact.indexOf(term);
+		joined !== -1;
+		joined = field.compact.indexOf(term, joined + 1)
+	) {
 		const end = joined + term.length;
-		const startsWord = field.compactWords.some((word) => word.start === joined);
-		const endsWord = field.compactWords.some((word) => word.end === end);
+		while (
+			startWord < field.compactWords.length &&
+			field.compactWords[startWord].start < joined
+		) {
+			startWord++;
+		}
+		while (endWord < field.compactWords.length && field.compactWords[endWord].end < end) {
+			endWord++;
+		}
+		const startsWord = field.compactWords[startWord]?.start === joined;
+		const endsWord = field.compactWords[endWord]?.end === end;
+		// A partial ending is a prefix only when it belongs to a real identifier, not adjacent prose.
 		const firstIdentifier = field.identifiers[0];
 		const identifierPrefix =
 			joined === 0 && firstIdentifier?.start === 0 && end <= firstIdentifier.end;
