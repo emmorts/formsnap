@@ -61,6 +61,12 @@
 				"One native SvelteKit remote form presented by Formsnap, with a rejection, a refused domain result, and an explicit reset policy.",
 		},
 		{
+			path: "/recipes/remote-feedback",
+			title: "Remote rejection feedback",
+			description:
+				"Every rejection layer of a native remote form behind one announcement policy, with linked and unlinked summary entries.",
+		},
+		{
 			path: "/recipes/multi-step",
 			title: "Conditional multi-step form",
 			description:
