@@ -79,7 +79,7 @@
 		</div>
 
 		<div class="min-w-0 lg:pl-4">
-			<p class="text-fg-subtle mb-3 text-xs font-medium uppercase tracking-wider">
+			<p class="text-fg-subtle mb-3 text-xs font-medium tracking-wider uppercase">
 				Try it — this form is live
 			</p>
 			<DemoForm />

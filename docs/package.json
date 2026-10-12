@@ -14,30 +14,30 @@
 	},
 	"dependencies": {
 		"@emmorts/formsnap": "workspace:*",
-		"sveltekit-superforms": "^2.31.0",
+		"sveltekit-superforms": "^3.0.0",
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
 		"@fontsource-variable/inter": "^5.2.5",
 		"@fontsource-variable/jetbrains-mono": "^5.2.5",
 		"@fontsource-variable/space-grotesk": "^5.2.5",
-		"@sveltejs/adapter-static": "^3.0.8",
-		"@sveltejs/kit": "^2.21.0",
-		"@sveltejs/vite-plugin-svelte": "^5.0.0",
-		"@tailwindcss/vite": "^4.1.4",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.1",
+		"@sveltejs/vite-plugin-svelte": "^7.3.1",
+		"@tailwindcss/vite": "^4.3.3",
 		"@types/hast": "^3",
 		"bits-ui": "1.8.0",
 		"entities": "^8.1.0",
 		"github-slugger": "^2",
-		"linkedom": "^0.18.0",
+		"linkedom": "^0.18.13",
 		"marked": "^15",
-		"mdsvex": "^0.12.6",
+		"mdsvex": "^0.12.8",
 		"rehype-slug": "^6",
 		"shiki": "^3.2.2",
 		"svelte": "^5.57.2",
-		"svelte-check": "^4.1.6",
-		"tailwindcss": "^4.1.4",
-		"typescript": "^5.8.3",
-		"vite": "^6.3.2"
+		"svelte-check": "^4.7.6",
+		"tailwindcss": "^4.3.3",
+		"typescript": "^6.0.3",
+		"vite": "^8.3.4"
 	}
 }

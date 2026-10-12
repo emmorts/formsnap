@@ -71,9 +71,12 @@ async function submit(page: Page, scope = "personal") {
 			.getByRole("button", { name: `Save ${scope} booking` })
 			.click(),
 	]);
-	expect(response.status()).toBe(200);
+	const body = await response.json();
+	// SvelteKit 3 returns the `fail` status for enhanced submissions, so the HTTP status now
+	// matches the status encoded in the ActionResult body instead of always being 200.
+	expect(response.status()).toBe(body.status);
 	expect(response.request().isNavigationRequest()).toBe(false);
-	return response.json();
+	return body;
 }
 
 async function assertSingleAnnouncement(form: Locator) {

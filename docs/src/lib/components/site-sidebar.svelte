@@ -10,7 +10,7 @@
 <nav aria-label="Documentation" class="flex flex-col gap-6">
 	{#each navigation as section (section.title)}
 		<div>
-			<p class="text-fg-subtle mb-2 px-3 text-xs font-medium uppercase tracking-wider">
+			<p class="text-fg-subtle mb-2 px-3 text-xs font-medium tracking-wider uppercase">
 				{section.title}
 			</p>
 			<ul class="flex flex-col gap-0.5">

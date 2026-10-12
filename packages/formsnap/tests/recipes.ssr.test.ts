@@ -218,7 +218,8 @@ describe("documented integration recipes", () => {
 			),
 			page.getByRole("button", { name: "Save handle" }).click(),
 		]);
-		expect(response.status()).toBe(200);
+		// SvelteKit 3 returns the `fail` status for enhanced submissions instead of always 200.
+		expect(response.status()).toBe(400);
 		expect(await response.json()).toMatchObject({ type: "failure", status: 400 });
 		await expect
 			.poll(() => handle.evaluate((element: HTMLInputElement) => element.validationMessage), {
@@ -316,7 +317,8 @@ describe("documented integration recipes", () => {
 					: page.waitForNavigation(),
 				page.getByRole("button", { name: "Upload" }).click(),
 			]);
-			expect(rejected?.status()).toBe(javaScriptEnabled ? 200 : 400);
+			// SvelteKit 3 returns the `fail` status for enhanced submissions too, matching native.
+			expect(rejected?.status()).toBe(400);
 			if (javaScriptEnabled)
 				expect(await rejected?.json()).toMatchObject({ type: "failure", status: 400 });
 			await expect

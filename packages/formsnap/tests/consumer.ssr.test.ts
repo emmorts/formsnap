@@ -287,8 +287,9 @@ describe("real SvelteKit consumers", () => {
 			),
 			page.getByRole("button", { name: "Save contacts" }).click(),
 		]);
-		// Enhanced Kit actions encode the validation status inside an HTTP 200 ActionResult.
-		expect(rejected.status()).toBe(200);
+		// SvelteKit 3 returns the `fail` status for enhanced submissions, so the HTTP status is no
+		// longer always 200; the ActionResult body still encodes the semantic status.
+		expect(rejected.status()).toBe(400);
 		expect(await rejected.json()).toMatchObject({ type: "failure", status: 400 });
 		expect(rejected.request().isNavigationRequest()).toBe(false);
 		expect(rejected.request().headers()["x-sveltekit-action"]).toBe("true");

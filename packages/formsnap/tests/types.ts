@@ -33,13 +33,7 @@ expectTypeOf<HeadlessField["name"]>().toEqualTypeOf<"items[0].id">();
 expectTypeOf<SuperForm<Paths, StatusMessage>>().toMatchTypeOf<FsSuperForm<Paths, StatusMessage>>();
 
 type OptionalMethods =
-	| "validate"
-	| "validateForm"
-	| "enhance"
-	| "isTainted"
-	| "reset"
-	| "options"
-	| "restore";
+	"validate" | "validateForm" | "enhance" | "isTainted" | "reset" | "options" | "restore";
 type PresentationForm = Omit<SuperForm<Paths, StatusMessage>, OptionalMethods>;
 expectTypeOf<PresentationForm>().toMatchTypeOf<FsSuperForm<Paths, StatusMessage>>();
 expectTypeOf<NonNullable<HeadlessField["form"]["validate"]>>().toEqualTypeOf<

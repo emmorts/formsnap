@@ -13,13 +13,7 @@ type PrimitiveLegendAttributes = Primitive<HTMLAttributes<HTMLLegendElement>>;
 
 /** Presentation wrappers may omit SDK methods, but supplied members keep SDK types. */
 type OptionalSuperFormMembers =
-	| "validate"
-	| "validateForm"
-	| "enhance"
-	| "isTainted"
-	| "reset"
-	| "options"
-	| "restore";
+	"validate" | "validateForm" | "enhance" | "isTainted" | "reset" | "options" | "restore";
 
 export type FsSuperForm<T extends Record<string, unknown>, M = any> = Omit<
 	SuperForm<T, M>,

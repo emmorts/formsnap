@@ -2,8 +2,13 @@ import { fork } from "node:child_process";
 import { once } from "node:events";
 import { createServer as createTcpServer } from "node:net";
 import { fileURLToPath } from "node:url";
-import type { GlobalSetupContext } from "vitest/node";
 import type {} from "./fixture-url.js";
+
+/**
+ * Vitest 5 no longer exports the global-setup context. Setup receives the project, whose
+ * `provide` publishes values for `inject`; `fixtureUrl` is declared in `fixture-url.ts`.
+ */
+type GlobalSetupContext = { provide: (key: "fixtureUrl", value: string) => void };
 
 /** Select a free port; strictPort never silently redirects tests to a different application. */
 export async function setup({ provide }: GlobalSetupContext) {

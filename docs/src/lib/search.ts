@@ -144,7 +144,7 @@ function prepareField(value: string): Field {
 
 	const compact = compactCharacters.join("");
 	const identifiers: Word[] = [];
-	for (let first = 0; first < compactWords.length; ) {
+	for (let first = 0; first < compactWords.length;) {
 		let last = first;
 		while (
 			last + 1 < compactWords.length &&

@@ -55,7 +55,7 @@
 		</button>
 	</div>
 	<div class="overflow-x-auto px-4 py-3.5">
-		<code class="text-fg whitespace-nowrap font-mono text-[0.8125rem]">
+		<code class="text-fg font-mono text-[0.8125rem] whitespace-nowrap">
 			<span class="text-fg-subtle select-none">$ </span>{managers.find((m) => m.id === active)
 				?.command}
 		</code>

@@ -35,7 +35,7 @@
 
 {#if headings.length > 1}
 	<nav aria-label="On this page" class="flex flex-col gap-2">
-		<p class="text-fg-subtle text-xs font-medium uppercase tracking-wider">On this page</p>
+		<p class="text-fg-subtle text-xs font-medium tracking-wider uppercase">On this page</p>
 		<ul class="border-line flex flex-col gap-1 border-l">
 			{#each headings as heading (heading.id)}
 				<li>

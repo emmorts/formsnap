@@ -264,8 +264,7 @@
 							{...props}
 							class={styles.input}
 							rows="3"
-							bind:value={$formData.notes}
-						></textarea>
+							bind:value={$formData.notes}></textarea>
 					{/snippet}
 				</Control>
 			</Field>

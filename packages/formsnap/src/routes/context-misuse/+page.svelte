@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from "$app/environment";
+	import { browser } from "$app/env";
 	import { getAllContexts, untrack, type ComponentProps } from "svelte";
 	import { render as renderServer } from "svelte/server";
 	import ContextMisuse from "../../../tests/fixtures/context-misuse.svelte";
