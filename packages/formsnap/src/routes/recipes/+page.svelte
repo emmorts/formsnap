@@ -73,6 +73,12 @@
 				"Repeated form.for(id) instances with isolation, a custom control, a submitted file, an explicit reset policy and a refused duplicate attachment.",
 		},
 		{
+			path: "/recipes/remote-command",
+			title: "Superforms with a remote command",
+			description:
+				"A real SuperForm whose submission is an application-owned remote command, translated into Superforms state, with a query refresh and application navigation.",
+		},
+		{
 			path: "/recipes/multi-step",
 			title: "Conditional multi-step form",
 			description:

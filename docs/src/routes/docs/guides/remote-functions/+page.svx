@@ -16,7 +16,7 @@ Forsnap presents field state that Superforms owns. A native remote form owns its
 | Usage                                                                            | Status                    | Who owns the state                                                  |
 | -------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
 | Remote `query` / `prerender` loading data beside an ordinary Formsnap form        | Works as-is               | SvelteKit loads the data; Superforms keeps the form                  |
-| Submitting a Superforms form through a remote `command`                           | Application-owned         | Your code translates the result into the Superforms stores           |
+| Submitting a Superforms form through a remote `command`                           | Application-owned         | Superforms keeps the form; your code translates the command's result into its stores |
 | A native remote `form` rendered with Kit's own `fields.as(...)` and `issues()`     | Works, without Formsnap   | Kit owns values, issues and submission                               |
 | A native remote `form` presented by Formsnap's `Field` / `Control` components      | **Not supported yet**     | Intended split: Kit owns state, Formsnap owns presentation           |
 
@@ -32,11 +32,17 @@ Passing a remote form as the `form` prop is therefore not supported, and the wid
 
 ## Submitting through a remote command
 
-Calling a remote `command` from your own submit handler keeps Superforms and Formsnap in charge of the form and only swaps the mutation mechanism. The documented building blocks are Superforms' [SPA mode](https://superforms.rocks/concepts/spa) and `customRequest`.
+Calling a remote `command` from your own submit handler keeps Superforms and Formsnap in charge of the form and only swaps the mutation mechanism.
 
 This is an application-level integration, not something Formsnap provides, and it is JavaScript-dependent: a command has no native HTML form contract, so there is no progressive enhancement unless you also implement a real action or endpoint as a fallback. Server validation and authorization remain your responsibility in every case.
 
-Two version facts matter here. Superforms' own `customRequest` accepts an `ActionResult` directly in the released 3.x source, although the public events page still shows only `Response` / `XMLHttpRequest`. And a remote `command` does not support `redirect()` inside its handler, so return a location and navigate from the client.
+The version facts below were established by building this integration against the installed versions, and the fixture app in this repository runs it end to end at `/recipes/remote-command`. The route that presents a **native remote form** with Formsnap is a different thing entirely: that one is a presentation boundary, and it is the row marked *not supported yet*, not this one.
+
+- **`customRequest`, not SPA mode.** Superforms' SPA mode cancels the submission and runs client validation instead, so a request never happens and a registered custom request is never reached. A command submission therefore registers `customRequest` from the form's `onSubmit`, which is also where the SPA documentation points for your own request handling.
+- **`customRequest` may resolve an `ActionResult`.** The released 3.x source accepts `Response`, `XMLHttpRequest` or an `ActionResult` directly, although the public events page still shows only the first two. What the stores read is `data.form`: it has to be a `SuperValidated`-shaped object whose `id` matches the form's, with `valid`, `errors`, `data` and `message`. A `success` result makes Superforms reset the form when `resetForm` is on, a `failure` result applies the errors and keeps what you put in `data`, and both need `applyAction` to be `false` unless you really have page data to apply.
+- **The default `onError` throws.** A result of type `error` reaches Superforms' `onError`, whose default throws, and a throw from there aborts the submission before its pending state is finalised: the form stays busy. Handle it, or translate a failed request into one of the result types above.
+- **A command's schema failure is not a field issue.** When the command's own schema rejects its input, the call rejects rather than returning issues, so there is nothing to map onto controls; present it as a failed request.
+- **No `redirect()`.** A command cannot redirect inside its handler, so return something the client can navigate with and let the application do the navigation.
 
 ## Version facts to check before copying an example
 
