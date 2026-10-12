@@ -98,6 +98,7 @@ export async function setup({ provide }: GlobalSetupContext) {
 			"recipes/remote-feedback",
 			"recipes/remote-instances",
 			"recipes/remote-command",
+			"recipes/remote-transport",
 			"label-identity",
 		]) {
 			const response = await fetch(new URL(route, url), {

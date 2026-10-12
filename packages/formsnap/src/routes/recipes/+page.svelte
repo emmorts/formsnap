@@ -73,6 +73,12 @@
 				"Repeated form.for(id) instances with isolation, a custom control, a submitted file, an explicit reset policy and a refused duplicate attachment.",
 		},
 		{
+			path: "/recipes/remote-transport",
+			title: "Remote transport",
+			description:
+				"What the server receives from a native remote form: the typed values, the activated submitter, and a handler run count that shows a client preflight failure never got there.",
+		},
+		{
 			path: "/recipes/remote-command",
 			title: "Superforms with a remote command",
 			description:
