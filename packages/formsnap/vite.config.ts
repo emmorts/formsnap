@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	plugins: [
 		sveltekit({
+			experimental: { remoteFunctions: true },
 			// SvelteKit 3 removed the implicit `$lib` alias. Keeping it is the documented escape hatch
 			// (`https://svelte.dev/e/kit/module_removed_lib`); migrating the published `src/lib` to
 			// `#lib` subpath imports would change the packaged output, so that is deferred.
