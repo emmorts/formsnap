@@ -6,6 +6,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 
 ## Unreleased
 
+## 2.2.7 (2026-10-12)
+
 ### Docs and tests
 
 - Render page descriptions as inline Markdown, so `code` spans, emphasis and links in a description
@@ -22,6 +24,8 @@ Versions 2.1.0 and later belong to this fork; earlier entries are upstream histo
 - Decode Markdown character references consistently in page descriptions, metadata and indexed
   descriptions while preserving literal code and escapes. Allow only HTTP, HTTPS, email, telephone
   and relative link destinations; render other link labels without an anchor.
+
+[Full changelog](https://github.com/emmorts/formsnap/compare/v2.2.6...v2.2.7)
 
 ## 2.2.6 (2026-10-11)
 
