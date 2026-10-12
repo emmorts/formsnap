@@ -13,7 +13,7 @@ import {
 	type PresentationField,
 } from "./internal/presentation.svelte.js";
 import type { FsSuperForm } from "./components/types.js";
-import type { FormPathValue } from "./internal/types.js";
+import type { FormPathValue } from "./internal/form-path.js";
 
 /**
  * superforms 3 declares `FormPath<T>` and `FormPathLeaves<T>` as separate conditional string

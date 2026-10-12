@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { HTMLAttributes, HTMLFieldsetAttributes, HTMLLabelAttributes } from "svelte/elements";
 import type { FormPath, FormPathLeaves, SuperForm } from "sveltekit-superforms";
 import type { Snippet } from "svelte";
-import type { Expand, WithChild, Without } from "svelte-toolbelt";
-import type { ControlAttrs, FieldErrorsLive } from "$lib/attrs.types.js";
-import type { FormPathValue, Primitive } from "$lib/internal/types.js";
+import type { WithChild, Without } from "svelte-toolbelt";
+import type { FieldErrorsLive } from "$lib/attrs.types.js";
+import type { FormPathValue } from "$lib/internal/form-path.js";
+import type { OwnedFieldContentProps, PrimitiveFieldSetAttributes } from "./presentation-types.js";
 
-type PrimitiveFieldSetAttributes = Primitive<HTMLFieldsetAttributes>;
-type PrimitiveDivAttributes = Primitive<HTMLAttributes<HTMLDivElement>>;
-type PrimitiveLabelAttributes = Primitive<HTMLLabelAttributes>;
-type PrimitiveLegendAttributes = Primitive<HTMLAttributes<HTMLLegendElement>>;
+/**
+ * The Superforms-typed props, and nothing else: these types name `SuperForm`, `FormPath` and the
+ * path lookup, so this module cannot be part of the remote entry's declarations. The presentation
+ * components' props, which a remote-only consumer does resolve, are in `presentation-types.ts`.
+ *
+ * Re-exporting them here keeps `@emmorts/formsnap`'s type surface unchanged.
+ */
+export type * from "./presentation-types.js";
 
 /** Presentation wrappers may omit SDK methods, but supplied members keep SDK types. */
 type OptionalSuperFormMembers =
@@ -20,28 +24,6 @@ export type FsSuperForm<T extends Record<string, unknown>, M = any> = Omit<
 	OptionalSuperFormMembers
 > &
 	Partial<Pick<SuperForm<T, M>, OptionalSuperFormMembers>>;
-
-/** Content rendered inside containers owned by a field scope. */
-export type OwnedFieldContentProps = {
-	/** Content-only description; the scope renders its container after children. */
-	description?: Snippet;
-	/** Enable default error content, or provide content for the owned error container. */
-	fieldErrors?: boolean | Snippet<[{ errors: string[]; errorProps: Record<string, unknown> }]>;
-	/** Override the owned description ID. Ignored when description is absent. */
-	descriptionId?: string;
-	/** Override the owned errors ID. Ignored when fieldErrors is false or absent. */
-	fieldErrorsId?: string;
-	/** Announcement policy for the owned error region. Ignored when fieldErrors is false or absent. */
-	fieldErrorsLive?: FieldErrorsLive;
-};
-
-/**
- * Props for the [Description](https://formsnap.dev/docs/components/description) component.
- */
-export type DescriptionPropsWithoutHTML = WithChild<{}>;
-
-export type DescriptionProps = DescriptionPropsWithoutHTML &
-	Without<PrimitiveDivAttributes, DescriptionPropsWithoutHTML>;
 
 /**
  * Props for the [Field](https://formsnap.dev/docs/components/field) component.
@@ -169,54 +151,3 @@ export type FieldsetProps<
 	M = any,
 > = FieldsetPropsWithoutHTML<T, U, M> &
 	Without<PrimitiveFieldSetAttributes, FieldsetPropsWithoutHTML<T, U, M>>;
-
-/**
- * Props for the [Control](https://formsnap.dev/docs/components/control) component.
- */
-export type ControlProps = {
-	/**
-	 * Optionally provide a unique id for the form control.
-	 * If not provided, a unique ID will be generated for you.
-	 */
-	id?: string;
-	children?: Snippet<[{ props: Expand<ControlAttrs> }]>;
-};
-
-export type LabelPropsWithoutHTML = WithChild<{}>;
-
-/**
- * Props for the [Label](https://formsnap.dev/docs/components/label) component.
- */
-export type LabelProps = LabelPropsWithoutHTML &
-	Without<PrimitiveLabelAttributes, LabelPropsWithoutHTML>;
-
-export type LegendPropsWithoutHTML = WithChild;
-
-/**
- * Props for the [Legend](https://formsnap.dev/docs/components/legend) component.
- * This component is used to provide an accessible title for a group of form controls.
- *
- * @see {@link https://www.w3.org/WAI/tutorials/forms/grouping/ W3C Grouping}
- */
-export type LegendProps = LegendPropsWithoutHTML &
-	Without<PrimitiveLegendAttributes, LegendPropsWithoutHTML>;
-
-/**
- * Props for the [FieldErrors](https://formsnap.dev/docs/components/field-errors) component.
- */
-export type FieldErrorsPropsWithoutHTML = WithChild<
-	{
-		/**
-		 * The announcement policy for the errors container. Defaults to `"assertive"`, and takes
-		 * precedence over an `aria-live` attribute passed with the other props.
-		 */
-		live?: FieldErrorsLive;
-	},
-	{
-		errors: string[];
-		errorProps: Record<string, unknown>;
-	}
->;
-
-export type FieldErrorsProps = FieldErrorsPropsWithoutHTML &
-	Without<PrimitiveDivAttributes, FieldErrorsPropsWithoutHTML>;

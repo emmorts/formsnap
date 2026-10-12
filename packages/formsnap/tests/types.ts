@@ -16,7 +16,7 @@ import type {
 } from "$lib/index.js";
 import type { SettingsData } from "../src/routes/schema.js";
 import { useFormField } from "$lib/index.js";
-import type { FormPathValue } from "$lib/internal/types.js";
+import type { FormPathValue } from "$lib/internal/form-path.js";
 
 // The documented pattern passes the `superForm` return value straight to the components.
 expectTypeOf<SuperForm<SettingsData>>().toMatchTypeOf<FsSuperForm<SettingsData>>();

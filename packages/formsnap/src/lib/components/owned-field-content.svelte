@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { OwnedFieldContentProps } from "./types.js";
+	import type { OwnedFieldContentProps } from "./presentation-types.js";
 	import {
 		getDescriptionProps,
 		getErrorProps,

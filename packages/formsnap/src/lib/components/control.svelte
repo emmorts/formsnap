@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { box } from "svelte-toolbelt";
-	import type { ControlProps } from "./types.js";
+	import type { ControlProps } from "./presentation-types.js";
 	import { useId } from "$lib/internal/utils/index.js";
 	import { useControl } from "$lib/internal/presentation.svelte.js";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { box, mergeProps } from "svelte-toolbelt";
-	import type { FieldErrorsProps } from "./types.js";
+	import type { FieldErrorsProps } from "./presentation-types.js";
 	import { useId } from "$lib/internal/utils/index.js";
 	import { useFieldErrors } from "$lib/internal/presentation.svelte.js";
 	import ErrorContent from "./error-content.svelte";
