@@ -152,6 +152,35 @@ describe("remote feedback recipe", () => {
 		);
 	});
 
+	it("announces only the new preflight rejection after an accepted submission", async () => {
+		const page = await openPage();
+		await hydrated(page);
+		await fillValid(page);
+		await submit(page);
+		await page.getByTestId("feedback-accepted").waitFor();
+		await expect
+			.poll(() => page.getByTestId("feedback-pending").count(), { timeout: 10000 })
+			.toBe(0);
+		let posted = 0;
+		page.on("request", (request) => {
+			if (request.method() === "POST") posted += 1;
+		});
+
+		await fillValid(page);
+		await page.getByTestId("feedback-seats-input").fill("0");
+		await page.getByRole("button", { name: "Save order" }).click();
+		await expect
+			.poll(() => summary(page, "seats").innerText(), { timeout: 10000 })
+			.toContain("Book at least one seat.");
+		expect(posted).toBe(0);
+		expect(await page.getByTestId("feedback-accepted").count()).toBe(0);
+		expect(await page.getByTestId("feedback-declined").count()).toBe(0);
+		expect(await page.getByTestId("feedback-announcement").innerText()).not.toContain(
+			"Saved team_digest"
+		);
+		expect(await page.getByTestId("feedback-pending").count()).toBe(0);
+	});
+
 	it("rejects a server-only schema issue, links it, and unlinks it when its control is removed", async () => {
 		const page = await openPage();
 		await hydrated(page);
@@ -198,6 +227,22 @@ describe("remote feedback recipe", () => {
 		expect(await summary(page, "notes").evaluate((element) => element.tagName)).toBe("SPAN");
 		expect(await summary(page, "notes").innerText()).toContain(
 			"Keep the notes to twenty characters."
+		);
+
+		await page.getByLabel("Record order notes").check();
+		await page.getByTestId("feedback-notes-input").waitFor();
+		await expect
+			.poll(() => summary(page, "notes").getAttribute("href"), { timeout: 10000 })
+			.toBe("#feedback-notes");
+		expect(await summary(page, "notes").evaluate((element) => element.tagName)).toBe("A");
+		await summary(page, "notes").click();
+		expect(
+			await page
+				.getByTestId("feedback-notes-disclosure")
+				.evaluate((element) => (element as HTMLDetailsElement).open)
+		).toBe(true);
+		expect(await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))).toBe(
+			"feedback-notes-input"
 		);
 	});
 

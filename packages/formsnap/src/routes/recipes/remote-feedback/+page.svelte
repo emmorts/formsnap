@@ -182,8 +182,7 @@
 					{/each}
 				</ul>
 			</section>
-		{/if}
-		{#if saveRemoteFeedback.result?.outcome === "accepted"}
+		{:else if saveRemoteFeedback.result?.outcome === "accepted"}
 			<p data-testid="feedback-accepted">
 				Saved {saveRemoteFeedback.result.handle} for {saveRemoteFeedback.result.seats} seats.
 			</p>

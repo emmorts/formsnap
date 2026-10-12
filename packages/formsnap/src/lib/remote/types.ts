@@ -32,7 +32,7 @@ export type RemoteFieldValue<F extends RemoteFieldLike> = ReturnType<F["value"]>
 export type RemoteFieldSnippetProps<F extends RemoteFieldLike> = {
 	/** The selected subtree's value, which Kit returns as a partial structure while incomplete. */
 	value: RemoteFieldValue<F>;
-	/** Kit's issues unnormalized, so a caller keeps the structured path a summary needs. */
+	/** A copy of the field's exact issues, preserving their structured paths. */
 	issues: RemoteIssue[] | undefined;
 	/** The same issues as messages, which is what an inline error list renders. */
 	errors: string[];

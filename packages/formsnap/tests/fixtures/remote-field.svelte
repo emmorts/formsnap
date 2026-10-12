@@ -9,21 +9,26 @@
 		RemoteFieldset,
 		type RemoteIssue,
 	} from "$lib/remote/index.js";
+	import RemoteHeadless from "./remote-headless.svelte";
 
-	/**
-	 * Stands in for a Kit remote field: presentation reads only `value()`, `touched()`, `dirty()` and
-	 * `issues()`, so the structural contract can be exercised without a remote-form runtime. `as()`
-	 * mimics the props Kit returns, including that Kit owns `name` and `aria-invalid`.
-	 */
+	// Structural field stand-in; real Kit transport is exercised by the route tests.
 
 	let handleIssues = $state<RemoteIssue[] | undefined>(undefined);
 	let handleValue = $state("initial");
+	let valueReads = 0;
 	let handleTouched = $state(false);
 	let handleDirty = $state(false);
 	let siblingIssues = $state<RemoteIssue[] | undefined>(undefined);
+	let handleConstraints = $state({ required: true, nested: { minlength: 3 } });
 	let groupIssues = $state<RemoteIssue[] | undefined>(undefined);
-	/** Whether the group's standalone description and error container are mounted at all. */
+	let descendantIssues = $state<RemoteIssue[]>([]);
+	let headlessPrefix = $state<string | undefined>(undefined);
+	let selectSibling = $state(false);
 	let showContributors = $state(true);
+
+	export function selectedValueReads() {
+		return valueReads;
+	}
 
 	export function setHandle(next: {
 		issues?: RemoteIssue[];
@@ -45,9 +50,20 @@
 		groupIssues = issues;
 	}
 
-	/** Mount or unmount the group's standalone contributors, which own their registrations. */
 	export function setContributors(on: boolean) {
 		showContributors = on;
+	}
+
+	export function setDescendant(issues: RemoteIssue[]) {
+		descendantIssues = issues;
+	}
+
+	export function setHeadless(prefix: string | undefined) {
+		headlessPrefix = prefix;
+	}
+
+	export function setSource(sibling: boolean) {
+		selectSibling = sibling;
 	}
 
 	function fieldProps(
@@ -69,13 +85,16 @@
 	}
 
 	const handle = {
-		value: () => handleValue,
+		value: () => {
+			valueReads++;
+			return handleValue;
+		},
 		touched: () => handleTouched,
 		dirty: () => handleDirty,
 		issues: () => handleIssues,
 		as: (type: string) =>
 			fieldProps(
-				"handle/1cuw750/saveRemote",
+				"opaque-handle-transport",
 				type,
 				() => handleIssues,
 				() => handleValue
@@ -89,7 +108,7 @@
 		issues: () => siblingIssues,
 		as: (type: string) =>
 			fieldProps(
-				"nickname/1cuw750/saveRemote",
+				"opaque-nickname-transport",
 				type,
 				() => siblingIssues,
 				() => "nick"
@@ -101,12 +120,17 @@
 		touched: () => false,
 		dirty: () => false,
 		issues: () => groupIssues,
-		allIssues: () => groupIssues,
+		allIssues: () => [...(groupIssues ?? []), ...descendantIssues],
 	};
+
+	const selected = $derived(selectSibling ? nickname : handle);
 </script>
 
-<RemoteField field={handle} constraints={{ required: true }}>
-	{#snippet children({ errors, touched, dirty, constraints })}
+<output data-backend-constraints>{JSON.stringify(handleConstraints)}</output>
+<output data-backend-issues>{JSON.stringify(handleIssues)}</output>
+
+<RemoteField field={selected} constraints={handleConstraints}>
+	{#snippet children({ errors, issues, touched, dirty, constraints })}
 		<output
 			data-handle-snippet={JSON.stringify({
 				errors,
@@ -115,10 +139,25 @@
 				required: constraints.required,
 			})}
 		></output>
+		<button
+			type="button"
+			data-mutate-metadata
+			onclick={() => {
+				constraints.required = false;
+				(constraints.nested as { minlength: number }).minlength = 999;
+				if (issues?.[0]) {
+					issues[0].message = "Changed by consumer";
+					issues[0].path.push("changed");
+				}
+			}}>Mutate presentation metadata</button
+		>
+		{#if headlessPrefix}
+			<RemoteHeadless prefix={headlessPrefix} />
+		{/if}
 		<RemoteControl>
 			{#snippet children({ props })}
 				<Label>Handle</Label>
-				<input data-handle-control {...handle.as("text")} {...props} />
+				<input data-handle-control {...selected.as("text")} {...props} />
 			{/snippet}
 		</RemoteControl>
 	{/snippet}
@@ -134,7 +173,7 @@
 	{/snippet}
 </RemoteField>
 
-<RemoteField field={nickname}>
+<RemoteField field={nickname} constraints={handleConstraints}>
 	<RemoteControl>
 		{#snippet children({ props })}
 			<Label>Nickname</Label>
@@ -146,6 +185,7 @@
 <RemoteFieldset field={links}>
 	<Legend>Links</Legend>
 	<output data-links-issues={JSON.stringify(groupIssues ?? [])}></output>
+	<output data-links-summary>{JSON.stringify(links.allIssues())}</output>
 	<RemoteControl>
 		{#snippet children({ props })}
 			<Label>First link</Label>

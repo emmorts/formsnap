@@ -209,6 +209,73 @@ describe("remote command recipe", () => {
 		expect(await page.getByTestId("command-seats-input").inputValue()).toBe("2");
 	});
 
+	it("clears a failed command's refusal on an accepted retry on the same page", async () => {
+		const page = await hydrated();
+		await place(page, { seats: 2, note: "unreachable" });
+		await expect
+			.poll(() => read(page, "command-failure"), { timeout: 10000 })
+			.toContain("Nothing was placed.");
+
+		await place(page, { seats: 3, note: "accepted retry" });
+		await expect
+			.poll(() => read(page, "command-message"), { timeout: 10000 })
+			.toMatch(/Placed order-\d+\./);
+		const id = await reportedOrder(page);
+		await expect.poll(() => list(page), { timeout: 10000 }).toContain(`${id}: 3 seats`);
+		expect(await read(page, "command-failure")).toBe("");
+		expect(await page.getByTestId("command-seats-input").inputValue()).toBe("1");
+		expect(await page.getByTestId("command-pending").count()).toBe(0);
+	});
+
+	it("preserves acceptance, reset and receipt when refreshing the order list fails", async () => {
+		const page = await hydrated();
+		// Complete a real first mutation so no initial query can race with the failed refresh.
+		await place(page, { seats: 1, note: "before failed refresh" });
+		await page.getByTestId("command-message").waitFor();
+		const first = await reportedOrder(page);
+		await expect.poll(() => list(page), { timeout: 10000 }).toContain(`${first}: 1 seats`);
+		await expect
+			.poll(() => page.getByTestId("command-pending").count(), { timeout: 10000 })
+			.toBe(0);
+		const before = await list(page);
+		expectedDiagnostics.push(/Failed to load resource:.*503/);
+		let refreshes = 0;
+		await page.route("**/_app/remote/**", async (route) => {
+			if (route.request().method() !== "GET") return route.continue();
+			refreshes += 1;
+			await route.fulfill({
+				status: 503,
+				contentType: "application/json",
+				body: JSON.stringify({ message: "Order list unavailable" }),
+			});
+		});
+
+		await place(page, { seats: 3, note: "accepted despite stale list" });
+		await expect
+			.poll(() => read(page, "command-message"), { timeout: 10000 })
+			.not.toBe(`Placed ${first}.`);
+		await expect
+			.poll(() => read(page, "command-message"), { timeout: 10000 })
+			.toMatch(/Placed order-\d+\./);
+		const id = await reportedOrder(page);
+		expect(id).not.toBe(first);
+		expect(refreshes).toBe(1);
+		expect(await list(page)).toBe(before);
+		expect(await read(page, "command-failure")).toBe("");
+		expect(await read(page, "command-refresh-failure")).toContain(
+			"The order was placed, but the list could not be refreshed."
+		);
+		expect(await page.getByTestId("command-seats-input").inputValue()).toBe("1");
+		expect(await page.getByTestId("command-pending").count()).toBe(0);
+		expect(await page.getByTestId("command-submit").isDisabled()).toBe(false);
+
+		await page.unroute("**/_app/remote/**");
+		await page.getByTestId("command-receipt").click();
+		await expect
+			.poll(() => page.getByTestId("receipt-summary").innerText(), { timeout: 10000 })
+			.toBe(`${id}: 3 seats on the starter plan.`);
+	});
+
 	it("shows the pending state while the command is in flight", async () => {
 		const page = await hydrated();
 		let release!: () => void;

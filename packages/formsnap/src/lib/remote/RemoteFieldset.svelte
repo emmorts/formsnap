@@ -67,7 +67,7 @@ single value, and extends `RemoteField` with a native `<fieldset>` element and `
 A Kit group has `issues()` and `allIssues()` but no `as()`, so it cannot be presented as one
 control; that is what this component is for. Put a `Legend` inside it for an accessible title.
 
-- [Remote functions guide](https://formsnap.dev/docs/guides/remote-functions)
+- [Remote forms](https://emmorts.github.io/formsnap/docs/recipes/remote-forms)
 -->
 
 {#if customChild}

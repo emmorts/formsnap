@@ -100,6 +100,20 @@
 			onchange={(event) => setRendered(line.key, event.currentTarget.checked)}
 		/>
 	{/each}
+	{#each LINES.filter((line) => hiddenLines.includes(line.key)) as line (line.key)}
+		{@const instance = lineForms[line.key]}
+		<p data-testid={`order-${line.key}-hidden-status`}>
+			{#if instance.pending > 0}
+				Saving…
+			{:else if instance.result?.outcome === "accepted"}
+				Saved {instance.result.quantity} of {instance.result.label} on {instance.result.id}.
+			{:else if instance.submitted}
+				Submission finished without an accepted result.
+			{:else}
+				No submission yet.
+			{/if}
+		</p>
+	{/each}
 	<label for="instances-duplicate">Attach one instance to two forms (a mistake)</label>
 	<input id="instances-duplicate" type="checkbox" bind:checked={duplicateAttachment} />
 </div>
@@ -153,7 +167,6 @@
 				{/snippet}
 			</RemoteControl>
 			<QuantityStepper
-				field={quantityField}
 				inputId={`order-${line.key}-quantity`}
 				default={line.defaultQuantity}
 			/>
@@ -208,7 +221,6 @@
 				Save {line.label}
 			{/if}
 		</button>
-		<!-- Kit clears the issues and the interaction state it tracks when the form is reset. -->
 		<button type="reset" data-testid={`order-${line.key}-reset`}>Reset {line.label}</button>
 
 		<div aria-live="polite" data-testid={`order-${line.key}-outcome`}>

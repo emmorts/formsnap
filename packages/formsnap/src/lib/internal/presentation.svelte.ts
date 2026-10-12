@@ -19,14 +19,8 @@ import {
 import type { ControlAttrs, FieldErrorsLive, LabelAttrs } from "../attrs.types.js";
 
 /**
- * The presentation layer: association and control presentation, with no knowledge of where field
- * data comes from.
- *
- * Nothing here reads a Superforms store, and this module must not depend on `sveltekit-superforms`
- * — directly or through another module. A backend supplies a {@link PresentationField} for a scope;
- * `formsnap.svelte.ts` supplies the Superforms-backed one, and a native remote field supplies its own
- * without pretending to be a Superforms form. `tests/presentation-boundary.test.ts` asserts that
- * this module's import closure stays free of Superforms.
+ * Shared association and control state. Keep this import graph independent of Superforms so the
+ * remote entry can be installed without it.
  */
 
 /** What a field scope contributes to, so its own registrations can be released independently. */
@@ -337,17 +331,24 @@ class ControlState {
 	 * state, as Kit's `as(...)` does for a remote form. The two sources share no key, so the
 	 * transport's props and these can be spread in either order.
 	 */
-	transportProps = $derived.by(() => ({
-		id: this.id,
-		"data-fs-error": getDataFsError(this.field.errors),
-		"aria-describedby": getAriaDescribedBy({
-			errorIds: this.field.errorIds,
-			descriptionIds: this.field.descriptionIds,
-			errors: this.field.errors,
-		}),
-		"aria-required": getAriaRequired(this.field.constraints),
-		"data-fs-control": "",
-	}));
+	transportProps = $derived.by(() => {
+		if (this.field.name !== undefined) {
+			throw new Error(
+				"RemoteControl requires a transport-owned field name. Use Control inside a Superforms field."
+			);
+		}
+		return {
+			id: this.id,
+			"data-fs-error": getDataFsError(this.field.errors),
+			"aria-describedby": getAriaDescribedBy({
+				errorIds: this.field.errorIds,
+				descriptionIds: this.field.descriptionIds,
+				errors: this.field.errors,
+			}),
+			"aria-required": getAriaRequired(this.field.constraints),
+			"data-fs-control": "",
+		};
+	});
 
 	/**
 	 * Resolved on read rather than memoized in a derived: Svelte's server runtime memoizes deriveds

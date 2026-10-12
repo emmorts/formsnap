@@ -341,9 +341,8 @@ describe("remote consumer contracts", () => {
 	});
 
 	it("keeps a rejection addressed to a form that is off screen and restores its target", async () => {
-		// The page reads its instance's aggregate only while that line is rendered, so a rejection that
-		// arrives while the line is off screen is unread until the line comes back. Kit reports that in
-		// development; the warning is the honest record of the window, and the re-render below reads it.
+		// The hidden status reads pending/result only, not issues. Kit warns that the late rejection
+		// is unread until the line remounts and its field scopes/aggregate read it again.
 		expectedDiagnostics.push(/remote_form_issues_ignored/);
 		const page = await openPage();
 		let release!: () => void;
@@ -390,8 +389,17 @@ describe("remote consumer contracts", () => {
 				return dangling;
 			});
 			expect(missing).toEqual([]);
+			expect(await page.getByTestId("order-line_c-hidden-status").innerText()).toBe(
+				"Saving…"
+			);
 
 			release();
+			await expect
+				.poll(() => page.getByTestId("order-line_c-hidden-status").innerText(), {
+					timeout: 10000,
+				})
+				.toBe("Submission finished without an accepted result.");
+			expect(await form(page, "order-line-line_c").count()).toBe(0);
 			// The instance kept the rejection, and rendering it again restores the control, its inline
 			// container and the aggregate the page shows.
 			await page.getByLabel("Render Paper cups").check();

@@ -2,8 +2,10 @@
  * Compile-only contracts checked by svelte-check. Derive Kit field types from real form values;
  * SvelteKit does not export those types from @sveltejs/kit.
  */
+import type { form as kitForm } from "$app/server";
 import type { Snippet } from "svelte";
 import { expectTypeOf } from "vitest";
+import { z } from "zod";
 import type { TransportControlAttrs } from "$lib/attrs.types.js";
 import type {
 	RemoteControlProps,
@@ -17,32 +19,7 @@ import { saveTransport } from "../src/routes/recipes/remote-transport/save.remot
 
 const fields = saveRemote.fields;
 
-// ── Valid field/input combinations infer ────────────────────────────────────────────────────────
-
-fields.handle.as("text");
-fields.handle.as("text", "Ada");
-fields.seats.as("number");
-fields.notifications.as("checkbox");
-
-// ── Invalid combinations fail ───────────────────────────────────────────────────────────────────
-
-// @ts-expect-error A string leaf is not a number input.
-fields.handle.as("number");
-// @ts-expect-error A number leaf is not a checkbox.
-fields.seats.as("checkbox");
-// @ts-expect-error A radio input needs a value.
-fields.handle.as("radio");
-
-// ── Group fields cannot be used as scalar controls ──────────────────────────────────────────────
-
-// An object array resolves to a container plus index accessors; only leaves expose `as()`, which is
-// the type-level reason a group cannot be rendered as one control.
-// @ts-expect-error A container is not a scalar control.
-fields.links.as("text");
-// @ts-expect-error A container is not a scalar control either, whatever the input type.
-fields.links.as("select");
-
-// ── Structured issue access ─────────────────────────────────────────────────────────────────────
+// Structured issues
 
 expectTypeOf(fields.handle.issues()).toEqualTypeOf<
 	{ message: string; path: Array<string | number> }[] | undefined
@@ -54,22 +31,21 @@ expectTypeOf(fields.links[0].url.issues()).toEqualTypeOf<
 	{ message: string; path: Array<string | number> }[] | undefined
 >();
 
-// ── The form owns transport and submission ──────────────────────────────────────────────────────
+// Form-owned transport and submission
 
 expectTypeOf(saveRemote.method).toEqualTypeOf<"POST">();
 expectTypeOf(saveRemote.action).toEqualTypeOf<string>();
 expectTypeOf(saveRemote.pending).toEqualTypeOf<number>();
 expectTypeOf(saveRemote.submitted).toEqualTypeOf<boolean>();
 
-// Kit 3's real option names, not the stale `includeUntouched` the published guide still shows.
+// Kit 3 validation options.
 saveRemote.validate({ all: true });
 saveRemote.validate({ preflightOnly: true });
 // @ts-expect-error The released runtime does not accept `includeUntouched`.
 saveRemote.validate({ includeUntouched: true });
 
-// ── Field and value inference ───────────────────────────────────────────────────────────────────
+// Field value inference
 
-/** True only when a key belongs to a type, so an absence can be asserted without a negation. */
 type HasKey<T, K extends PropertyKey> = K extends keyof T ? true : false;
 
 // A leaf keeps its own value type, with `undefined` for the partial structure Kit returns while the
@@ -83,9 +59,46 @@ expectTypeOf(saveRemoteOrder.fields.delivery.method.value()).toEqualTypeOf<
 >();
 expectTypeOf(saveRemoteOrder.fields.delivery.postcode.value()).toEqualTypeOf<string | undefined>();
 
-// ── Every input kind a leaf may be spread on, and none it cannot ────────────────────────────────
+// Schema input is the control contract even when the handler receives transformed output.
+// A declared factory uses only Kit's public form signature; this module is compile-only.
+declare const contractForm: typeof kitForm;
+const inputSchema = z.object({
+	optionalTitle: z.string().optional(),
+	details: z
+		.object({
+			count: z.string().transform((value) => Number(value)),
+			optionalSeats: z.number().optional(),
+		})
+		.optional(),
+});
+const inputContract = contractForm(inputSchema, (data) => {
+	expectTypeOf(data.optionalTitle).toEqualTypeOf<string | undefined>();
+	expectTypeOf(data.details?.count).toEqualTypeOf<number | undefined>();
+	return data;
+});
+expectTypeOf<z.input<typeof inputSchema>["optionalTitle"]>().toEqualTypeOf<string | undefined>();
+expectTypeOf(inputContract.result).toEqualTypeOf<z.output<typeof inputSchema> | undefined>();
+expectTypeOf(inputContract.fields.optionalTitle.value()).toEqualTypeOf<string | undefined>();
+expectTypeOf(inputContract.fields.details.count.value()).toEqualTypeOf<string | undefined>();
+expectTypeOf(inputContract.fields.details.optionalSeats.value()).toEqualTypeOf<
+	number | undefined
+>();
+inputContract.fields.optionalTitle.as("text");
+inputContract.fields.details.count.as("text");
+inputContract.fields.details.count.set("3");
+inputContract.fields.details.optionalSeats.as("number");
+// @ts-expect-error The transformed output is numeric, but the field still accepts string input.
+inputContract.fields.details.count.as("number");
+// @ts-expect-error A handler output value is not the transformed field's input value.
+inputContract.fields.details.count.set(3);
+expectTypeOf<
+	UseRemoteFieldViewResult<typeof inputContract.fields.details.count>["field"]
+>().toEqualTypeOf<typeof inputContract.fields.details.count>();
+
+// Valid and invalid input kinds
 
 fields.handle.as("text");
+fields.handle.as("text", "Ada");
 fields.handle.as("password");
 fields.handle.as("email");
 fields.handle.as("select");
@@ -96,6 +109,7 @@ fields.seats.as("number");
 fields.seats.as("range");
 fields.seats.as("hidden", 1);
 fields.seats.as("submit", 1);
+fields.notifications.as("checkbox");
 fields.notifications.as("checkbox", false);
 fields.notifications.as("hidden", true);
 saveTransport.fields.subscribe.as("checkbox", true);
@@ -133,12 +147,14 @@ saveTransport.fields.channels.as("checkbox");
 // @ts-expect-error An array leaf is not a single-line text input.
 saveTransport.fields.channels.as("text");
 
-// ── A group is a container, not a control ───────────────────────────────────────────────────────
+// Containers and indexed leaves
 
 expectTypeOf<HasKey<typeof fields.links, "allIssues">>().toEqualTypeOf<true>();
 expectTypeOf<HasKey<typeof fields.links, "as">>().toEqualTypeOf<false>();
 expectTypeOf<HasKey<typeof saveRemoteOrder.fields.delivery, "allIssues">>().toEqualTypeOf<true>();
 expectTypeOf<HasKey<typeof saveRemoteOrder.fields.delivery, "as">>().toEqualTypeOf<false>();
+// @ts-expect-error An object-array container has no as() method.
+fields.links.as("text");
 // @ts-expect-error A whole group cannot be rendered as one control, whatever the input type.
 saveRemoteOrder.fields.delivery.as("text");
 // A member is reached through the group, and reads as the schema says it does.
@@ -148,7 +164,7 @@ saveRemoteOrder.fields.delivery.postcode.as("text");
 // @ts-expect-error A member still carries only the input kinds its own value allows.
 saveRemoteOrder.fields.delivery.postcode.as("number");
 
-// ── The headless remote hook hands back the caller's own field ──────────────────────────────────
+// Typed headless field access
 
 // The result carries the Kit field the caller selected, Kit's own interaction state, and the
 // presentation the scope owns. It invents no SuperForm: nothing here is a copied form or a method
@@ -189,7 +205,7 @@ const remoteFieldWithForm: RemoteFieldProps<typeof fields.handle> = {
 };
 export { remoteFieldWithForm };
 
-// ── The control attributes never claim what the transport owns ───────────────────────────────────
+// Presentation must not claim transport-owned attributes
 
 expectTypeOf<NonNullable<RemoteControlProps["children"]>>().toEqualTypeOf<
 	Snippet<[{ props: TransportControlAttrs }]>

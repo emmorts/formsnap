@@ -13,11 +13,7 @@
 
 	let { data }: { data: { form: SuperValidated<OrderData> } } = $props();
 
-	/**
-	 * A real SuperForm, exactly as any other recipe uses one: Superforms owns the values, the errors,
-	 * the message and the pending state, and Formsnap presents it. The only difference is where the
-	 * submission goes, which the `onSubmit` option decides below.
-	 */
+	// Superforms owns submission; customRequest translates the remote command's result.
 	const form = superForm(
 		untrack(() => data.form),
 		{
@@ -37,20 +33,26 @@
 				commandFailure = "The order service refused the request. Nothing was placed.";
 			},
 			onSubmit: ({ customRequest }) => {
+				commandFailure = "";
+				refreshFailure = "";
 				// The command replaces the request Superforms would otherwise make. The stores are then
 				// updated from the result this callback resolves with.
 				customRequest(async () => {
-					// The submitted values, so a rejection can keep them on screen. `formData` is declared by
-					// the destructuring below and read here only when a submission runs.
+					// Preserve submitted values on rejection.
 					const retained = get(formData);
 					const shape = untrack(() => data.form);
 					try {
 						const result = await placeOrderCommand(retained);
 						if (result.status === "accepted") {
 							lastOrder = result.order;
-							// The explicit refresh: the mutation happened on the server, and the list the page
-							// shows is a query that has to be asked again to see it.
-							await refreshOrders();
+							// Refresh the query after the mutation, without invalidating all page data.
+							try {
+								await refreshOrders();
+							} catch {
+								// Refresh failure cannot undo an accepted mutation or change its reset policy.
+								refreshFailure =
+									"The order was placed, but the list could not be refreshed. Open the receipt to see it.";
+							}
 							return {
 								type: "success",
 								status: 200,
@@ -124,6 +126,7 @@
 
 	let lastOrder = $state<PlacedOrder>();
 	let commandFailure = $state("");
+	let refreshFailure = $state("");
 	let hydrated = $state(false);
 	onMount(() => {
 		hydrated = true;
@@ -262,6 +265,7 @@
 	<!-- The region stays in the document so it can announce a failure when one happens, and so a
 	     reader does not have to look for an element that only exists after the fact. -->
 	<p data-testid="command-failure" aria-live="polite">{commandFailure}</p>
+	<p data-testid="command-refresh-failure" aria-live="polite">{refreshFailure}</p>
 	{#if lastOrder}
 		<p>
 			<a

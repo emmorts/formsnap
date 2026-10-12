@@ -268,11 +268,16 @@ export function getField<
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	M = any,
 >() {
-	return getRequiredContext<FieldState<T, U, M>>(FORM_FIELD_CTX, FIELD_CONTEXT_PROVIDERS);
+	const state = getRequiredContext<FieldState<T, U, M>>(FORM_FIELD_CTX, FIELD_CONTEXT_PROVIDERS);
+	if (!("form" in state)) {
+		throw new Error(
+			"Superforms field hooks require Field, Fieldset or ElementField. " +
+				"Use useRemoteFormField from the remote entry point inside RemoteField or RemoteFieldset."
+		);
+	}
+	return state;
 }
 
-// takes a string like "urls[0]" and returns ["urls", "0"]
-// so we can access the specific array index properties
 function splitArrayPath<T extends Record<string, unknown>>(name: string) {
 	const [path, index] = name.split(/[[\]]/);
 	return [path, index] as [FormPathArrays<T>, string];

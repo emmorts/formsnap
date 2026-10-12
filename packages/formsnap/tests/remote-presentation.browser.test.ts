@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import RemoteFieldFixture from "./fixtures/remote-field.svelte";
 import RemoteControlMisuse from "./fixtures/remote-control-misuse.svelte";
+import BackendScope from "./fixtures/backend-scope.svelte";
+import RemoteControlRoot from "./fixtures/remote-control-root.svelte";
 
 let mounted: Parameters<typeof unmount>[0] | undefined;
 
@@ -28,7 +30,6 @@ function describedBy(control: Element) {
 	return (control.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean);
 }
 
-/** The elements an `aria-describedby` list points at, which is what the association ids resolve to. */
 function describedElements(control: Element) {
 	return describedBy(control).map((id) => {
 		const node = document.getElementById(id);
@@ -42,22 +43,17 @@ describe("remote presentation", () => {
 		mountFixture();
 		const control = element<HTMLInputElement>("[data-handle-control]");
 
-		// Kit's `as(...)` props supply the transport name and the invalid state, in any spread order.
-		expect(control.name).toBe("handle/1cuw750/saveRemote");
+		expect(control.name).toBe("opaque-handle-transport");
 		expect(control.getAttribute("aria-invalid")).toBeNull();
 
-		// Formsnap contributes identity, associations and styling, and never a second name.
 		expect(control.id).toBeTruthy();
 		expect(control.getAttribute("data-fs-control")).toBe("");
 		expect(control.getAttribute("aria-required")).toBe("true");
-		// An explicit constraint produces required-state metadata, never native validation.
 		expect(control.hasAttribute("required")).toBe(false);
 
-		// The label targets the rendered control, and the owned description is referenced by id.
 		expect(element("label").getAttribute("for")).toBe(control.id);
 		const described = describedElements(control);
 		expect(described.some((node) => node.textContent?.includes("Three characters"))).toBe(true);
-		// An error container is referenced only while there is something to announce.
 		expect(described.some((node) => node.contains(element("[data-handle-errors]")))).toBe(
 			false
 		);
@@ -75,10 +71,8 @@ describe("remote presentation", () => {
 		expect(element("[data-handle-snippet]").getAttribute("data-handle-snippet")).toContain(
 			'"Too small"'
 		);
-		// Kit's attribute appears because its props carry it, not because presentation added one.
 		expect(control.getAttribute("aria-invalid")).toBe("true");
 		expect(control.getAttribute("data-fs-error")).toBe("");
-		// The error container joins the description once there is something to announce.
 		expect(
 			describedElements(control).some((node) =>
 				node.contains(element("[data-handle-errors]"))
@@ -118,6 +112,94 @@ describe("remote presentation", () => {
 		);
 	});
 
+	it("isolates presentation metadata from backend issues and shared caller constraints", () => {
+		const consumer = mountFixture();
+		const issues = [{ message: "Too small", path: ["handle"] }];
+		consumer.setHandle({ issues });
+		flushSync();
+
+		element<HTMLButtonElement>("[data-mutate-metadata]").click();
+		flushSync();
+
+		expect(JSON.parse(element("[data-backend-constraints]").textContent!)).toEqual({
+			required: true,
+			nested: { minlength: 3 },
+		});
+		expect(JSON.parse(element("[data-backend-issues]").textContent!)).toEqual([
+			{ message: "Too small", path: ["handle"] },
+		]);
+		expect(element("[data-nickname-control]").getAttribute("aria-required")).toBe("true");
+	});
+
+	it("does not read the selected value when a snippet only consumes presentation metadata", () => {
+		const consumer = mountFixture();
+		expect(consumer.selectedValueReads()).toBe(0);
+		consumer.setHandle({ issues: [{ message: "Too small", path: ["handle"] }] });
+		flushSync();
+		expect(consumer.selectedValueReads()).toBe(0);
+
+		consumer.setHeadless("value-reader");
+		flushSync();
+		expect(element("[data-headless-value]").textContent).toBe("initial");
+		expect(consumer.selectedValueReads()).toBe(1);
+	});
+
+	it("updates and releases headless associations while following source replacement", () => {
+		const consumer = mountFixture();
+		consumer.setHandle({ issues: [{ message: "Handle issue", path: ["handle"] }] });
+		consumer.setHeadless("first");
+		flushSync();
+		const control = element<HTMLInputElement>("[data-handle-control]");
+		const controlId = control.id;
+		expect(element("[data-headless-value]").textContent).toBe("initial");
+		expect(describedBy(control)).toContain("first-description");
+		expect(describedBy(control)).toContain("first-errors");
+		expect(element("#first-errors").textContent).toBe("Handle issue");
+
+		consumer.setSibling([{ message: "Nickname issue", path: ["nickname"] }]);
+		consumer.setSource(true);
+		consumer.setHeadless("second");
+		flushSync();
+		expect(control.id).toBe(controlId);
+		expect(control.value).toBe("nick");
+		expect(element("[data-headless-value]").textContent).toBe("nick");
+		expect(element("#second-errors").textContent).toBe("Nickname issue");
+		expect(describedBy(control)).not.toContain("first-description");
+		expect(describedBy(control)).not.toContain("first-errors");
+		expect(describedBy(control)).toContain("second-description");
+		expect(describedBy(control)).toContain("second-errors");
+		describedElements(control);
+
+		consumer.setHeadless(undefined);
+		flushSync();
+		expect(document.getElementById("second-description")).toBeNull();
+		expect(document.getElementById("second-errors")).toBeNull();
+		expect(describedBy(control)).not.toContain("second-description");
+		expect(describedBy(control)).not.toContain("second-errors");
+		describedElements(control);
+	});
+
+	it.each(["remote", "remote-state"] as const)(
+		"rejects a Superforms scope in the %s hook",
+		(hook) => {
+			expect(() =>
+				mount(BackendScope, {
+					target: document.body,
+					props: { scope: "root", hook },
+				})
+			).toThrow(/RemoteField/);
+		}
+	);
+
+	it("rejects a remote scope in the Superforms hook", () => {
+		expect(() =>
+			mount(BackendScope, {
+				target: document.body,
+				props: { scope: "remote", hook: "root" },
+			})
+		).toThrow(/useRemoteFormField/);
+	});
+
 	it("presents a group with its own element, legend and standalone contributors", () => {
 		const consumer = mountFixture();
 		const fieldset = element<HTMLFieldSetElement>("fieldset[data-fs-fieldset]");
@@ -126,10 +208,7 @@ describe("remote presentation", () => {
 
 		expect(fieldset.contains(legend)).toBe(true);
 		expect(legend.textContent).toBe("Links");
-		// A group has no `as()`, so nothing supplies a transport name, and presentation never invents one.
 		expect(control.hasAttribute("name")).toBe(false);
-		// A standalone Description mounted inside the group registers its own id; the error container
-		// joins only once the group has something to announce.
 		expect(describedElements(control).length).toBe(1);
 
 		consumer.setGroup([{ message: "Pick a link", path: ["links"] }]);
@@ -143,6 +222,23 @@ describe("remote presentation", () => {
 		expect(fieldset.getAttribute("data-fs-error")).toBe("");
 	});
 
+	it("keeps exact group errors inline and descendant issues in aggregate feedback", () => {
+		const consumer = mountFixture();
+		const fieldset = element<HTMLFieldSetElement>("fieldset[data-fs-fieldset]");
+		consumer.setDescendant([{ message: "Invalid URL", path: ["links", 0, "url"] }]);
+		flushSync();
+		expect(fieldset.querySelector("[data-fs-field-errors]")!.textContent).toBe("");
+		expect(fieldset.hasAttribute("data-fs-error")).toBe(false);
+
+		consumer.setGroup([{ message: "Pick a link", path: ["links"] }]);
+		flushSync();
+		expect(fieldset.querySelector("[data-fs-field-errors]")!.textContent).toBe("Pick a link");
+		expect(JSON.parse(element("[data-links-summary]").textContent!)).toEqual([
+			{ message: "Pick a link", path: ["links"] },
+			{ message: "Invalid URL", path: ["links", 0, "url"] },
+		]);
+	});
+
 	it("keeps one registration per contributor across conditional remounts", () => {
 		const consumer = mountFixture();
 		const fieldset = element<HTMLFieldSetElement>("fieldset[data-fs-fieldset]");
@@ -154,16 +250,12 @@ describe("remote presentation", () => {
 		expect(describedBy(control).length).toBe(2);
 		expect(contributors().length).toBe(2);
 
-		// Removing a contributor withdraws the association its owner registered, so the control stops
-		// describing an element that is not there.
 		consumer.setContributors(false);
 		flushSync();
 		expect(describedBy(control)).toEqual([]);
 		expect(contributors().length).toBe(0);
 
-		// Remounting them twenty-five times registers one owner each time and releases the previous one,
-		// which is what keeps the list at one description and one error container rather than growing
-		// with ids that no longer resolve.
+		// Repeated remounts must not retain associations to previous contributors.
 		for (let index = 0; index < 25; index++) {
 			consumer.setContributors(false);
 			flushSync();
@@ -181,10 +273,14 @@ describe("remote presentation", () => {
 	});
 
 	it("fails descriptively when the Superforms Control presents a remote field", () => {
-		// `Control` reads a name that a remote field deliberately does not own, so the mistake must
-		// name the right component instead of emitting a duplicate name or invalid state.
 		expect(() => {
 			mount(RemoteControlMisuse, { target: document.body });
 		}).toThrow(/transport owns the name attribute/);
+	});
+
+	it("rejects RemoteControl in a Superforms field rather than dropping its name", () => {
+		expect(() => {
+			mount(RemoteControlRoot, { target: document.body });
+		}).toThrow(/Use Control/);
 	});
 });

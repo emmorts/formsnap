@@ -6,7 +6,12 @@ import {
 	FORM_FIELD_CTX,
 	type PresentationField,
 } from "$lib/internal/presentation.svelte.js";
-import type { RemoteFieldLike, RemoteIssue, RemoteFieldValue } from "./types.js";
+import type {
+	RemoteFieldLike,
+	RemoteIssue,
+	RemoteFieldValue,
+	RemoteFieldSnippetProps,
+} from "./types.js";
 
 /** Reads the selected field, which is why a fresh Kit proxy per read is harmless. */
 export type RemoteFieldBox<F extends RemoteFieldLike> = {
@@ -20,15 +25,7 @@ export type RemoteFieldStateProps<F extends RemoteFieldLike> = {
 	fieldErrorsId?: { current: string | undefined };
 };
 
-/**
- * Presentation state for one selected Kit remote field.
- *
- * It satisfies `PresentationField` without pretending to be a Superforms field: there is no form, no
- * captured store, and no `name` — Kit owns the control's transport name and its invalid state
- * together. Every read comes from the selected field, so nothing here inspects the whole form or
- * enumerates a schema. The reads sit in deriveds, and Kit backs issues, touched and dirty with
- * reactive state, so a validation result or a programmatic update re-renders the presentation.
- */
+/** Presentation state for the selected field; Kit retains ownership of its values and issues. */
 export class RemoteFieldState<F extends RemoteFieldLike> implements PresentationField {
 	#field: RemoteFieldBox<F>;
 	#constraints: RemoteFieldStateProps<F>["constraints"];
@@ -39,11 +36,12 @@ export class RemoteFieldState<F extends RemoteFieldLike> implements Presentation
 	/** Absent issues mean "nothing to announce", which is not the same as validated success. */
 	errors = $derived.by(() => this.issues?.map((issue) => issue.message) ?? []);
 
-	/** Kit's issues unnormalized, so a caller keeps the structured path a summary needs. */
-	issues = $derived.by<RemoteIssue[] | undefined>(() => this.#field.current.issues());
+	// Detach mutable presentation metadata from Kit state and caller-owned constraints.
+	issues = $derived.by<RemoteIssue[] | undefined>(() =>
+		$state.snapshot(this.#field.current.issues())
+	);
 
-	/** Explicit constraints. Kit's `as(...)` derives none, so this is only what a caller passed. */
-	constraints = $derived.by(() => this.#constraints.current);
+	constraints = $derived.by(() => $state.snapshot(this.#constraints.current));
 
 	/** Whether this field or anything below it has been interacted with. Not Superforms taint. */
 	touched = $derived.by(() => this.#field.current.touched());
@@ -77,29 +75,40 @@ export class RemoteFieldState<F extends RemoteFieldLike> implements Presentation
 		return this.errorIds[0];
 	}
 
+	readonly snippetProps: Readonly<RemoteFieldSnippetProps<F>>;
+
 	constructor(props: RemoteFieldStateProps<F>) {
 		this.#field = props.field;
 		this.#constraints = props.constraints;
 		this.associations = new AssociationIds(props);
+		// Stable getters keep unused values and interaction state lazy; the alias is the closed-over
+		// instance those getters read.
+		// eslint-disable-next-line @typescript-eslint/no-this-alias -- getters close over the instance
+		const state = this;
+		this.snippetProps = {
+			get value() {
+				return state.value;
+			},
+			get issues() {
+				return state.issues;
+			},
+			get errors() {
+				return state.errors;
+			},
+			get touched() {
+				return state.touched;
+			},
+			get dirty() {
+				return state.dirty;
+			},
+			get constraints() {
+				return state.constraints;
+			},
+		};
 	}
-
-	snippetProps = $derived.by(
-		() =>
-			({
-				value: this.value,
-				issues: this.issues,
-				errors: this.errors,
-				touched: this.touched,
-				dirty: this.dirty,
-				constraints: this.constraints,
-			}) as const
-	);
 }
 
-/**
- * Installs a remote field scope. The presentation components below it — `RemoteControl`, `Label`,
- * `Description`, `FieldErrors`, `Legend` — read it exactly as they read a Superforms field.
- */
+/** Install a selected remote field scope for shared presentation components. */
 export function useRemoteField<F extends RemoteFieldLike>(props: RemoteFieldStateProps<F>) {
 	return setContext(FORM_FIELD_CTX, new RemoteFieldState(props));
 }
@@ -109,7 +118,17 @@ export function useRemoteField<F extends RemoteFieldLike>(props: RemoteFieldStat
  * not export the `RemoteForm*` types to import instead.
  */
 export function getRemoteField<F extends RemoteFieldLike>(): RemoteFieldState<F> {
-	return getRequiredContext<RemoteFieldState<F>>(FORM_FIELD_CTX, "RemoteField");
+	const state = getRequiredContext<RemoteFieldState<F>>(
+		FORM_FIELD_CTX,
+		"RemoteField or RemoteFieldset"
+	);
+	if (!("field" in state)) {
+		throw new Error(
+			"Remote field hooks require RemoteField or RemoteFieldset. " +
+				"Use useFormField from the root entry point inside a Superforms field."
+		);
+	}
+	return state;
 }
 
 export type UseRemoteFieldViewProps = {
@@ -132,10 +151,7 @@ export type UseRemoteFieldViewResult<F extends RemoteFieldLike> = {
 	readonly descriptionId: string | undefined;
 };
 
-/**
- * Headless access to the selected remote field for a control that lives in its own component. It
- * returns the Kit field plus presentation state, and invents no Superforms method.
- */
+/** Read the enclosing remote scope without supplying a separate field prop. */
 export function useRemoteFormField<F extends RemoteFieldLike>(
 	props: UseRemoteFieldViewProps = {}
 ): UseRemoteFieldViewResult<F> {

@@ -116,10 +116,9 @@ describe("remote instance recipe", () => {
 		);
 		expect(actions).toHaveLength(3);
 		expect(new Set(actions).size).toBe(3);
-		expect(actions[0]).toContain("%22line_a%22");
 		expect(
 			new Set(
-				[...document.querySelectorAll('form input[name^="label/"]')].map((input) =>
+				[...document.querySelectorAll('input[data-testid$="-label-input"]')].map((input) =>
 					input.getAttribute("name")
 				)
 			).size
@@ -221,17 +220,17 @@ describe("remote instance recipe", () => {
 	it("refuses a key the server does not own, because a key is input rather than permission", async () => {
 		const page = await openLines(false);
 		const action = await form(page, "line_b").getAttribute("action");
-		const name = await page.getByTestId("order-line_b-label-input").getAttribute("name");
-		if (!action || !name) throw new Error("the line form renders no action or field name");
-		// Kit appends the form id to every transport name and the server requires it, so a forged
-		// request carries the same names. The key in the action URL is the only part a client can
-		// change, and the handler checks it against its own records instead of trusting it.
-		const id = name.slice(name.indexOf("/") + 1);
-		const fields = {
-			[`label/${id}`]: "Oat milk",
-			[`n:quantity/${id}`]: "1",
-			[`notes/${id}`]: "",
-		};
+		const fields: Record<string, string> = {};
+		for (const [part, value] of [
+			["label", "Oat milk"],
+			["quantity", "1"],
+			["notes", ""],
+		]) {
+			const name = await page.getByTestId(`order-line_b-${part}-input`).getAttribute("name");
+			if (!name) throw new Error(`the line renders no ${part} field name`);
+			fields[name] = value;
+		}
+		if (!action) throw new Error("the line form renders no action");
 
 		// The same request for the line the form belongs to is accepted, so the refusal below is the
 		// record's decision about the key rather than a broken request.
@@ -245,14 +244,27 @@ describe("remote instance recipe", () => {
 		// A key the server does not own is refused. The page renders only the lines it owns, so there
 		// is no control for this issue to attach to: the payload for that instance carries it, and no
 		// line is accepted.
-		const refused = await context!.request.post(
-			new URL(action.replace("%22line_b%22", "%22line_z%22"), url()).href,
-			{ headers: { accept: "text/html" }, form: fields }
+		const forgedAction = new URL(action, url());
+		const instanceParameter = [...forgedAction.searchParams.entries()].find(([, value]) =>
+			value.endsWith(`/${JSON.stringify("line_b")}`)
 		);
-		expect(refused.status()).toBe(200);
-		const refusedBody = await refused.text();
-		expect(refusedBody).toContain("That order line is not on this order.");
-		expect(refusedBody).not.toContain("Saved 1 of Oat milk");
+		if (!instanceParameter) throw new Error("the line action renders no instance parameter");
+		const [parameter, remotePath] = instanceParameter;
+		const endpoint = remotePath.slice(0, remotePath.lastIndexOf("/") + 1);
+		// Inherited object names must be refused too, not mistaken for owned order records.
+		for (const key of ["line_z", "constructor", "toString", "__proto__"]) {
+			forgedAction.searchParams.set(parameter, `${endpoint}${JSON.stringify(key)}`);
+			const refused = await context!.request.post(forgedAction.href, {
+				headers: { accept: "text/html" },
+				form: fields,
+			});
+			expect(refused.status()).toBe(200);
+			const refusedBody = await refused.text();
+			expect(refusedBody, `unowned key ${key}`).toContain(
+				"That order line is not on this order."
+			);
+			expect(refusedBody, `unowned key ${key}`).not.toContain("Saved 1 of Oat milk");
+		}
 	});
 
 	it("changes the field state and the submitted data together through the custom control", async () => {
@@ -361,7 +373,16 @@ describe("remote instance recipe", () => {
 			await page.getByLabel("Render Oat milk").uncheck();
 			await expect.poll(() => form(page, "line_b").count(), { timeout: 10000 }).toBe(0);
 			expect(await danglingInPage(page)).toEqual([]);
+			expect(await page.getByTestId("order-line_b-hidden-status").innerText()).toBe(
+				"Saving…"
+			);
 			release();
+			await expect
+				.poll(() => page.getByTestId("order-line_b-hidden-status").innerText(), {
+					timeout: 10000,
+				})
+				.toBe("Saved 1 of Oat milk on line_b.");
+			expect(await form(page, "line_b").count()).toBe(0);
 
 			// The instance kept the submission, and rendering it again shows that state.
 			await page.getByLabel("Render Oat milk").check();

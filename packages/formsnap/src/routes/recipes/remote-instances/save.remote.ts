@@ -14,12 +14,11 @@ const ORDER_LINES: Record<string, { limit: number }> = {
 };
 
 export const saveOrderLine = form(orderLineSchema, async (data, issue) => {
-	const line = ORDER_LINES[data.id];
-
-	if (!line) {
+	if (!Object.hasOwn(ORDER_LINES, data.id)) {
 		// No path: the key is not something the user can correct in the form.
 		invalid(issue("That order line is not on this order."));
 	}
+	const line = ORDER_LINES[data.id];
 
 	// The record's own rule, checked for every submission no matter which key arrived.
 	if (data.quantity > line.limit) {

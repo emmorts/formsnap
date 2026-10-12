@@ -27,7 +27,7 @@ removed or overridden. `aria-required` comes from the explicit `constraints` you
 `RemoteField`; it never adds a native `required` attribute, so constraint validation stays yours to
 choose.
 
-- [Remote functions guide](https://formsnap.dev/docs/guides/remote-functions)
+- [Remote forms](https://emmorts.github.io/formsnap/docs/recipes/remote-forms)
 
 ### Snippet Props
 - `props` - The attributes Formsnap contributes, such as `id`, `aria-describedby` and the styling

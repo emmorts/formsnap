@@ -40,11 +40,11 @@ Unlike `Field`, there is no `form` prop and no Superforms state: the scope reads
 plus Kit's issues, touched and dirty state. `RemoteControl`, `Label`, `Description`, `FieldErrors`
 and `Legend` below it behave as they do for a Superforms field.
 
-- [Remote functions guide](https://formsnap.dev/docs/guides/remote-functions)
+- [Remote forms](https://emmorts.github.io/formsnap/docs/recipes/remote-forms)
 
 ### Snippet Props
 - `value` - The selected subtree's value, as Kit returns it.
-- `issues` - Kit's issues, with their structured paths.
+- `issues` - Copies of Kit's exact issues, with their structured paths.
 - `errors` - The same issues as messages.
 - `touched` - Kit's touched state. Not Superforms taint.
 - `dirty` - Kit's dirty state. Not Superforms taint.
