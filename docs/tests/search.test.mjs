@@ -300,3 +300,21 @@ test("snippet ranges are clipped to visible text rather than ellipses", () => {
 		[{ text: "alpha", match: true }]
 	);
 });
+test("Unicode normalization highlights entire original code points and decomposed accents", () => {
+	for (const [section, query] of [
+		["𐐨", "𐐨"],
+		["𝒄𝒂𝒇𝒆", "cafe"],
+		["Cafe\u0301", "cafe"],
+		["Ca\u0301fe\u0301", "cafe"],
+	]) {
+		const entry = { href: "/docs/unicode", title: "", section, text: "" };
+		const [result] = searchDocumentation([entry], query).results;
+		assert.ok(result, section);
+		assert.deepEqual(result.sectionRanges, [[0, section.length]], section);
+		assert.deepEqual(highlightSegments(section, result.sectionRanges), [
+			{ text: section, match: true },
+		]);
+	}
+	assert.deepEqual(tokenizeQuery("𐐨"), ["𐐨"]);
+});
+

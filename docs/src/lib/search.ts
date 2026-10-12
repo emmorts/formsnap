@@ -39,9 +39,11 @@ type Word = { start: number; end: number; text: string };
 type Field = {
 	normal: string;
 	map: number[];
+	mapEnds: number[];
 	words: Word[];
 	compact: string;
 	compactMap: number[];
+	compactMapEnds: number[];
 	/** The same words in joined coordinates, for checking that a match lines up with whole words. */
 	compactWords: Word[];
 	/** Whole camel/digit identifiers only, never words joined across original prose boundaries. */
@@ -75,15 +77,22 @@ const WORD_RUN = /[\p{L}\p{N}]+/gu;
 function prepareField(value: string): Field {
 	const characters: string[] = [];
 	const map: number[] = [];
+	const mapEnds: number[] = [];
 	// Boundary detection needs the original case, so the previous character is kept unlowercased.
 	let previousCharacter = "";
-	for (let index = 0; index < value.length; index++) {
-		const decomposed = value[index].normalize("NFKD").replace(COMBINING, "");
+	let index = 0;
+
+	for (const original of value) {
+		const end = index + original.length;
+		const decomposed = original.normalize("NFKD").replace(COMBINING, "");
+		// A separately encoded accent belongs to the preceding character's highlighted span.
+		if (!decomposed && mapEnds.length) mapEnds[mapEnds.length - 1] = end;
 		for (const character of decomposed) {
 			if (!WORD_CHARACTER.test(character)) {
 				if (characters.at(-1) !== " ") {
 					characters.push(" ");
 					map.push(index);
+					mapEnds.push(end);
 				}
 				previousCharacter = "";
 				continue;
@@ -98,11 +107,18 @@ function prepareField(value: string): Field {
 			if (boundary) {
 				characters.push(" ");
 				map.push(index);
+				mapEnds.push(end);
 			}
-			characters.push(character.toLocaleLowerCase("en"));
-			map.push(index);
+			const lower = character.toLocaleLowerCase("en");
+			// Match offsets use UTF-16 units; every unit maps to the entire original code point.
+			for (let unit = 0; unit < lower.length; unit++) {
+				characters.push(lower[unit]);
+				map.push(index);
+				mapEnds.push(end);
+			}
 			previousCharacter = character;
 		}
+		index = end;
 	}
 
 	const normal = characters.join("");
@@ -114,12 +130,14 @@ function prepareField(value: string): Field {
 
 	const compactCharacters: string[] = [];
 	const compactMap: number[] = [];
+	const compactMapEnds: number[] = [];
 	const compactWords: Word[] = [];
 	for (const word of words) {
 		const start = compactCharacters.length;
 		for (let offset = word.start; offset < word.end; offset++) {
 			compactCharacters.push(normal[offset]);
 			compactMap.push(map[offset]);
+			compactMapEnds.push(mapEnds[offset]);
 		}
 		compactWords.push({ start, end: compactCharacters.length, text: word.text });
 	}
@@ -130,7 +148,7 @@ function prepareField(value: string): Field {
 		let last = first;
 		while (
 			last + 1 < compactWords.length &&
-			compactMap[compactWords[last].end - 1] + 1 === compactMap[compactWords[last + 1].start]
+			compactMapEnds[compactWords[last].end - 1] === compactMap[compactWords[last + 1].start]
 		) {
 			last++;
 		}
@@ -145,9 +163,11 @@ function prepareField(value: string): Field {
 	return {
 		normal,
 		map,
+		mapEnds,
 		words,
 		compact,
 		compactMap,
+		compactMapEnds,
 		compactWords,
 		identifiers,
 	};
@@ -170,9 +190,9 @@ function prepared(entry: SearchEntry): Prepared {
 }
 
 /** Maps a span of normalized text back to the original string, for highlighting. */
-function rawRange(map: number[], start: number, end: number): HighlightRange {
+function rawRange(map: number[], mapEnds: number[], start: number, end: number): HighlightRange {
 	const from = map[start] ?? map.at(-1) ?? 0;
-	return [from, (map[end - 1] ?? from) + 1];
+	return [from, mapEnds[end - 1] ?? from];
 }
 
 /**
@@ -235,7 +255,7 @@ function matchField(
 ): Match | null {
 	for (const word of field.words) {
 		if (word.text === term) {
-			const range = rawRange(field.map, word.start, word.end);
+			const range = rawRange(field.map, field.mapEnds, word.start, word.end);
 			return { score: weight, start: range[0], ranges: [range] };
 		}
 	}
@@ -248,14 +268,14 @@ function matchField(
 		}
 		if (shortest) {
 			const ratio = term.length / shortest.text.length;
-			const range = rawRange(field.map, shortest.start, shortest.end);
+			const range = rawRange(field.map, field.mapEnds, shortest.start, shortest.end);
 			return { score: weight * (0.55 + 0.35 * ratio), start: range[0], ranges: [range] };
 		}
 	}
 
 	const inline = field.normal.indexOf(term);
 	if (inline !== -1) {
-		const range = rawRange(field.map, inline, inline + term.length);
+		const range = rawRange(field.map, field.mapEnds, inline, inline + term.length);
 		return { score: weight * 0.45, start: range[0], ranges: [range] };
 	}
 
@@ -285,7 +305,7 @@ function matchField(
 		const identifierPrefix =
 			joined === 0 && firstIdentifier?.start === 0 && end <= firstIdentifier.end;
 		if (startsWord && (endsWord || identifierPrefix)) {
-			const range = rawRange(field.compactMap, joined, end);
+			const range = rawRange(field.compactMap, field.compactMapEnds, joined, end);
 			return { score: weight * 0.45, start: range[0], ranges: [range] };
 		}
 	}
@@ -315,6 +335,7 @@ function matchField(
 
 	const range = rawRange(
 		closestIdentifier ? field.compactMap : field.map,
+		closestIdentifier ? field.compactMapEnds : field.mapEnds,
 		closest.start,
 		closest.end
 	);
