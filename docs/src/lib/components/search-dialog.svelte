@@ -148,16 +148,6 @@
 				event.key === "ArrowDown" ? (active + 1) % count : (active - 1 + count) % count;
 			return;
 		}
-		if (event.key === "Home" && count) {
-			event.preventDefault();
-			active = 0;
-			return;
-		}
-		if (event.key === "End" && count) {
-			event.preventDefault();
-			active = count - 1;
-			return;
-		}
 		if (event.key === "Enter") {
 			const row = options[active];
 			if (!row) return;
