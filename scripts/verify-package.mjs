@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Packages @emmorts/formsnap and proves the artifact from outside the workspace.
 //
-//   node scripts/verify-package.mjs [--svelte=<version>] [--kit=<version>] [--keep]
+//   node scripts/verify-package.mjs [--root-only] [--svelte=<version>] [--superforms=<version>]
+//     [--zod=<version>] [--kit=<remote-version>] [--root-kit=<version>] [--keep]
 //
 // It requires a fresh `pnpm --filter @emmorts/formsnap run package` output (a local `dist/` is not
 // evidence by itself), then:
@@ -11,7 +12,8 @@
 //   3. installs it into a clean consumer that has no Superforms, type-checks the published entry
 //      points, and runs that consumer's own SvelteKit app to render and submit a native remote
 //      form through the installed package,
-//   4. installs it into a clean Superforms consumer and type-checks the root entry's contract.
+//   4. installs it into a clean Superforms consumer, type-checks its app and root contracts, and
+//      renders and submits a classic action through the installed package.
 //
 // The consumer directories are temporary and external to this workspace: nothing resolves a
 // workspace alias, so what is exercised is the packed tarball.
@@ -36,6 +38,7 @@ const args = new Map(
 		})
 );
 const keep = args.has("keep");
+const rootOnly = args.has("root-only");
 
 const failures = [];
 const scratch = [];
@@ -364,11 +367,50 @@ function install(directory, dependencies, devDependencies) {
 function typeCheck(directory) {
 	const result = spawnSync(
 		path.join(directory, "node_modules/.bin/tsc"),
-		["-p", path.join(directory, "tsconfig.json")],
+		["-p", path.join(directory, "check-tsconfig.json")],
 		{ cwd: directory, encoding: "utf8" }
 	);
 	return { status: result.status, output: `${result.stdout ?? ""}${result.stderr ?? ""}`.trim() };
 }
+
+function typeCheckApp(directory, backend) {
+	run(path.join(directory, "node_modules/.bin/svelte-kit"), ["sync"], { cwd: directory });
+	const result = spawnSync(
+		path.join(directory, "node_modules/.bin/svelte-check"),
+		["--tsconfig", "./tsconfig.json"],
+		{ cwd: directory, encoding: "utf8" }
+	);
+	check(
+		result.status === 0,
+		`the installed ${backend} consumer app type-checks its actual pages and handlers`,
+		`${result.stdout ?? ""}${result.stderr ?? ""}`.trim()
+	);
+}
+
+function appTsconfig(extendsPath) {
+	return `${JSON.stringify(
+		{
+			extends: extendsPath,
+			compilerOptions: { strict: true, skipLibCheck: true, moduleResolution: "bundler" },
+			include: ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "vite.config.ts"],
+		},
+		null,
+		"\t"
+	)}\n`;
+}
+
+const appHtml = `<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div>%sveltekit.body%</div>
+	</body>
+</html>
+`;
 
 /** The attributes of a rendered tag, read as written. */
 function tagAttributes(tag) {
@@ -397,13 +439,43 @@ function firstTag(html, name) {
 const consumer = {
 	svelte: () => version("svelte"),
 	"@sveltejs/kit": () => version("@sveltejs/kit", "kit"),
-	"@sveltejs/vite-plugin-svelte": () => version("@sveltejs/vite-plugin-svelte"),
+	"@sveltejs/vite-plugin-svelte": () => version("@sveltejs/vite-plugin-svelte", "plugin"),
 	vite: () => version("vite"),
 	typescript: () => version("typescript"),
 };
 
+const rootConsumer = {
+	svelte: consumer.svelte,
+	"@sveltejs/kit": () => args.get("root-kit") ?? "2.70.3",
+	"@sveltejs/vite-plugin-svelte": () => args.get("root-plugin") ?? "5.1.1",
+	vite: () => args.get("root-vite") ?? "6.4.1",
+	typescript: consumer.typescript,
+};
+
+function printInstalledVersions(directory, backend) {
+	const names = [
+		"svelte",
+		"@sveltejs/kit",
+		"@sveltejs/vite-plugin-svelte",
+		"vite",
+		"typescript",
+		"zod",
+	];
+	if (backend === "root") names.push("sveltekit-superforms");
+	console.log(
+		`${backend} resolved ${names
+			.map((name) => {
+				const manifest = JSON.parse(
+					readFileSync(path.join(directory, "node_modules", name, "package.json"), "utf8")
+				);
+				return `${name} ${manifest.version}`;
+			})
+			.join(", ")}`
+	);
+}
+
 const remoteConsumerPage = `<script lang="ts">
-	import { FieldErrors, Label, RemoteControl, RemoteField } from "@emmorts/formsnap/remote";
+	import { Label, RemoteControl, RemoteField } from "@emmorts/formsnap/remote";
 	import { save } from "./save.remote.js";
 
 	const title = save.fields.title;
@@ -423,7 +495,9 @@ const remoteConsumerPage = `<script lang="ts">
 		{#snippet description()}
 			<span data-testid="consumer-title-description">At least three characters.</span>
 		{/snippet}
-		<FieldErrors />
+		{#snippet fieldErrors({ errors })}
+			{#each errors as error}<span>{error}</span>{/each}
+		{/snippet}
 	</RemoteField>
 
 	<RemoteField field={seats}>
@@ -433,7 +507,9 @@ const remoteConsumerPage = `<script lang="ts">
 				<input data-testid="consumer-seats" {...seats.as("number", 1)} {...props} />
 			{/snippet}
 		</RemoteControl>
-		<FieldErrors />
+		{#snippet fieldErrors({ errors })}
+			{#each errors as error}<span>{error}</span>{/each}
+		{/snippet}
 	</RemoteField>
 
 	<button>Save</button>
@@ -510,11 +586,12 @@ async function checkRemoteConsumer(tarball) {
 			"@emmorts/formsnap": `file:${tarball}`,
 			"@sveltejs/kit": consumer["@sveltejs/kit"](),
 			svelte: consumer.svelte(),
-			zod: version("zod"),
+			zod: version("zod", "zod"),
 		},
 		{
 			"@sveltejs/vite-plugin-svelte": consumer["@sveltejs/vite-plugin-svelte"](),
 			typescript: consumer.typescript(),
+			"svelte-check": version("svelte-check"),
 			vite: consumer.vite(),
 		}
 	);
@@ -532,20 +609,10 @@ async function checkRemoteConsumer(tarball) {
 	);
 
 	writeFiles(directory, {
-		"tsconfig.json": consumerTsconfig,
+		"check-tsconfig.json": consumerTsconfig,
+		"tsconfig.json": appTsconfig("$app/tsconfig"),
 		"check.ts": remoteConsumerCheck,
-		"src/app.html": `<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		%sveltekit.head%
-	</head>
-	<body data-sveltekit-preload-data="hover">
-		<div>%sveltekit.body%</div>
-	</body>
-</html>
-`,
+		"src/app.html": appHtml,
 		"src/routes/+page.svelte": remoteConsumerPage,
 		"src/routes/save.remote.ts": remoteConsumerHandler,
 		"vite.config.ts": `import { sveltekit } from "@sveltejs/kit/vite";
@@ -563,12 +630,14 @@ export default defineConfig({
 		"the remote-only installation type-checks against the published declarations",
 		types.output.split("\n").slice(0, 20).join("\n")
 	);
+	printInstalledVersions(directory, "remote");
+	typeCheckApp(directory, "remote");
 
-	await runRemoteConsumerApp(directory);
+	await runConsumerApp(directory, "remote");
 }
 
 /** Renders the consumer's own app through the installed package and submits it natively. */
-async function runRemoteConsumerApp(directory) {
+async function runConsumerApp(directory, backend) {
 	const port = await freePort();
 	const origin = `http://127.0.0.1:${port}`;
 	const server = spawn(
@@ -608,6 +677,10 @@ async function runRemoteConsumerApp(directory) {
 			signal: AbortSignal.timeout(30_000),
 		});
 		const html = await render.text();
+		if (backend === "root") {
+			await checkRootApp(origin, html);
+			return;
+		}
 
 		check(html.includes("Consumer title"), "the installed package renders its label");
 		const title = tagWithTestId(html, "consumer-title");
@@ -726,25 +799,175 @@ export const components = [
 ];
 `;
 
-function checkRootConsumer(tarball) {
+const rootConsumerPage = `<script lang="ts">
+	import { Control, Field, Label } from "@emmorts/formsnap";
+	import { superForm } from "sveltekit-superforms";
+	import { untrack } from "svelte";
+	import type { PageProps } from "./$types.js";
+
+	let { data, form: action }: PageProps = $props();
+	const form = superForm(untrack(() => action?.form ?? data.form));
+	const { form: values, enhance } = form;
+</script>
+
+<h1>Packed root consumer</h1>
+<form method="POST" use:enhance>
+	<Field {form} name="title">
+		<Control id="consumer-title">
+			{#snippet children({ props })}
+				<Label>Consumer title</Label>
+				<input data-testid="consumer-title" {...props} bind:value={$values.title} />
+			{/snippet}
+		</Control>
+		{#snippet description()}
+			<span>At least three characters.</span>
+		{/snippet}
+		{#snippet fieldErrors({ errors })}
+			{#each errors as error}<span>{error}</span>{/each}
+		{/snippet}
+	</Field>
+	<Field {form} name="seats">
+		<Control id="consumer-seats">
+			{#snippet children({ props })}
+				<Label>Seats</Label>
+				<input type="number" data-testid="consumer-seats" {...props} bind:value={$values.seats} />
+			{/snippet}
+		</Control>
+		{#snippet fieldErrors({ errors })}
+			{#each errors as error}<span>{error}</span>{/each}
+		{/snippet}
+	</Field>
+	<button>Save</button>
+</form>
+{#if action?.saved}
+	<output data-testid="consumer-result">{action.saved}</output>
+{/if}
+`;
+
+const rootConsumerHandler = `import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { schema } from "./schema.js";
+import type { Actions, PageServerLoad } from "./$types.js";
+
+export const load: PageServerLoad = async () => ({
+	form: await superValidate(zod(schema)),
+});
+
+export const actions = {
+	default: async (event) => {
+		const form = await superValidate(event, zod(schema));
+		if (!form.valid) return fail(400, { form, saved: undefined });
+		return { form, saved: \`\${form.data.title}:\${form.data.seats}\` };
+	},
+} satisfies Actions;
+`;
+
+async function checkRootApp(origin, html) {
+	const title = tagWithTestId(html, "consumer-title");
+	const seats = tagWithTestId(html, "consumer-seats");
+	check(html.includes("Consumer title"), "the installed root package renders its label");
+	if (!check(title !== undefined && seats !== undefined, "the root app renders both controls"))
+		return;
+	check(
+		title.name === "title" && seats.name === "seats",
+		"the root controls carry Superforms field names"
+	);
+	check(
+		html.includes(`for="${title.id}"`),
+		"the root label associates with the server-rendered control"
+	);
+	check(
+		typeof title["aria-describedby"] === "string" &&
+			html.includes(`id="${title["aria-describedby"]}"`) &&
+			html.includes("At least three characters."),
+		"the root owned description associates without JavaScript"
+	);
+	const submit = async (value) => {
+		const response = await fetch(origin, {
+			method: "POST",
+			headers: {
+				accept: "text/html",
+				"content-type": "application/x-www-form-urlencoded",
+				origin,
+			},
+			body: new URLSearchParams({ [title.name]: value, [seats.name]: "4" }).toString(),
+			signal: AbortSignal.timeout(30_000),
+		});
+		return { status: response.status, html: await response.text() };
+	};
+	const rejected = await submit("ab");
+	const invalidTitle = tagWithTestId(rejected.html, "consumer-title");
+	check(
+		rejected.status === 400 && rejected.html.includes("Title needs at least three characters."),
+		"a native classic action renders the Superforms server validation error",
+		`status=${rejected.status} ${rejected.html.replace(/\s+/g, " ").slice(0, 300)}`
+	);
+	check(
+		invalidTitle?.["aria-invalid"] === "true" && invalidTitle?.value === "ab",
+		"the rejected root control retains its input and invalid state",
+		JSON.stringify(invalidTitle)
+	);
+	const describedby = invalidTitle?.["aria-describedby"]?.split(" ") ?? [];
+	check(
+		describedby.length > 1 && describedby.every((id) => rejected.html.includes(`id="${id}"`)),
+		"the root error and description containers both associate after native rejection"
+	);
+	const accepted = await submit("Packed consumer");
+	check(
+		accepted.status === 200 && accepted.html.includes("Packed consumer:4"),
+		"a valid native classic action runs through the installed root package",
+		`status=${accepted.status} ${accepted.html.replace(/\s+/g, " ").slice(0, 300)}`
+	);
+}
+
+async function checkRootConsumer(tarball) {
 	const directory = temporaryDirectory("superforms-consumer");
 	install(
 		directory,
 		{
 			"@emmorts/formsnap": `file:${tarball}`,
-			"@sveltejs/kit": consumer["@sveltejs/kit"](),
-			svelte: consumer.svelte(),
-			"sveltekit-superforms": version("sveltekit-superforms"),
-			zod: version("zod"),
+			"@sveltejs/kit": rootConsumer["@sveltejs/kit"](),
+			svelte: rootConsumer.svelte(),
+			"sveltekit-superforms": version("sveltekit-superforms", "superforms"),
+			zod: version("zod", "zod"),
 		},
 		{
-			"@sveltejs/vite-plugin-svelte": consumer["@sveltejs/vite-plugin-svelte"](),
-			typescript: consumer.typescript(),
-			vite: consumer.vite(),
+			"@sveltejs/vite-plugin-svelte": rootConsumer["@sveltejs/vite-plugin-svelte"](),
+			typescript: rootConsumer.typescript(),
+			"svelte-check": version("svelte-check"),
+			vite: rootConsumer.vite(),
 		}
 	);
 
-	writeFiles(directory, { "tsconfig.json": consumerTsconfig, "check.ts": rootConsumerCheck });
+	const superformsVersion = JSON.parse(
+		readFileSync(path.join(directory, "node_modules/sveltekit-superforms/package.json"), "utf8")
+	).version;
+	const schemaImport = Number(superformsVersion.split(".")[0]) >= 3 ? "zod/v3" : "zod";
+	writeFiles(directory, {
+		"check-tsconfig.json": consumerTsconfig,
+		"check.ts": rootConsumerCheck,
+		"tsconfig.json": appTsconfig("./.svelte-kit/tsconfig.json"),
+		"src/app.html": appHtml,
+		"src/routes/+page.svelte": rootConsumerPage,
+		"src/routes/+page.server.ts": rootConsumerHandler,
+		"src/routes/schema.ts": `import { z } from "${schemaImport}";
+
+export const schema = z.object({
+	title: z.string().min(3, "Title needs at least three characters."),
+	seats: z.coerce.number().int().min(1).max(9),
+});
+`,
+		"svelte.config.js": `import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+
+export default { preprocess: vitePreprocess() };
+`,
+		"vite.config.ts": `import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({ plugins: [sveltekit()] });
+`,
+	});
 
 	const types = typeCheck(directory);
 	check(
@@ -752,6 +975,9 @@ function checkRootConsumer(tarball) {
 		"the Superforms installation type-checks the root entry's documented contract",
 		types.output.split("\n").slice(0, 20).join("\n")
 	);
+	printInstalledVersions(directory, "root");
+	typeCheckApp(directory, "root");
+	await runConsumerApp(directory, "root");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -761,17 +987,23 @@ async function main() {
 	console.log(
 		`commit      ${git("rev-parse", "HEAD")} (dirty: ${git("status", "--porcelain") ? "yes" : "no"})`
 	);
+	if (!rootOnly) {
+		console.log(
+			`remote requested svelte ${consumer.svelte()}, @sveltejs/kit ${consumer["@sveltejs/kit"]()}, ` +
+				`plugin ${consumer["@sveltejs/vite-plugin-svelte"]()}, vite ${consumer.vite()}`
+		);
+	}
 	console.log(
-		`versions    svelte ${consumer.svelte()}, @sveltejs/kit ${consumer["@sveltejs/kit"]()}, ` +
-			`sveltekit-superforms ${version("sveltekit-superforms")}, zod ${version("zod")}, ` +
-			`typescript ${consumer.typescript()}, vite ${consumer.vite()}`
+		`root requested svelte ${rootConsumer.svelte()}, @sveltejs/kit ${rootConsumer["@sveltejs/kit"]()}, ` +
+			`sveltekit-superforms ${version("sveltekit-superforms", "superforms")}, zod ${version("zod", "zod")}, ` +
+			`plugin ${rootConsumer["@sveltejs/vite-plugin-svelte"]()}, typescript ${rootConsumer.typescript()}, vite ${rootConsumer.vite()}`
 	);
 	console.log("");
 
 	checkDist();
 	const tarball = checkTarball();
-	await checkRemoteConsumer(tarball);
-	checkRootConsumer(tarball);
+	if (!rootOnly) await checkRemoteConsumer(tarball);
+	await checkRootConsumer(tarball);
 
 	if (failures.length > 0) {
 		console.log(`\n${failures.length} check(s) failed.`);

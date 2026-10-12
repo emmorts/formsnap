@@ -47,10 +47,19 @@ Passing a remote form as the `form` prop is therefore not supported, and a stand
 Superforms methods will not fix it: the field state would be wrong at runtime, and the failure appears
 as missing errors rather than as a type error.
 
-The `./remote` entry point was added after `2.2.7` and is due in `2.3.0`; `2.2.7` and earlier have no
-remote entry. It needs `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions` enabled and no
-Superforms at all: both peers are declared optional, so a remote-only consumer is not asked to install
-an unused SDK. The root entry point's Superforms requirement is unchanged.
+The `./remote` entry point ships in `2.3.0` and later; earlier releases have no remote entry. It
+needs `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions`, and Kit 3 needs
+Svelte `^5.57.1`. The tested remote baseline is Kit 3.0.1 with Svelte 5.57.2, not Formsnap's root
+Svelte minimum.
+
+Superforms is an optional peer so remote-only consumers need not install it. Root consumers must
+still install Superforms explicitly and satisfy its Kit requirements. Kit is not a package-wide
+peer: backend-specific limits cannot be encoded globally without rejecting existing root Kit 2
+applications. This does not extend remote support to Kit 2.
+
+The experimental remote API is maintained against the `remote` CI baseline. A changed Kit version
+must pass that job before the documented baseline changes; incompatible changes require a Formsnap
+release. The `^3.0.1` range does not mean every later Kit release was exercised.
 
 Calling a remote `command` from your own submit handler is a separate, application-level integration.
 It keeps Superforms and Formsnap in charge of the form and only swaps the mutation mechanism, and it

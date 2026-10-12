@@ -27,11 +27,15 @@ For the current source:
 | Superforms      | `^2.19.0 \|\| ^3.0.0` |
 | `@sveltejs/kit` | `^3.0.1`              |
 
-The `@sveltejs/kit` row applies to the `@emmorts/formsnap/remote` entry point, which presents a native
-SvelteKit remote form and needs Kit with `experimental.remoteFunctions` and no Superforms. The root
-entry point is unchanged: it still requires Superforms. Both `@sveltejs/kit` and
-`sveltekit-superforms` are declared as optional peers, so a remote-only consumer is not asked to
-install an unused SDK.
+The `@sveltejs/kit` row applies only to `@emmorts/formsnap/remote`, which needs
+`experimental.remoteFunctions` and no Superforms. Kit 3 requires Svelte `^5.57.1`; the remote CI
+baseline is Kit 3.0.1 with Svelte 5.57.2. `sveltekit-superforms` is an optional peer so remote-only
+consumers need not install it; root consumers must still install Superforms explicitly.
+
+Kit requirements belong to the selected backend, not a package-wide peer. Even an optional Kit 3
+peer would reject existing root Kit 2 applications. Remote support remains `^3.0.1`, not Kit 2.
+Because the remote API is experimental, changed Kit versions must pass the `remote` CI job before
+the documented baseline changes; a caret range does not mean every later release was tested.
 
 Superforms 3.0.0 requires Svelte `^5.56.4`. Other schema libraries work through Superforms adapters.
 Check the selected package release's peer dependencies when upgrading.
@@ -73,10 +77,9 @@ Changes since 2.1.1 (see the changelog for release status):
 - Presents a native SvelteKit remote form through `@emmorts/formsnap/remote`, an entry point that
   imports nothing from Superforms. `RemoteField`, `RemoteFieldset` and `RemoteControl` read Kit's own
   field state, share the label/description/error components with the root entry, and take explicit
-  constraints rather than inferring them from a schema. Added after `2.2.7`; due in `2.3.0`.
-- Declares `@sveltejs/kit` and `sveltekit-superforms` as optional peers, so a consumer of that entry
-  point installs Kit and nothing Superforms-shaped, while the root entry point's Superforms
-  requirement is unchanged.
+  constraints rather than inferring them from a schema. Added in `2.3.0`.
+- Keeps Superforms optional for remote-only installs and documents Kit requirements per backend,
+  preserving existing root Kit 2 applications.
 
 See the [changelog](./packages/formsnap/CHANGELOG.md) for details.
 

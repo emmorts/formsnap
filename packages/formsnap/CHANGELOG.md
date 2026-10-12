@@ -20,21 +20,39 @@ difference is described under Changed below.
   `FieldErrors` and `Legend` with the root entry point. Kit keeps the control's transport name and
   `aria-invalid`, so the props from `field.as(...)` supply both; `RemoteControl` adds the associations,
   container IDs and `data-fs-*` attributes, and required state is exactly the `constraints` a caller
-  passes because Kit's `as(...)` derives none from a schema. `useRemoteFormField`, `useRemoteField` and
-  `getRemoteField` give a custom widget the same scope, and `getRemoteFormField` returns the caller's
-  own Kit field rather than a fabricated Superforms member.
-- Support `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions` for that entry point. `3.0.1` is
-  the baseline this entry point was built and exercised against, and the supported range moves only
-  when the `remote` CI job exercises a new Kit version.
+  passes because Kit's `as(...)` derives none from a schema. `useRemoteFormField` gives a custom
+  widget its original typed Kit field and presentation state; `useRemoteField` installs a scope and
+  `getRemoteField` reads that state.
+- Document `@sveltejs/kit` `^3.0.1` with `experimental.remoteFunctions` for the remote entry.
+  Kit 3.0.1 and Svelte 5.57.2 are the tested baseline; Kit 3 requires Svelte `^5.57.1`.
+  A changed Kit version must pass the `remote` CI job before the documented baseline changes.
+  The caret range is not evidence that every later Kit release was tested.
 
 ### Changed
 
-- Declare `@sveltejs/kit` `^3.0.1` as a peer and mark both `@sveltejs/kit` and `sveltekit-superforms`
-  optional, so a consumer that only renders a remote form installs Kit and nothing Superforms-shaped.
-  No existing import path changes: `@emmorts/formsnap` still requires Superforms, its peer range and its
-  declarations are unchanged, and a correctly installed root consumer is unaffected. One consequence is
-  worth stating: package managers no longer auto-install a missing `sveltekit-superforms` for a root
-  consumer that omitted it, so install Superforms explicitly as the installation instructions say.
+- Mark `sveltekit-superforms` optional so a remote-only consumer need not install it. The root entry
+  still requires Superforms explicitly, with its existing peer range and declarations.
+- Keep Kit requirements backend-specific and documented, not a package-wide peer. Even an optional
+  Kit 3 peer rejects existing root Kit 2/Superforms 2 applications. Remote support remains `^3.0.1`;
+  removing the global peer does not claim remote compatibility with Kit 2.
+- Build root compatibility artifacts at the locked workspace baseline, then install them in isolated
+  Kit 2 consumers for the existing minimum, Superforms 3.0.0 and current matrix entries. Each consumer
+  checks its actual app and published types, renders a classic-action form and submits invalid and
+  valid inputs natively. The full source/browser fixture suite remains in verify and remote jobs.
+
+### Fixed
+
+- Copy structured remote issues and explicit constraints before exposing presentation metadata, so
+  consumers cannot mutate backend state through those views. Keep the original Kit value and field.
+- Keep unused selected values and interaction state lazy in remote snippet getters.
+- Reject backend-specific hooks used inside the wrong field provider rather than casting its state.
+- Use the typed `useRemoteFormField` hook in the keyed-instance quantity stepper.
+- Reject inherited keyed-instance names before reading server-owned record limits.
+- Keep an accepted command result and receipt when its subsequent query refresh fails; report that
+  refresh separately. Clear stale command feedback at submission and render exclusive remote outcomes.
+- Hide a previous accepted result from a subsequent preflight-rejection announcement.
+- Reject `RemoteControl` inside a Superforms field instead of dropping the transport name.
+- Type the documentation highlighter callback under the strict documentation TypeScript config.
 
 ### Docs
 
