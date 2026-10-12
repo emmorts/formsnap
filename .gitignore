@@ -13,6 +13,7 @@ dist
 # Local working documents
 /docs/implementation-plan.md
 /docs/remote-functions-implementation-plan.md
+/docs/remote-functions-*-handoff.md
 
 # Logs
 logs
