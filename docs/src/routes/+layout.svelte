@@ -4,6 +4,7 @@
 	import { page } from "$app/state";
 	import { isDocsRoute, site } from "$lib/config";
 	import SiteHeader from "$lib/components/site-header.svelte";
+	import SearchDialog from "$lib/components/search-dialog.svelte";
 	import SiteSidebar from "$lib/components/site-sidebar.svelte";
 	import SiteFooter from "$lib/components/site-footer.svelte";
 	import TableOfContents from "$lib/components/table-of-contents.svelte";
@@ -33,6 +34,7 @@
 </a>
 
 <SiteHeader />
+<SearchDialog />
 
 {#if shell}
 	<div class="mx-auto flex max-w-[90rem] gap-8 px-4 sm:px-6 lg:px-8">

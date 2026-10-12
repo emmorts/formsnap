@@ -3,6 +3,7 @@
 	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { site } from "$lib/config";
+	import { openSearchPalette, searchPalette } from "$lib/search-palette.svelte";
 	import Icon from "./icon.svelte";
 	import ThemeToggle from "./theme-toggle.svelte";
 	import SiteSidebar from "./site-sidebar.svelte";
@@ -76,13 +77,22 @@
 		</nav>
 
 		<div class="ml-auto flex items-center gap-2">
-			<a
-				href={resolve("/docs/search")}
+			<button
+				type="button"
 				aria-label="Search documentation"
-				class="border-line text-fg-muted hover:text-fg rounded-lg border px-2.5 py-2 text-sm"
+				aria-haspopup="dialog"
+				aria-expanded={searchPalette.open}
+				aria-keyshortcuts="Control+K Meta+K"
+				onclick={openSearchPalette}
+				class="border-line text-fg-muted hover:text-fg inline-flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm"
 			>
-				Search
-			</a>
+				<Icon name="search" class="size-4" />
+				<span class="hidden sm:inline">Search</span>
+				<kbd
+					class="border-line text-fg-subtle hidden rounded border px-1.5 text-xs md:inline"
+					>⌘K</kbd
+				>
+			</button>
 			<!-- Absolute external URL: resolve() applies to app routes, not to this. -->
 			<!-- eslint-disable svelte/no-navigation-without-resolve -->
 			<a
@@ -122,6 +132,17 @@
 			</button>
 		</div>
 		<div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+			<button
+				type="button"
+				onclick={() => {
+					closeMenu();
+					openSearchPalette();
+				}}
+				class="border-line text-fg-muted mb-4 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+			>
+				<Icon name="search" class="size-4" />
+				Search documentation
+			</button>
 			<SiteSidebar onNavigate={closeMenu} />
 		</div>
 	</div>

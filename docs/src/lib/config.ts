@@ -23,7 +23,6 @@ export const navigation: NavSection[] = [
 			{ title: "Introduction", href: resolve("/docs") },
 			{ title: "Installation", href: resolve("/docs/installation") },
 			{ title: "Quickstart", href: resolve("/docs/quickstart") },
-			{ title: "Search", href: resolve("/docs/search") },
 		],
 	},
 	{

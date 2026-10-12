@@ -9,6 +9,7 @@
 		| "github"
 		| "menu"
 		| "close"
+		| "search"
 		| "info"
 		| "tip"
 		| "warning"
@@ -39,6 +40,7 @@
 			'<circle cx="12" cy="17" r="0.5" fill="currentColor" />',
 		],
 		"arrow-right": ['<path d="M4 12h16m-6-6 6 6-6 6" />'],
+		search: ['<circle cx="11" cy="11" r="7" />', '<path d="m16.5 16.5 4 4" />'],
 	};
 
 	const githubPath =

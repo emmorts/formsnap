@@ -1,7 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { indexPage } from "../src/lib/search-index.server.ts";
-import { searchDocumentation } from "../src/lib/search.ts";
+import { highlightSegments, searchDocumentation, tokenizeQuery } from "../src/lib/search.ts";
+
+const entries = [
+	{
+		href: "/docs/a#transport",
+		title: "Native forms",
+		section: "Transport",
+		text: "Array errors stay with their rows.",
+	},
+	{
+		href: "/docs/b#array-errors",
+		title: "Arrays",
+		section: "Array errors",
+		text: "Preserve stable row identity.",
+	},
+	{
+		href: "/docs/c#array",
+		title: "Arrays",
+		section: "Array values",
+		text: "Read values at an index.",
+	},
+	{
+		href: "/docs/recipes",
+		title: "Recipes",
+		section: "",
+		text: "Runnable SvelteKit examples.",
+	},
+	{
+		href: "/docs/components/fieldset",
+		title: "Fieldset & Legend",
+		section: "",
+		text: "Groups related controls under an accessible title.",
+	},
+	{
+		href: "/docs/reference/headless-hooks#useformfield",
+		title: "Headless hooks",
+		section: "useFormField",
+		text: "Read field errors and constraints.",
+	},
+	{
+		href: "/docs/changelog",
+		title: "Changelog",
+		section: "2.2.6",
+		text: "Café release notes for arrays.",
+	},
+];
+
+const hrefs = (query) =>
+	searchDocumentation(entries, query).results.map((result) => result.entry.href);
 
 test("section links preserve rendered heading text, duplicate IDs and code-fence boundaries", () => {
 	const source = [
@@ -34,31 +82,132 @@ test("section links preserve rendered heading text, duplicate IDs and code-fence
 	assert.equal(entries[0].text, "Reusable controls");
 });
 
-test("search requires every term and ranks matching section names above incidental body matches", () => {
-	const entries = [
-		{
-			href: "/docs/a#transport",
-			title: "Native forms",
-			section: "Transport",
-			text: "Array errors stay with their rows.",
-		},
-		{
-			href: "/docs/b#array-errors",
-			title: "Arrays",
-			section: "Array errors",
-			text: "Preserve stable row identity.",
-		},
-		{
-			href: "/docs/c#array",
-			title: "Arrays",
-			section: "Array values",
-			text: "Read values at an index.",
-		},
-	];
+test("indexed descriptions keep their words but drop inline Markdown markers", () => {
+	const source = [
+		"---",
+		"title: Groups",
+		"description: Group controls with a native `Fieldset`/`Legend`, or use the **child** snippet.",
+		"---",
+		"## Section",
+		"",
+		"Body text.",
+	].join("\n");
+	const [page] = indexPage(source, "/formsnap/docs/recipes/groups", "Groups");
+	assert.equal(
+		page.text,
+		"Group controls with a native Fieldset/Legend, or use the child snippet."
+	);
+});
+
+test("every term must match, and section names outrank incidental body matches", () => {
+	const outcome = searchDocumentation(entries, " ARRAY errors array ");
 	assert.deepEqual(
-		searchDocumentation(entries, " ARRAY errors array ").map(({ href }) => href),
+		outcome.results.map(({ entry }) => entry.href),
 		["/docs/b#array-errors", "/docs/a#transport"]
 	);
-	assert.deepEqual(searchDocumentation(entries, "array missing"), []);
-	assert.deepEqual(searchDocumentation(entries, "  "), []);
+	assert.equal(outcome.complete, true);
+	assert.deepEqual(outcome.terms, ["array", "errors"]);
+	assert.deepEqual(searchDocumentation(entries, "   ").results, []);
 });
+
+test("terms typed with or without identifier boundaries reach the same section", () => {
+	for (const query of ["useFormField", "useformfield", "usef", "form field"]) {
+		assert.equal(hrefs(query)[0], "/docs/reference/headless-hooks#useformfield", query);
+	}
+});
+
+test("a misspelled word still finds the nearest section", () => {
+	assert.equal(hrefs("recpie")[0], "/docs/recipes");
+	assert.equal(hrefs("fieldst")[0], "/docs/components/fieldset");
+	assert.equal(hrefs("array errros")[0], "/docs/b#array-errors");
+});
+
+test("when no section matches every word, related sections come back flagged", () => {
+	const outcome = searchDocumentation(entries, "array missing");
+	assert.equal(outcome.complete, false);
+	assert.deepEqual(
+		outcome.results.map(({ entry, matched }) => [entry.href, matched]),
+		[
+			["/docs/b#array-errors", 1],
+			["/docs/c#array", 1],
+			["/docs/a#transport", 1],
+			// "arrays" still starts with the word "array", so the changelog counts as related.
+			["/docs/changelog", 1],
+		]
+	);
+	assert.deepEqual(searchDocumentation(entries, "zzzxqnomatch").results, []);
+});
+
+test("highlight ranges point back into the original text", () => {
+	const [hook] = searchDocumentation(entries, "usef").results;
+	assert.deepEqual(hook.sectionRanges, [[0, 4]]);
+	// The joined form matched, so the highlight covers the characters it spans: "useF" of "useFormField".
+	assert.deepEqual(highlightSegments(hook.entry.section, hook.sectionRanges), [
+		{ text: "useF", match: true },
+		{ text: "ormField", match: false },
+	]);
+
+	const [changelog] = searchDocumentation(entries, "cafe").results;
+	assert.deepEqual(changelog.snippetRanges, [[0, 4]]);
+	assert.deepEqual(highlightSegments(changelog.snippet, changelog.snippetRanges)[0], {
+		text: "Café",
+		match: true,
+	});
+});
+
+test("long body text is windowed around the match and stays inside the snippet", () => {
+	const long = {
+		href: "/docs/long",
+		title: "Long page",
+		section: "Deep section",
+		text: `${"Filler sentence about nothing in particular. ".repeat(12)}Constraint lookup keeps indices. ${"Trailing words. ".repeat(6)}`,
+	};
+	const [result] = searchDocumentation([long], "constraint").results;
+	assert.ok(result.snippet.length <= 202, result.snippet.length);
+	assert.match(result.snippet, /Constraint lookup/);
+	// The window opens inside the text, so it is marked as cut; the match itself stays inside it.
+	assert.ok(result.snippet.startsWith("…"));
+	for (const [start, end] of result.snippetRanges) {
+		assert.ok(start >= 0 && end <= result.snippet.length && start < end);
+		assert.equal(result.snippet.slice(start, end).toLowerCase(), "constraint");
+	}
+});
+
+test("queries are split like the index, so punctuation and case do not matter", () => {
+	assert.deepEqual(tokenizeQuery("  useFormField, Errors  "), ["use", "form", "field", "errors"]);
+	assert.deepEqual(tokenizeQuery(""), []);
+});
+
+test("a joined identifier match must line up with whole words", () => {
+	const pages = [
+		{
+			href: "/docs/components/field#reading-field-state",
+			title: "Field",
+			section: "Reading field state",
+			text: "Read the field state while editing.",
+		},
+		{
+			href: "/docs/components/fieldset",
+			title: "Fieldset & Legend",
+			section: "",
+			text: "Groups related controls.",
+		},
+		{
+			href: "/docs/reference/headless-hooks#useformfield",
+			title: "Headless hooks",
+			section: "useFormField",
+			text: "Read field errors.",
+		},
+	];
+	// "field" + "st(ate)" is contiguous in the joined form, but the word the user means is "fieldset".
+	assert.equal(
+		searchDocumentation(pages, "fieldst").results[0].entry.href,
+		"/docs/components/fieldset"
+	);
+	// A whole-word span inside an identifier still matches: form + field of "useFormField".
+	assert.equal(
+		searchDocumentation(pages, "formfield").results[0].entry.href,
+		"/docs/reference/headless-hooks#useformfield"
+	);
+});
+
