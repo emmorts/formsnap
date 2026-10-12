@@ -138,6 +138,8 @@
 	}
 
 	function onInputKeydown(event: KeyboardEvent) {
+		// Enter confirms composed text, and arrows can belong to the input method's candidate list.
+		if (event.isComposing || event.keyCode === 229) return;
 		const count = options.length;
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!count) return;
