@@ -6,6 +6,7 @@
 		"moduleResolution": "NodeNext",
 		"paths": {
 			"@emmorts/formsnap": ["./src/lib/index.ts"],
+			"@emmorts/formsnap/remote": ["./src/lib/remote/index.ts"],
 			"$lib": ["./src/lib"],
 			"$lib/*": ["./src/lib/*"]
 		}

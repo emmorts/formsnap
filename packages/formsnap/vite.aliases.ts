@@ -10,6 +10,9 @@
  */
 export const aliases = {
 	$lib: "src/lib",
+	// Longer keys first: a string alias matches as a prefix, so `@emmorts/formsnap/remote` has to be
+	// resolved before `@emmorts/formsnap` would swallow it.
+	"@emmorts/formsnap/remote": "./src/lib/remote/index.ts",
 	// Fixture recipes import the published package name; resolving it to source keeps the checks
 	// independent of a prior `dist` build.
 	"@emmorts/formsnap": "./src/lib/index.ts",

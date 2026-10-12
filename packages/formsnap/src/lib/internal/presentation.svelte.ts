@@ -37,11 +37,17 @@ export interface AssociationRegistry {
 
 /**
  * The field scope presentation components read. Everything listed is presentation output: the
- * resolved name for a control, the errors to announce, the constraints behind `aria-required`, and
- * the ids other components have declared.
+ * errors to announce, the constraints behind `aria-required`, and the ids other components have
+ * declared.
  */
 export interface PresentationField {
-	readonly name: string;
+	/**
+	 * The control's `name` attribute, when presentation owns naming. A transport that names its own
+	 * controls — Kit's remote forms, where `as(...)` supplies the transport name together with the
+	 * invalid state — omits this, and `Control` then contributes neither attribute. The two sources are
+	 * disjoint by ownership rather than decided by spread order.
+	 */
+	readonly name?: string;
 	readonly errors: string[];
 	readonly constraints: Record<string, unknown>;
 	/** Distinct description ids, with an owned target first when there is one. */
@@ -49,6 +55,30 @@ export interface PresentationField {
 	/** Distinct error container ids, with an owned target first when there is one. */
 	readonly errorIds: string[];
 	readonly associations: AssociationRegistry;
+}
+
+/** A field whose transport lets Formsnap name the control, so presentation owns `name`. */
+export interface NamedPresentationField extends PresentationField {
+	readonly name: string;
+}
+
+/**
+ * Narrows to a field presentation can name. Only a Formsnap-named backend may read the name; a
+ * remote field goes through `RemoteControl`, whose attributes omit it.
+ */
+export function getNamedField(field: PresentationField): NamedPresentationField {
+	if (!isNamedField(field)) {
+		throw new Error(
+			"Formsnap cannot name this control: the field's transport owns the name attribute. A Kit " +
+				"remote field is presented with RemoteControl from the remote entry point, whose attributes " +
+				"omit both name and aria-invalid so that Kit's as(...) props supply them."
+		);
+	}
+	return field;
+}
+
+function isNamedField(field: PresentationField): field is NamedPresentationField {
+	return field.name !== undefined;
 }
 
 type OwnedAssociationProps = {
@@ -285,22 +315,39 @@ class ControlState {
 		return this.#labelId.current;
 	}
 
-	props = $derived.by(
-		() =>
-			({
-				id: this.id,
-				name: this.field.name,
-				"data-fs-error": getDataFsError(this.field.errors),
-				"aria-describedby": getAriaDescribedBy({
-					errorIds: this.field.errorIds,
-					descriptionIds: this.field.descriptionIds,
-					errors: this.field.errors,
-				}),
-				"aria-invalid": getAriaInvalid(this.field.errors),
-				"aria-required": getAriaRequired(this.field.constraints),
-				"data-fs-control": "",
-			}) satisfies ControlAttrs
-	);
+	get props(): ControlAttrs {
+		const field = getNamedField(this.field);
+		return {
+			id: this.id,
+			name: field.name,
+			"data-fs-error": getDataFsError(this.field.errors),
+			"aria-describedby": getAriaDescribedBy({
+				errorIds: this.field.errorIds,
+				descriptionIds: this.field.descriptionIds,
+				errors: this.field.errors,
+			}),
+			"aria-invalid": getAriaInvalid(this.field.errors),
+			"aria-required": getAriaRequired(this.field.constraints),
+			"data-fs-control": "",
+		};
+	}
+
+	/**
+	 * The attributes Formsnap contributes when the transport owns the control's name and invalid
+	 * state, as Kit's `as(...)` does for a remote form. The two sources share no key, so the
+	 * transport's props and these can be spread in either order.
+	 */
+	transportProps = $derived.by(() => ({
+		id: this.id,
+		"data-fs-error": getDataFsError(this.field.errors),
+		"aria-describedby": getAriaDescribedBy({
+			errorIds: this.field.errorIds,
+			descriptionIds: this.field.descriptionIds,
+			errors: this.field.errors,
+		}),
+		"aria-required": getAriaRequired(this.field.constraints),
+		"data-fs-control": "",
+	}));
 
 	/**
 	 * Resolved on read rather than memoized in a derived: Svelte's server runtime memoizes deriveds

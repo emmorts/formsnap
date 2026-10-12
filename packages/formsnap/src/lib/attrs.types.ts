@@ -35,6 +35,15 @@ export type ControlAttrs = {
 };
 
 /**
+ * The attributes Formsnap contributes when the transport owns the control's `name` and invalid
+ * state, as Kit's remote-form `as(...)` does. The two sources share no key, so the transport's props
+ * and these can be spread in either order.
+ *
+ * @category Control
+ */
+export type TransportControlAttrs = Omit<ControlAttrs, "name" | "aria-invalid">;
+
+/**
  * Attributes provided via the `child` snippet props of the
  * [Label](https://formsnap.dev/docs/components/label) component to spread onto the label element.
  */
